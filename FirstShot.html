@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FirstShot Demo</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #10131a;
+      color: #eef2ff;
+    }
+    .app {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .topbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #1d2330;
+      border: 1px solid #2b3448;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr 0.9fr;
+      gap: 16px;
+    }
+    .card {
+      background: #171c26;
+      border: 1px solid #2a3244;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+    h1,h2,h3 { margin: 0 0 12px; }
+    .muted { color: #a5b1ca; }
+    .players { display: grid; gap: 10px; }
+    .player-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #2c3650;
+      border-radius: 12px;
+      background: #131926;
+    }
+    .player-meta { display: flex; flex-direction: column; gap: 4px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #4f7cff;
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button.secondary { background: #283249; }
+    button.success { background: #1f9d67; }
+    button.danger { background: #cf3f52; }
+    button.warning { background: #cf8b16; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .list { display: grid; gap: 10px; }
+    .news-item, .challenge-card {
+      padding: 12px;
+      border-radius: 12px;
+      background: #121826;
+      border: 1px solid #2a3348;
+    }
+    .inventory-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+    .item {
+      padding: 12px;
+      border-radius: 12px;
+      background: #121826;
+      border: 1px solid #2a3348;
+      display: grid;
+      gap: 8px;
+    }
+    .item small { color: #9db0d6; }
+    .tag {
+      display: inline-block;
+      font-size: 12px;
+      padding: 5px 8px;
+      background: #26304a;
+      border-radius: 999px;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+    .modal.open { display: flex; }
+    .modal-box {
+      width: min(900px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: #161c28;
+      border: 1px solid #33405b;
+      border-radius: 18px;
+      padding: 18px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .firstshot-screen {
+      min-height: 300px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(180deg, #151b28 0%, #0f1420 100%);
+      border: 1px solid #2b3550;
+      user-select: none;
+    }
+    .firstshot-screen.live {
+      background: linear-gradient(180deg, #7a1414 0%, #380c0c 100%);
+      border-color: #b54040;
+    }
+    .firstshot-big {
+      font-size: clamp(28px, 7vw, 84px);
+      font-weight: 900;
+      letter-spacing: 2px;
+    }
+    .firstshot-sub {
+      font-size: 18px;
+      color: #c7d3ed;
+      margin-top: 10px;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .hidden { display: none !important; }
+    input, select {
+      background: #0e1420;
+      border: 1px solid #2b3650;
+      color: #eef2ff;
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div>
+        <h1>FirstShot Demo</h1>
+        <div class="muted">Standalone-Demo mit Gruppen, Inventaren, Challenge-Anfragen und asynchronem Reaktionsspiel.</div>
+      </div>
+      <div class="row">
+        <label class="pill">Aktiver Spieler:
+          <select id="activeUserSelect"></select>
+        </label>
+        <button class="secondary" id="resetBtn">Demo zurücksetzen</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Spieler</h2>
+        <div class="players" id="playersList"></div>
+      </section>
+
+      <section class="card">
+        <h2>Challenges</h2>
+        <div class="list" id="challengeList"></div>
+      </section>
+
+      <section class="card">
+        <h2>News</h2>
+        <div class="list" id="newsList"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal" id="inventoryModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <h2 id="inventoryTitle">Inventar</h2>
+          <div class="muted" id="inventorySubtitle"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" id="inventoryBackBtn">Zurück</button>
+          <button class="danger" id="inventoryCloseBtn">Schließen</button>
+        </div>
+      </div>
+      <div class="inventory-grid" id="inventoryItems"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="firstShotModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <h2>FirstShot</h2>
+          <div class="muted" id="firstShotMeta"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="danger" id="firstShotCloseBtn">Schließen</button>
+        </div>
+      </div>
+
+      <div id="firstShotStatusWrap"></div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'firstshot_demo_v2';
+
+      const defaultState = () => ({
+        currentUserId: 'u1',
+        pendingOfferFlow: null,
+        match: {
+          id: 'match_1',
+          players: [
+            {
+              id: 'u1',
+              name: 'Max',
+              inventory: [
+                { id: 'u1_i1', name: 'Phoenix Blade', rarity: 'Legendary' },
+                { id: 'u1_i2', name: 'Iron Wolf', rarity: 'Rare' },
+                { id: 'u1_i3', name: 'Crimson Card', rarity: 'Epic' }
+              ]
+            },
+            {
+              id: 'u2',
+              name: 'Eren',
+              inventory: [
+                { id: 'u2_i1', name: 'Night Venom', rarity: 'Epic' },
+                { id: 'u2_i2', name: 'Steel Core', rarity: 'Rare' },
+                { id: 'u2_i3', name: 'Ghost Shell', rarity: 'Legendary' }
+              ]
+            },
+            {
+              id: 'u3',
+              name: 'Nico',
+              inventory: [
+                { id: 'u3_i1', name: 'Silver Edge', rarity: 'Rare' },
+                { id: 'u3_i2', name: 'Dark Pulse', rarity: 'Epic' },
+                { id: 'u3_i3', name: 'King Rune', rarity: 'Legendary' }
+              ]
+            }
+          ],
+          challenges: [],
+          news: [
+            { id: 'n1', text: 'FirstShot-Demo gestartet.', at: Date.now() }
+          ]
+        }
+      });
+
+      let state = loadState();
+      let firstShotRound = null;
+      let inventoryHistory = [];
+
+      const $ = (id) => document.getElementById(id);
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : defaultState();
+        } catch {
+          return defaultState();
+        }
+      }
+
+      function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function resetState() {
+        state = defaultState();
+        firstShotRound = null;
+        inventoryHistory = [];
+        saveState();
+        renderAll();
+      }
+
+      function addNews(text) {
+        state.match.news.unshift({
+          id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+          text,
+          at: Date.now()
+        });
+        state.match.news = state.match.news.slice(0, 20);
+        saveState();
+      }
+
+      function getCurrentUser() {
+        return state.match.players.find(p => p.id === state.currentUserId) || null;
+      }
+
+      function getPlayerById(userId) {
+        return state.match.players.find(p => p.id === userId) || null;
+      }
+
+      function getItemById(userId, itemId) {
+        const player = getPlayerById(userId);
+        return player?.inventory.find(i => i.id === itemId) || null;
+      }
+
+      function isItemInPendingChallenge(userId, itemId) {
+        return state.match.challenges.some(c =>
+          ['pending', 'accepted', 'second_turn'].includes(c.status) &&
+          (
+            (c.fromUserId === userId && c.offeredItemId === itemId) ||
+            (c.toUserId === userId && c.targetItemId === itemId)
+          )
+        );
+      }
+
+      function getChallengeById(challengeId) {
+        return state.match.challenges.find(c => c.id === challengeId) || null;
+      }
+
+      function openModal(el) { el.classList.add('open'); }
+      function closeModal(el) { el.classList.remove('open'); }
+
+      function renderActiveUserSelect() {
+        const select = $('activeUserSelect');
+        select.innerHTML = '';
+        state.match.players.forEach(player => {
+          const option = document.createElement('option');
+          option.value = player.id;
+          option.textContent = player.name;
+          if (player.id === state.currentUserId) option.selected = true;
+          select.appendChild(option);
+        });
+      }
+
+      function renderPlayers() {
+        const wrap = $('playersList');
+        wrap.innerHTML = '';
+        const currentUser = getCurrentUser();
+
+        state.match.players.forEach(player => {
+          const card = document.createElement('div');
+          card.className = 'player-row';
+
+          const activeChallenges = state.match.challenges.filter(c =>
+            ['pending', 'accepted', 'second_turn'].includes(c.status) &&
+            (c.fromUserId === player.id || c.toUserId === player.id)
+          ).length;
+
+          card.innerHTML = `
+            <div class="player-meta">
+              <strong>${escapeHtml(player.name)}${player.id === currentUser.id ? ' (du)' : ''}</strong>
+              <span class="muted">${player.inventory.length} Items · ${activeChallenges} aktive Challenge${activeChallenges === 1 ? '' : 's'}</span>
+            </div>
+            <div class="actions">
+              <button class="secondary" data-userid="${player.id}">Inventar</button>
+            </div>
+          `;
+
+          card.querySelector('button').addEventListener('click', () => {
+            openInventoryForPlayer(player.id);
+          });
+
+          wrap.appendChild(card);
+        });
+      }
+
+      function renderNews() {
+        const wrap = $('newsList');
+        wrap.innerHTML = '';
+        state.match.news.forEach(entry => {
+          const el = document.createElement('div');
+          el.className = 'news-item';
+          el.innerHTML = `
+            <div>${escapeHtml(entry.text)}</div>
+            <div class="muted" style="margin-top:6px">${new Date(entry.at).toLocaleString('de-DE')}</div>
+          `;
+          wrap.appendChild(el);
+        });
+      }
+
+      function renderChallenges() {
+        const wrap = $('challengeList');
+        wrap.innerHTML = '';
+
+        const currentUser = getCurrentUser();
+        const relevant = state.match.challenges
+          .slice()
+          .sort((a, b) => b.createdAt - a.createdAt);
+
+        if (!relevant.length) {
+          wrap.innerHTML = '<div class="challenge-card muted">Noch keine Challenges vorhanden.</div>';
+          return;
+        }
+
+        relevant.forEach(challenge => {
+          const fromPlayer = getPlayerById(challenge.fromUserId);
+          const toPlayer = getPlayerById(challenge.toUserId);
+
+          const offeredItem = {
+            name: challenge.offeredItemName || getItemById(challenge.fromUserId, challenge.offeredItemId)?.name || '(nicht mehr vorhanden)'
+          };
+
+          const targetItem = {
+            name: challenge.targetItemName || getItemById(challenge.toUserId, challenge.targetItemId)?.name || '(nicht mehr vorhanden)'
+          };
+
+          const el = document.createElement('div');
+          el.className = 'challenge-card';
+
+          const actionArea = document.createElement('div');
+          actionArea.className = 'actions';
+          actionArea.style.marginTop = '10px';
+
+          el.innerHTML = `
+            <div><strong>${escapeHtml(fromPlayer?.name || '?')}</strong> fordert <strong>${escapeHtml(toPlayer?.name || '?')}</strong> heraus</div>
+            <div class="muted" style="margin-top:6px">Angebot: ${escapeHtml(offeredItem.name)} → Ziel: ${escapeHtml(targetItem.name)}</div>
+            <div style="margin-top:6px"><span class="tag">${statusLabel(challenge.status)}</span></div>
+          `;
+
+          const canAccept = challenge.status === 'pending' && currentUser.id === challenge.toUserId;
+          const canDecline = challenge.status === 'pending' && currentUser.id === challenge.toUserId;
+          const canPlayFirst = challenge.status === 'accepted' && currentUser.id === challenge.firstShotGame?.firstPlayerId;
+          const canPlaySecond = challenge.status === 'second_turn' && currentUser.id === challenge.firstShotGame?.secondPlayerId;
+          const canViewResult = challenge.status === 'finished';
+          const canWait = (
+            (challenge.status === 'accepted' && currentUser.id !== challenge.firstShotGame?.firstPlayerId) ||
+            (challenge.status === 'second_turn' && currentUser.id !== challenge.firstShotGame?.secondPlayerId)
+          );
+
+          if (canAccept) {
+            const acceptBtn = makeBtn('Annehmen', 'success', () => acceptChallenge(challenge.id));
+            const declineBtn = makeBtn('Ablehnen', 'danger', () => declineChallenge(challenge.id));
+            actionArea.append(acceptBtn, declineBtn);
+          }
+
+          if (canPlayFirst) {
+            actionArea.append(makeBtn('FirstShot starten', '', () => openFirstShotGame(challenge.id)));
+          }
+
+          if (canPlaySecond) {
+            actionArea.append(makeBtn('Jetzt spielen', 'warning', () => openFirstShotGame(challenge.id)));
+          }
+
+          if (canWait) {
+            const info = document.createElement('div');
+            info.className = 'muted';
+            info.textContent = 'Warte auf den anderen Spieler.';
+            actionArea.appendChild(info);
+          }
+
+          if (canViewResult) {
+            actionArea.append(makeBtn('Ergebnis ansehen', 'secondary', () => openFirstShotGame(challenge.id)));
+          }
+
+          el.appendChild(actionArea);
+          wrap.appendChild(el);
+        });
+      }
+
+      function openInventoryForPlayer(userId) {
+        const player = getPlayerById(userId);
+        const currentUser = getCurrentUser();
+        if (!player || !currentUser) return;
+
+        inventoryHistory = [];
+        openModal($('inventoryModal'));
+
+        if (userId === currentUser.id) {
+          renderOwnInventoryDefault();
+        } else {
+          renderForeignInventory(player.id);
+        }
+      }
+
+      function renderOwnInventoryDefault() {
+        const me = getCurrentUser();
+        $('inventoryTitle').textContent = `Dein Inventar`;
+        $('inventorySubtitle').textContent = 'Eigene Übersicht';
+        $('inventoryBackBtn').classList.add('hidden');
+
+        renderInventoryItems(me.inventory, (item) => {
+          const wrap = document.createElement('div');
+          if (isItemInPendingChallenge(me.id, item.id)) {
+            wrap.appendChild(infoText('Item ist bereits in einer Challenge gebunden.'));
+          } else {
+            wrap.appendChild(infoText('Kein Angebot aktiv.'));
+          }
+          return wrap;
+        });
+      }
+
+      function renderForeignInventory(userId) {
+        const player = getPlayerById(userId);
+        const currentUser = getCurrentUser();
+        if (!player || !currentUser) return;
+
+        $('inventoryTitle').textContent = `Inventar von ${player.name}`;
+        $('inventorySubtitle').textContent = 'Klicke auf ein Item, um es herauszufordern.';
+        $('inventoryBackBtn').classList.add('hidden');
+
+        renderInventoryItems(player.inventory, (item) => {
+          const wrap = document.createElement('div');
+          const locked = isItemInPendingChallenge(player.id, item.id);
+          const btn = makeBtn(locked ? 'Gebunden' : 'Challenge', locked ? 'secondary' : '', () => {
+            if (locked) return;
+            startOfferFlow(player.id, item.id);
+          });
+          btn.disabled = locked;
+          wrap.appendChild(btn);
+          return wrap;
+        });
+      }
+
+      function startOfferFlow(targetUserId, targetItemId) {
+        const currentUser = getCurrentUser();
+        if (!currentUser) return;
+
+        state.pendingOfferFlow = { targetUserId, targetItemId };
+        saveState();
+
+        inventoryHistory = ['foreign'];
+        $('inventoryTitle').textContent = 'Wähle dein Angebot';
+        $('inventorySubtitle').textContent = 'Dieses Item wird an den Besitzer des Ziel-Items angeboten.';
+        $('inventoryBackBtn').classList.remove('hidden');
+
+        renderInventoryItems(currentUser.inventory, (item) => {
+          const wrap = document.createElement('div');
+          const locked = isItemInPendingChallenge(currentUser.id, item.id);
+          const btn = makeBtn(locked ? 'Gebunden' : 'Als Angebot wählen', locked ? 'secondary' : 'warning', () => {
+            if (locked) return;
+            createChallenge(item.id);
+          });
+          btn.disabled = locked;
+          wrap.appendChild(btn);
+          return wrap;
+        });
+      }
+
+      function createChallenge(offeredItemId) {
+        const flow = state.pendingOfferFlow;
+        const currentUser = getCurrentUser();
+        if (!flow || !currentUser) return;
+        if (flow.targetUserId === currentUser.id) return;
+
+        const offeredItem = getItemById(currentUser.id, offeredItemId);
+        const targetItem = getItemById(flow.targetUserId, flow.targetItemId);
+
+        const existing = state.match.challenges.find(c =>
+          ['pending', 'accepted', 'second_turn'].includes(c.status) &&
+          c.fromUserId === currentUser.id &&
+          c.toUserId === flow.targetUserId &&
+          c.offeredItemId === offeredItemId &&
+          c.targetItemId === flow.targetItemId
+        );
+
+        if (existing) {
+          alert('Diese Challenge existiert bereits.');
+          return;
+        }
+
+        const challenge = {
+          id: 'ch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+          fromUserId: currentUser.id,
+          toUserId: flow.targetUserId,
+          offeredItemId,
+          targetItemId: flow.targetItemId,
+
+          offeredItemName: offeredItem?.name || 'Unbekanntes Item',
+          targetItemName: targetItem?.name || 'Unbekanntes Item',
+
+          wonItemId: null,
+          wonItemName: null,
+
+          status: 'pending',
+          createdAt: Date.now(),
+          firstShotGame: null
+        };
+
+        state.match.challenges.unshift(challenge);
+        state.pendingOfferFlow = null;
+        saveState();
+
+        const targetUser = getPlayerById(challenge.toUserId);
+
+        addNews(`${currentUser.name} fordert ${targetUser?.name || 'einen Spieler'} heraus: ${challenge.offeredItemName} gegen ${challenge.targetItemName}.`);
+        closeModal($('inventoryModal'));
+        renderAll();
+      }
+
+      function acceptChallenge(challengeId) {
+        const challenge = getChallengeById(challengeId);
+        const currentUser = getCurrentUser();
+        if (!challenge || !currentUser) return;
+        if (challenge.toUserId !== currentUser.id || challenge.status !== 'pending') return;
+
+        challenge.status = 'accepted';
+        challenge.firstShotGame = {
+          firstPlayerId: challenge.toUserId,
+          secondPlayerId: challenge.fromUserId,
+          firstPlayerTime: null,
+          secondPlayerTime: null,
+          firstPlayerFalseStart: false,
+          secondPlayerFalseStart: false,
+          firstPlayerPlayedAt: null,
+          secondPlayerPlayedAt: null,
+          winnerUserId: null,
+          loserUserId: null,
+          state: 'first_turn'
+        };
+
+        saveState();
+        const fromPlayer = getPlayerById(challenge.fromUserId);
+        addNews(`${currentUser.name} nimmt die Challenge von ${fromPlayer?.name || 'einem Spieler'} an und spielt zuerst.`);
+        renderAll();
+        openFirstShotGame(challengeId);
+      }
+
+      function declineChallenge(challengeId) {
+        const challenge = getChallengeById(challengeId);
+        const currentUser = getCurrentUser();
+        if (!challenge || !currentUser) return;
+        if (challenge.toUserId !== currentUser.id || challenge.status !== 'pending') return;
+        challenge.status = 'declined';
+        saveState();
+        addNews(`${currentUser.name} lehnt eine Challenge ab.`);
+        renderAll();
+      }
+
+      function openFirstShotGame(challengeId) {
+        const challenge = getChallengeById(challengeId);
+        if (!challenge) return;
+        openModal($('firstShotModal'));
+        renderFirstShotModal(challenge.id);
+      }
+
+      function renderFirstShotModal(challengeId) {
+        const challenge = getChallengeById(challengeId);
+        const currentUser = getCurrentUser();
+        const wrap = $('firstShotStatusWrap');
+        wrap.innerHTML = '';
+
+        if (!challenge || !currentUser) {
+          wrap.innerHTML = '<div class="muted">Challenge nicht gefunden.</div>';
+          return;
+        }
+
+        const fromPlayer = getPlayerById(challenge.fromUserId);
+        const toPlayer = getPlayerById(challenge.toUserId);
+
+        const offeredItem = {
+          name: challenge.offeredItemName || getItemById(challenge.fromUserId, challenge.offeredItemId)?.name || '(Item fehlt)'
+        };
+
+        const targetItem = {
+          name: challenge.targetItemName || getItemById(challenge.toUserId, challenge.targetItemId)?.name || '(Item fehlt)'
+        };
+
+        $('firstShotMeta').textContent = `${fromPlayer?.name || '?'} (${offeredItem.name}) vs ${toPlayer?.name || '?'} (${targetItem.name})`;
+        $('firstShotCloseBtn').onclick = () => closeModal($('firstShotModal'));
+
+        if (challenge.status === 'pending') {
+          wrap.innerHTML = '<div class="firstshot-screen"><div><div class="firstshot-big">PENDING</div><div class="firstshot-sub">Die Challenge wurde gesendet und wartet auf Annahme.</div></div></div>';
+          return;
+        }
+
+        if (challenge.status === 'declined') {
+          wrap.innerHTML = '<div class="firstshot-screen"><div><div class="firstshot-big">ABGELEHNT</div><div class="firstshot-sub">Diese Challenge wurde abgelehnt.</div></div></div>';
+          return;
+        }
+
+        if (!challenge.firstShotGame) {
+          wrap.innerHTML = '<div class="firstshot-screen"><div><div class="firstshot-big">FEHLER</div><div class="firstshot-sub">FirstShot-Daten fehlen.</div></div></div>';
+          return;
+        }
+
+        const game = challenge.firstShotGame;
+        const isFirstPlayer = currentUser.id === game.firstPlayerId;
+        const isSecondPlayer = currentUser.id === game.secondPlayerId;
+
+        if (challenge.status === 'accepted') {
+          if (isFirstPlayer) {
+            const box = document.createElement('div');
+            box.className = 'firstshot-screen';
+            box.innerHTML = `
+              <div>
+                <div class="firstshot-big">DU STARTERST</div>
+                <div class="firstshot-sub">Als annehmender Spieler spielst du zuerst. Deine Zeit wird gespeichert und erst nach dem zweiten Versuch ausgewertet.</div>
+                <div style="margin-top:18px"><button id="playNowBtn">FirstShot starten</button></div>
+              </div>
+            `;
+            wrap.appendChild(box);
+            $('playNowBtn').onclick = () => beginReactionRound(challenge.id, currentUser.id);
+          } else {
+            wrap.innerHTML = '<div class="firstshot-screen"><div><div class="firstshot-big">WARTE</div><div class="firstshot-sub">Der annehmende Spieler ist zuerst dran.</div></div></div>';
+          }
+          return;
+        }
+
+        if (challenge.status === 'second_turn') {
+          if (isSecondPlayer) {
+            const box = document.createElement('div');
+            box.className = 'firstshot-screen';
+            box.innerHTML = `
+              <div>
+                <div class="firstshot-big">JETZT BIST DU DRAN</div>
+                <div class="firstshot-sub">Die erste Zeit wurde gespeichert. Du siehst sie noch nicht, damit es fair bleibt.</div>
+                <div style="margin-top:18px"><button id="playNowBtn">FirstShot starten</button></div>
+              </div>
+            `;
+            wrap.appendChild(box);
+            $('playNowBtn').onclick = () => beginReactionRound(challenge.id, currentUser.id);
+          } else {
+            const t = game.firstPlayerTime === 999999 ? 'Fehlstart gespeichert' : 'Dein Versuch wurde gespeichert';
+            wrap.innerHTML = `<div class="firstshot-screen"><div><div class="firstshot-big">GESPEICHERT</div><div class="firstshot-sub">${t}. Jetzt spielt der Gegner.</div></div></div>`;
+          }
+          return;
+        }
+
+        if (challenge.status === 'finished') {
+          const winner = getPlayerById(game.winnerUserId);
+          const loser = getPlayerById(game.loserUserId);
+          const firstLabel = getPlayerById(game.firstPlayerId)?.name || 'Spieler 1';
+          const secondLabel = getPlayerById(game.secondPlayerId)?.name || 'Spieler 2';
+
+          const firstTimeText = game.firstPlayerTime === 999999 ? 'Fehlstart' : `${game.firstPlayerTime} ms`;
+          const secondTimeText = game.secondPlayerTime === 999999 ? 'Fehlstart' : `${game.secondPlayerTime} ms`;
+
+          if (!game.winnerUserId) {
+            wrap.innerHTML = `
+              <div class="firstshot-screen">
+                <div>
+                  <div class="firstshot-big">UNENTSCHIEDEN</div>
+                  <div class="firstshot-sub">Beide Spieler behalten ihre Items.</div>
+                  <div style="margin-top:20px; text-align:left; display:grid; gap:8px; min-width:min(560px,100%); max-width:100%">
+                    <div class="news-item"><strong>${escapeHtml(firstLabel)}:</strong> ${escapeHtml(firstTimeText)}</div>
+                    <div class="news-item"><strong>${escapeHtml(secondLabel)}:</strong> ${escapeHtml(secondTimeText)}</div>
+                    <div class="news-item"><strong>Ergebnis:</strong> Kein Item-Wechsel</div>
+                  </div>
+                </div>
+              </div>
+            `;
+            return;
+          }
+
+          wrap.innerHTML = `
+            <div class="firstshot-screen">
+              <div>
+                <div class="firstshot-big">${escapeHtml(winner?.name || 'Gewinner')}</div>
+                <div class="firstshot-sub">gewinnt FirstShot gegen ${escapeHtml(loser?.name || 'Gegner')}</div>
+                <div style="margin-top:20px; text-align:left; display:grid; gap:8px; min-width:min(560px,100%); max-width:100%">
+                  <div class="news-item"><strong>${escapeHtml(firstLabel)}:</strong> ${escapeHtml(firstTimeText)}</div>
+                  <div class="news-item"><strong>${escapeHtml(secondLabel)}:</strong> ${escapeHtml(secondTimeText)}</div>
+                  <div class="news-item"><strong>Gewonnenes Item:</strong> ${escapeHtml(challenge.wonItemName || 'Unbekannt')}</div>
+                </div>
+              </div>
+            </div>
+          `;
+          return;
+        }
+      }
+
+      function beginReactionRound(challengeId, userId) {
+        const challenge = getChallengeById(challengeId);
+        const currentUser = getCurrentUser();
+        if (!challenge || !currentUser || currentUser.id !== userId) return;
+
+        const delay = 1200 + Math.floor(Math.random() * 2600);
+        firstShotRound = {
+          challengeId,
+          userId,
+          signalAt: null,
+          clicked: false,
+          falseStart: false,
+          timeoutId: null
+        };
+
+        const wrap = $('firstShotStatusWrap');
+        wrap.innerHTML = '';
+        const screen = document.createElement('div');
+        screen.className = 'firstshot-screen';
+        screen.innerHTML = `
+          <div>
+            <div class="firstshot-big">WARTEN...</div>
+            <div class="firstshot-sub">Nicht zu früh klicken. Ein Fehlstart wird als Niederlagen-Zeit gewertet.</div>
+            <div style="margin-top:20px"><button id="reactionTapBtn" class="warning">KLICKEN</button></div>
+          </div>
+        `;
+        wrap.appendChild(screen);
+
+        const clickHandler = () => handleReactionClick(challengeId, userId);
+        screen.addEventListener('click', clickHandler);
+        $('reactionTapBtn').onclick = clickHandler;
+
+        firstShotRound.timeoutId = setTimeout(() => {
+          if (!firstShotRound || firstShotRound.challengeId !== challengeId || firstShotRound.userId !== userId) return;
+          firstShotRound.signalAt = Date.now();
+          screen.classList.add('live');
+          screen.innerHTML = `
+            <div>
+              <div class="firstshot-big">SHOT!</div>
+              <div class="firstshot-sub">Jetzt sofort klicken.</div>
+              <div style="margin-top:20px"><button id="reactionTapBtnLive" class="danger">JETZT</button></div>
+            </div>
+          `;
+          $('reactionTapBtnLive').onclick = clickHandler;
+          screen.addEventListener('click', clickHandler);
+        }, delay);
+      }
+
+      function handleReactionClick(challengeId, userId) {
+        const challenge = getChallengeById(challengeId);
+        if (!challenge || !challenge.firstShotGame || !firstShotRound) return;
+        if (firstShotRound.clicked) return;
+
+        firstShotRound.clicked = true;
+
+        let reactionTime = 999999;
+        let falseStart = false;
+
+        if (!firstShotRound.signalAt) {
+          falseStart = true;
+        } else {
+          reactionTime = Date.now() - firstShotRound.signalAt;
+        }
+
+        if (firstShotRound.timeoutId) {
+          clearTimeout(firstShotRound.timeoutId);
+        }
+
+        saveReactionTime(challengeId, userId, reactionTime, falseStart);
+        firstShotRound = null;
+        renderFirstShotModal(challengeId);
+        renderAll();
+      }
+
+      function saveReactionTime(challengeId, userId, reactionTime, falseStart) {
+        const challenge = getChallengeById(challengeId);
+        if (!challenge || !challenge.firstShotGame) return;
+        const game = challenge.firstShotGame;
+
+        if (userId === game.firstPlayerId && game.firstPlayerTime === null) {
+          game.firstPlayerTime = reactionTime;
+          game.firstPlayerFalseStart = !!falseStart;
+          game.firstPlayerPlayedAt = Date.now();
+          game.state = 'second_turn';
+          challenge.status = 'second_turn';
+
+          const firstPlayer = getPlayerById(userId);
+          addNews(`${firstPlayer?.name || 'Ein Spieler'} hat seine FirstShot-Zeit gespeichert.`);
+          saveState();
+          return;
+        }
+
+        if (userId === game.secondPlayerId && game.secondPlayerTime === null) {
+          game.secondPlayerTime = reactionTime;
+          game.secondPlayerFalseStart = !!falseStart;
+          game.secondPlayerPlayedAt = Date.now();
+          evaluateFirstShot(challengeId);
+          return;
+        }
+      }
+
+      function evaluateFirstShot(challengeId) {
+        const challenge = getChallengeById(challengeId);
+        if (!challenge || !challenge.firstShotGame) return;
+        const game = challenge.firstShotGame;
+
+        if (game.firstPlayerTime === null || game.secondPlayerTime === null) return;
+
+        if (game.firstPlayerTime === game.secondPlayerTime) {
+          game.winnerUserId = null;
+          game.loserUserId = null;
+
+          challenge.wonItemId = null;
+          challenge.wonItemName = null;
+
+          game.state = 'finished';
+          challenge.status = 'finished';
+          challenge.winnerUserId = null;
+          challenge.loserUserId = null;
+          challenge.finishedAt = Date.now();
+
+          addNews(`FirstShot endet unentschieden. Beide Spieler behalten ihre Items.`);
+          saveState();
+          return;
+        }
+
+        if (game.firstPlayerTime < game.secondPlayerTime) {
+          game.winnerUserId = game.firstPlayerId;
+          game.loserUserId = game.secondPlayerId;
+        } else {
+          game.winnerUserId = game.secondPlayerId;
+          game.loserUserId = game.firstPlayerId;
+        }
+
+        if (game.winnerUserId === challenge.fromUserId) {
+          challenge.wonItemId = challenge.targetItemId;
+          challenge.wonItemName = challenge.targetItemName;
+        } else {
+          challenge.wonItemId = challenge.offeredItemId;
+          challenge.wonItemName = challenge.offeredItemName;
+        }
+
+        transferFirstShotItems(challenge);
+        game.state = 'finished';
+        challenge.status = 'finished';
+        challenge.winnerUserId = game.winnerUserId;
+        challenge.loserUserId = game.loserUserId;
+        challenge.finishedAt = Date.now();
+
+        const winner = getPlayerById(game.winnerUserId);
+        const loser = getPlayerById(game.loserUserId);
+        addNews(`${winner?.name || 'Ein Spieler'} gewinnt FirstShot gegen ${loser?.name || 'einen Gegner'}.`);
+        saveState();
+      }
+
+      function transferFirstShotItems(challenge) {
+        const winnerId = challenge.firstShotGame.winnerUserId;
+        if (!winnerId) return;
+
+        if (challenge.fromUserId !== winnerId) {
+          moveItem(challenge.fromUserId, winnerId, challenge.offeredItemId);
+        }
+
+        if (challenge.toUserId !== winnerId) {
+          moveItem(challenge.toUserId, winnerId, challenge.targetItemId);
+        }
+      }
+
+      function moveItem(fromUserId, toUserId, itemId) {
+        const from = getPlayerById(fromUserId);
+        const to = getPlayerById(toUserId);
+        if (!from || !to) return;
+
+        const idx = from.inventory.findIndex(i => i.id === itemId);
+        if (idx === -1) return;
+
+        const [item] = from.inventory.splice(idx, 1);
+        to.inventory.push(item);
+      }
+
+      function renderInventoryItems(items, actionRenderer) {
+        const wrap = $('inventoryItems');
+        wrap.innerHTML = '';
+
+        if (!items.length) {
+          wrap.innerHTML = '<div class="muted">Keine Items vorhanden.</div>';
+          return;
+        }
+
+        items.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'item';
+          card.innerHTML = `
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${escapeHtml(item.rarity)}</small>
+          `;
+          card.appendChild(actionRenderer(item));
+          wrap.appendChild(card);
+        });
+      }
+
+      function statusLabel(status) {
+        return ({
+          pending: 'Wartet auf Annahme',
+          accepted: 'Erster Spieler dran',
+          second_turn: 'Zweiter Spieler dran',
+          finished: 'Abgeschlossen',
+          declined: 'Abgelehnt'
+        })[status] || status;
+      }
+
+      function makeBtn(label, cls, onClick) {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        if (cls) btn.className = cls;
+        btn.addEventListener('click', onClick);
+        return btn;
+      }
+
+      function infoText(text) {
+        const d = document.createElement('div');
+        d.className = 'muted';
+        d.textContent = text;
+        return d;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderAll() {
+        renderActiveUserSelect();
+        renderPlayers();
+        renderChallenges();
+        renderNews();
+      }
+
+      $('activeUserSelect').addEventListener('change', (e) => {
+        state.currentUserId = e.target.value;
+        saveState();
+        renderAll();
+      });
+
+      $('resetBtn').addEventListener('click', resetState);
+
+      $('inventoryCloseBtn').addEventListener('click', () => closeModal($('inventoryModal')));
+
+      $('inventoryBackBtn').addEventListener('click', () => {
+        if (inventoryHistory.at(-1) === 'foreign') {
+          const flow = state.pendingOfferFlow;
+          if (flow) renderForeignInventory(flow.targetUserId);
+          state.pendingOfferFlow = null;
+          saveState();
+        } else {
+          renderOwnInventoryDefault();
+        }
+      });
+
+      window.addEventListener('click', (e) => {
+        if (e.target === $('inventoryModal')) closeModal($('inventoryModal'));
+        if (e.target === $('firstShotModal')) closeModal($('firstShotModal'));
+      });
+
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
