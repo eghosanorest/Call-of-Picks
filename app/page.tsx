@@ -1658,8 +1658,9 @@ export default function CallOfPicksPage() {
       timeoutRef.current = null;
     }
 
-    const falseStart = !round.signalAt;
-    const reactionTime = falseStart ? 999999 : Date.now() - round.signalAt;
+    const signalAt = round.signalAt;
+const falseStart = signalAt == null;
+const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
 
     setFirstshotRound((prev) => (prev ? { ...prev, clicked: true } : prev));
 
