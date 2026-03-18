@@ -472,17 +472,7 @@ function ItemCard({
 }
 
 export default function CallOfPicksPage() {
-  // 1
-supabase.from("week_resolutions").select("major, week").eq("user_id", uid)
-// 2
-const deleteMatch = async (matchId: string) => {
-  // 3
-const updateMatch = async <K extends keyof MatchType>(
-  matchId: string,
-  field: K,
-  value: MatchType[K]
-) => {
-const [allItemCatalog, setAllItemCatalog] = useState<
+  const [allItemCatalog, setAllItemCatalog] = useState<
     {
       id: string;
       slug: string;
@@ -550,6 +540,7 @@ const [allItemCatalog, setAllItemCatalog] = useState<
     startsAt: "20:00",
     date: getTodayInputValue(),
   });
+
 
   const updateData = (updater: LocalData | ((prev: LocalData) => LocalData)) => {
     setData((prev) => (typeof updater === "function" ? updater(prev) : updater));
