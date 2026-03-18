@@ -1154,7 +1154,7 @@ useEffect(() => {
       entry.items.push({
   inventory_id: row.id,
   name: item.name,
-  rarity: item.rarity,
+  rarity: normalizeRarity(item.rarity),
   image_path: item.image_path,
   category: item.category,
 });
@@ -2489,7 +2489,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
     key={item.inventory_id}
     item={{
       name: item.name,
-      rarity: item.rarity,
+      rarity: normalizeRarity(item.rarity),
       image_path: item.image_path,
       category: item.category,
     }}
