@@ -105,6 +105,7 @@ type ChallengeType = {
 };
 
 type LocalData = {
+  lastDailyClaim?: string | null;
   currentWeek: number;
   currentMajor: string;
   stageLabel: string;
@@ -828,9 +829,9 @@ useEffect(() => {
     let allResolved = true;
 
     matches.forEach((m) => {
-      if (!m.result) allResolved = false;
-      if (data.picks[m.id] && m.result && data.picks[m.id] === m.result) earned += 1;
-    });
+  if (!m.result) allResolved = false;
+  if (data.picks[m.id] && m.result && data.picks[m.id] === m.result) earned += 5;
+});
 
     if (!allResolved) {
       alert("Setze im Admin-Bereich zuerst alle Ergebnisse dieser Woche.");
@@ -1366,6 +1367,21 @@ useEffect(() => {
           if (activeGroupId) {
             await loadAllItems();
             await loadGroupDetails(activeGroupId);
+            useEffect(() => {
+  if (!mounted) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  setData((prev) => {
+    if (prev.lastDailyClaim === today) return prev;
+
+    return {
+      ...prev,
+      tokens: prev.tokens + 2,
+      lastDailyClaim: today,
+    };
+  });
+}, [mounted]);
           }
         }
       )
