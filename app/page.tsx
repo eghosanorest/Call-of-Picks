@@ -838,7 +838,7 @@ useEffect(() => {
       return;
     }
 
-    if (earned === matches.length && earned > 0) earned += 2;
+    
 
     updateData((prev) => ({
       ...prev,
