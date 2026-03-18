@@ -609,14 +609,27 @@ export default function CallOfPicksPage() {
   };
 
   const loadAppConfig = async () => {
-  setData((prev) => ({
-    ...prev,
-    currentMajor: "major1",
-    currentWeek: 1,
-    stageLabel: "Major I",
-    sourceLabel: "Supabase",
-    lastSyncLabel: "Online",
-  }));
+  const { data: row, error } = await supabase
+    .from("app_config")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  if (row) {
+    setData((prev) => ({
+      ...prev,
+      currentWeek: row.current_week ?? 1,
+      currentMajor: row.current_major ?? "major1",
+      stageLabel: row.stage_label ?? "Major I",
+      sourceLabel: row.source_label ?? "Supabase",
+      lastSyncLabel: row.last_sync_label ?? "Online",
+    }));
+  }
 };
 
   const loadWeeks = async () => {
@@ -969,13 +982,21 @@ const totalPicked = useMemo(
     currentWeek: week,
   }));
 
-  
+  const { error } = await supabase
+    .from("app_config")
+    .update({
+      current_week: week,
+    })
+    .eq("id", 1);
+
+  if (error) {
+    setMessage(error.message);
+  }
 };
 
   const changeMajor = async (majorId: string) => {
   const major = majorStructure.find((entry) => entry.id === majorId);
-  const fallbackWeek =
-    major?.weeks.find((week) => data.weeks[majorId]?.[week.id] !== undefined)?.id || 1;
+  const fallbackWeek = major?.weeks?.[0]?.id || 1;
 
   updateData((prev) => ({
     ...prev,
@@ -983,7 +1004,17 @@ const totalPicked = useMemo(
     currentWeek: fallbackWeek,
   }));
 
-  
+  const { error } = await supabase
+    .from("app_config")
+    .update({
+      current_major: majorId,
+      current_week: fallbackWeek,
+    })
+    .eq("id", 1);
+
+  if (error) {
+    setMessage(error.message);
+  }
 };
 
   const setPick = async (matchId: string, side: PickSide) => {
