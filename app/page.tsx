@@ -409,7 +409,7 @@ function Reel({
           : { y: 0, scale: 1, rotateX: 0 }
       }
       transition={{ duration: 0.42, repeat: spinning ? 6 : 0, delay }}
-      className="relative flex h-36 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-[linear-gradient(180deg,rgba(50,50,56,0.98),rgba(10,10,12,1))] p-3 shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)]"
+      className="relative flex h-32 w-20 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-[linear-gradient(180deg,rgba(50,50,56,0.98),rgba(10,10,12,1))] p-3 shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)] md:h-52 md:w-36 xl:h-64 xl:w-44 2xl:h-72 2xl:w-48"
       style={{ transformStyle: "preserve-3d" }}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_35%)]" />
@@ -1351,39 +1351,44 @@ useEffect(() => {
   }, [activeGroupId, userId]);
 
   useEffect(() => {
-  if (!mounted) return;
+  if (!userId) return;
 
-  const today = new Date().toISOString().slice(0, 10);
-
-  setData((prev) => {
-    if (prev.lastDailyClaim === today) return prev;
-
-    return {
-      ...prev,
-      tokens: prev.tokens + 2,
-      lastDailyClaim: today,
-    };
-  });
-}, [mounted]);
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "inventory_items",
-        },
-        async () => {
-          if (activeGroupId) {
-            await loadGroupDetails(activeGroupId);
-          }
+  const channel = supabase
+    .channel(`firstshot-live-${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "firstshot_challenges",
+      },
+      async () => {
+        await loadChallenges(userId);
+        if (activeGroupId) {
+          await loadAllItems();
+          await loadGroupDetails(activeGroupId);
         }
-      )
-      .subscribe();
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "inventory_items",
+      },
+      async () => {
+        if (activeGroupId) {
+          await loadGroupDetails(activeGroupId);
+        }
+      }
+    )
+    .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, activeGroupId]);
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [userId, activeGroupId]);
 
   const signInWithGoogle = async () => {
     setMessage("");
@@ -1979,8 +1984,8 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
           background: rgba(139, 92, 246, 0.7);
         }
       `}</style>
-
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-gradient-to-b from-zinc-950 via-black to-zinc-950">
+<div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-gradient-to-b from-zinc-950 via-black to-zinc-950 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
+      
         <div className="border-b border-white/10 px-5 pb-4 pt-6">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -2003,7 +2008,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
+                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
               >
                 {!userEmail ? (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl">
@@ -2192,7 +2197,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
+                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
               >
                 <SectionTitle
                   eyebrow={`${currentMajor.label} · Woche ${getDisplayWeek(currentWeek)}`}
@@ -2298,7 +2303,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
-    className="space-y-4"
+    className="mx-auto w-full space-y-4 max-w-md md:max-w-3xl xl:max-w-5xl"
   >
     <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
 
@@ -2348,7 +2353,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
 
         {/* Reels */}
         <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
-          <div className="grid grid-cols-3 gap-3 justify-items-center">
+          <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
             {reels.map((symbol, idx) => (
               <Reel key={idx} symbol={symbol} spinning={spinning} delay={idx * 0.08} />
             ))}
@@ -2443,7 +2448,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
+                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
               >
                 <SectionTitle eyebrow="Deine Sammlung" title="Inventar" />
 
@@ -2499,7 +2504,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
+                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
               >
                 {!userEmail ? (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl">
@@ -2705,154 +2710,167 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                           <div className="text-lg font-bold">Eingehende Challenges</div>
 
                           {incomingChallenges.length ? (
-                            incomingChallenges.map((challenge) => {
-                              const meta = getChallengeDisplayMeta(challenge);
+  incomingChallenges.map((challenge) => {
+    const meta = getChallengeDisplayMeta(challenge);
 
-                              return (
-                                <div
-                                  key={challenge.id}
-                                  className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-                                >
-                                  <div className="text-sm text-zinc-400">
-                                    Neue Firstshot-Challenge
-                                  </div>
-                                  <div className="mt-1 font-semibold">
-                                    {meta.fromName} fordert dich heraus
-                                  </div>
-                                  <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-  <ItemCard
-    item={{
-      name: meta.offeredName,
-      rarity: getInventoryMeta(challenge.offered_inventory_item_id)?.item.rarity || "Common",
-      image_path: meta.offeredImage,
-    }}
-  />
-  <span className="text-zinc-500 text-center">↔</span>
-  <ItemCard
-    item={{
-      name: meta.requestedName,
-      rarity: getInventoryMeta(challenge.requested_inventory_item_id)?.item.rarity || "Common",
-      image_path: meta.requestedImage,
-    }}
-  />
-</div>
+    return (
+      <div
+        key={challenge.id}
+        className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+      >
+        <div className="text-sm text-zinc-400">
+          Neue Firstshot-Challenge
+        </div>
 
-<div className="mt-3 grid grid-cols-2 gap-3">
-  <Button
-    onClick={() => acceptChallenge(challenge.id)}
-    variant="violet"
-  >
-    Annehmen
-  </Button>
-  <Button
-    onClick={() => declineChallenge(challenge.id)}
-    variant="danger"
-  >
-    Ablehnen
-  </Button>
-</div>
-                              );
-                            })
-                          ) : (
-                            <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
-                              Keine eingehenden Challenges.
-                            </div>
-                          )}
+        <div className="mt-1 font-semibold">
+          {meta.fromName} fordert dich heraus
+        </div>
+
+        <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <ItemCard
+            item={{
+              name: meta.offeredName,
+              rarity:
+                getInventoryMeta(challenge.offered_inventory_item_id)?.item
+                  .rarity || "Common",
+              image_path: meta.offeredImage,
+            }}
+          />
+          <span className="text-center text-zinc-500">↔</span>
+          <ItemCard
+            item={{
+              name: meta.requestedName,
+              rarity:
+                getInventoryMeta(challenge.requested_inventory_item_id)?.item
+                  .rarity || "Common",
+              image_path: meta.requestedImage,
+            }}
+          />
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Button
+            onClick={() => acceptChallenge(challenge.id)}
+            variant="violet"
+          >
+            Annehmen
+          </Button>
+          <Button
+            onClick={() => declineChallenge(challenge.id)}
+            variant="danger"
+          >
+            Ablehnen
+          </Button>
+        </div>
+      </div>
+    );
+  })
+) : (
+  <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
+    Keine eingehenden Challenges.
+  </div>
+)}
                         </div>
 
                         <div className="space-y-3">
                           <div className="text-lg font-bold">Alle meine Challenges</div>
 
                           {allChallenges.length ? (
-                            allChallenges.map((challenge) => {
-                              const meta = getChallengeDisplayMeta(challenge);
+  allChallenges.map((challenge) => {
+    const meta = getChallengeDisplayMeta(challenge);
 
-                              const canPlayFirst =
-                                challenge.status === "accepted" &&
-                                challenge.first_player_id === userId &&
-                                challenge.first_player_time == null;
+    const canPlayFirst =
+      challenge.status === "accepted" &&
+      challenge.first_player_id === userId &&
+      challenge.first_player_time == null;
 
-                              const canPlaySecond =
-                                challenge.status === "second_turn" &&
-                                challenge.second_player_id === userId &&
-                                challenge.second_player_time == null;
+    const canPlaySecond =
+      challenge.status === "second_turn" &&
+      challenge.second_player_id === userId &&
+      challenge.second_player_time == null;
 
-                              return (
-                                <div
-                                  key={challenge.id}
-                                  className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-sm text-zinc-400">
-                                        {meta.fromName} vs {meta.toName}
-                                      </div>
-                                      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-  <ItemCard
-    item={{
-      name: meta.offeredName,
-      rarity: getInventoryMeta(challenge.offered_inventory_item_id)?.item.rarity || "Common",
-      image_path: meta.offeredImage,
-    }}
-  />
-  <span className="text-zinc-500 text-center">↔</span>
-  <ItemCard
-    item={{
-      name: meta.requestedName,
-      rarity: getInventoryMeta(challenge.requested_inventory_item_id)?.item.rarity || "Common",
-      image_path: meta.requestedImage,
-    }}
-  />
-</div>
+    return (
+      <div
+        key={challenge.id}
+        className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <div className="text-sm text-zinc-400">
+              {meta.fromName} vs {meta.toName}
+            </div>
 
-<div className="mt-2 text-xs text-zinc-500">
-  {challenge.is_draw
-    ? "Unentschieden"
-    : getChallengeStatusLabel(challenge.status)}
-</div>
+            <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <ItemCard
+                item={{
+                  name: meta.offeredName,
+                  rarity:
+                    getInventoryMeta(challenge.offered_inventory_item_id)?.item
+                      .rarity || "Common",
+                  image_path: meta.offeredImage,
+                }}
+              />
+              <span className="text-center text-zinc-500">↔</span>
+              <ItemCard
+                item={{
+                  name: meta.requestedName,
+                  rarity:
+                    getInventoryMeta(challenge.requested_inventory_item_id)?.item
+                      .rarity || "Common",
+                  image_path: meta.requestedImage,
+                }}
+              />
+            </div>
 
-                                    <div className="text-right text-xs text-zinc-500">
-                                      {new Date(challenge.created_at).toLocaleString("de-DE")}
-                                    </div>
-                                  </div>
+            <div className="mt-2 text-xs text-zinc-500">
+              {challenge.is_draw
+                ? "Unentschieden"
+                : getChallengeStatusLabel(challenge.status)}
+            </div>
+          </div>
 
-                                  <div className="mt-4 flex flex-wrap gap-2">
-                                    {canPlayFirst ? (
-                                      <Button
-                                        onClick={() => openChallengeModal(challenge)}
-                                        variant="violet"
-                                        className="px-3 py-2 text-sm"
-                                      >
-                                        FirstShot starten
-                                      </Button>
-                                    ) : null}
+          <div className="text-right text-xs text-zinc-500">
+            {new Date(challenge.created_at).toLocaleString("de-DE")}
+          </div>
+        </div>
 
-                                    {canPlaySecond ? (
-                                      <Button
-                                        onClick={() => openChallengeModal(challenge)}
-                                        variant="violet"
-                                        className="px-3 py-2 text-sm"
-                                      >
-                                        Jetzt spielen
-                                      </Button>
-                                    ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {canPlayFirst ? (
+            <Button
+              onClick={() => openChallengeModal(challenge)}
+              variant="violet"
+              className="px-3 py-2 text-sm"
+            >
+              FirstShot starten
+            </Button>
+          ) : null}
 
-                                    <Button
-                                      onClick={() => openChallengeModal(challenge)}
-                                      variant="ghost"
-                                      className="px-3 py-2 text-sm"
-                                    >
-                                      Anzeigen
-                                    </Button>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
-                              Keine Challenges vorhanden.
-                            </div>
-                          )}
+          {canPlaySecond ? (
+            <Button
+              onClick={() => openChallengeModal(challenge)}
+              variant="violet"
+              className="px-3 py-2 text-sm"
+            >
+              Jetzt spielen
+            </Button>
+          ) : null}
+
+          <Button
+            onClick={() => openChallengeModal(challenge)}
+            variant="ghost"
+            className="px-3 py-2 text-sm"
+          >
+            Anzeigen
+          </Button>
+        </div>
+      </div>
+    );
+  })
+) : (
+  <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
+    Keine Challenges vorhanden.
+  </div>
+)}
                         </div>
 
                         {!!outgoingChallenges.length && (
@@ -2871,7 +2889,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
+                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
               >
                 <SectionTitle
                   eyebrow="Verwaltung"
@@ -3196,7 +3214,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
           ) : null}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 mx-auto max-w-md border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur">
+        <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
           <div className="grid grid-cols-6 gap-2">
             {[
               { id: "home", label: "Home", icon: Trophy },
