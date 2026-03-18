@@ -135,20 +135,20 @@ type FirstshotUiState =
   | "finished";
 
 const teamIcons: Record<string, string> = {
-  "OpTic Texas": "🟢",
-  "Atlanta FaZe": "🔴",
-  "FaZe Vegas": "🎰",
-  "Miami Heretics": "🟡",
-  "Carolina Royal Ravens": "👑",
-  "Cloud9 New York": "☁️",
-  "Los Angeles Thieves": "⚫",
-  "Riyadh Falcons": "🦅",
-  "G2 Minnesota": "⚔️",
-  "Vancouver Surge": "⚡",
-  "Paris Gentle Mates": "🩵",
-  "Toronto Ultra": "🟪",
-  "Boston Breach": "🟩",
-  "LA Guerrillas": "🦍",
+  "OpTic Texas": "/team-logos/optic-texas-logo.png",
+  "Atlanta FaZe": "/team-logos/faze.png",
+  "FaZe Vegas": "/team-logos/faze-vegas.png",
+  "Miami Heretics": "/team-logos/mh-logo.png",
+  "Carolina Royal Ravens": "/team-logos/rr-logo.png",
+  "Cloud9 New York": "/team-logos/c9-logo.png",
+  "Los Angeles Thieves": "/team-logos/lat-logo.png",
+  "Riyadh Falcons": "/team-logos/riyadh-falcons.png",
+  "G2 Minnesota": "/team-logos/mn-logo.png",
+  "Vancouver Surge": "/team-logos/ss-logo.png",
+  "Paris Gentle Mates": "/team-logos/gm-logo.png",
+  "Toronto Ultra": "/team-logos/koi-logo.png",
+  "Boston Breach": "/team-logos/bb-logo.png",
+  "LA Guerrillas": "/team-logos/lag-logo.png",
 };
 
 const allTeams = Object.keys(teamIcons);
@@ -434,10 +434,19 @@ function SectionTitle({
 }
 
 function TeamMini({ name }: { name: string }) {
-  const icon = teamIcons[name] || "🎯";
+  const icon = teamIcons[name];
+
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs shadow-sm">
-      {icon}
+    <span className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-sm">
+      {icon ? (
+        <img
+          src={icon}
+          alt={name}
+          className="h-full w-full object-contain"
+        />
+      ) : (
+        <span className="text-xs">🎯</span>
+      )}
     </span>
   );
 }
