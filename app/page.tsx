@@ -46,7 +46,7 @@ type LocalSymbol = {
   slug: string;
   name: string;
   rarity: "Common" | "Rare" | "Epic" | "Legendary";
-  emoji: string;
+  image_path: string;
   weight: number;
 };
 
@@ -68,7 +68,8 @@ type MemberInventoryItem = {
   inventory_id: string;
   name: string;
   rarity: string;
-  icon: string | null;
+  image_path: string | null;
+  category?: string | null;
 };
 
 type MemberInventory = {
@@ -160,10 +161,54 @@ const majorStructure = [
 ];
 
 const symbolPool: LocalSymbol[] = [
-  { id: "skull", slug: "skull", name: "Skull", rarity: "Common", emoji: "💀", weight: 60 },
-  { id: "flame", slug: "flame", name: "Flame", rarity: "Rare", emoji: "🔥", weight: 25 },
-  { id: "crown", slug: "crown", name: "Crown", rarity: "Epic", emoji: "👑", weight: 10 },
-  { id: "star", slug: "star", name: "Star", rarity: "Legendary", emoji: "🌟", weight: 5 },
+  {
+    id: "ak-47-gold-super",
+    slug: "ak-47-gold-super",
+    name: "ak-47-gold-super",
+    rarity: "Legendary",
+    image_path: "/items/ak-47-gold-super.png",
+    weight: 5,
+  },
+  {
+    id: "intervention-fall-epic",
+    slug: "intervention-fall-epic",
+    name: "intervention-fall-epic",
+    rarity: "Epic",
+    image_path: "/items/intervention-fall-epic.png",
+    weight: 10,
+  },
+  {
+    id: "fAMAS-mw2-common",
+    slug: "fAMAS-mw2-common",
+    name: "fAMAS-mw2-common",
+    rarity: "Rare",
+    image_path: "/items/fAMAS-mw2-common.png",
+    weight: 25,
+  },
+  {
+    id: "m8a7-snake-rare",
+    slug: "m8a7-snake-rare",
+    name: "m8a7-snake-rare",
+    rarity: "Rare",
+    image_path: "/items/m8a7-snake-rare.png",
+    weight: 25,
+  },
+  {
+    id: "scumpii-sign-super",
+    slug: "scumpii-sign-super",
+    name: "scumpii-sign-super",
+    rarity: "Epic",
+    image_path: "/items/scumpii-sign-super.png",
+    weight: 10,
+  },
+  {
+    id: "mercules-bpcard97-ultra",
+    slug: "mercules-bpcard97-ultra",
+    name: "mercules-bpcard97-ultra",
+    rarity: "Legendary",
+    image_path: "/items/mercules-bpcard97-ultra.png",
+    weight: 5,
+  },
 ];
 
 const rarityStyles: Record<string, string> = {
@@ -355,9 +400,13 @@ function Reel({
         spinning ? { y: [0, -12, 12, -8, 8, 0], scale: [1, 1.03, 1] } : { y: 0, scale: 1 }
       }
       transition={{ duration: 0.45, repeat: spinning ? 5 : 0, delay }}
-      className="flex h-24 w-24 items-center justify-center rounded-3xl border border-white/10 bg-zinc-900 text-5xl shadow-2xl"
+      className="flex h-24 w-24 items-center justify-center rounded-3xl border border-white/10 bg-zinc-900 p-3 shadow-2xl"
     >
-      {symbol.emoji}
+      <img
+        src={symbol.image_path}
+        alt={symbol.name}
+        className="max-h-full max-w-full object-contain"
+      />
     </motion.div>
   );
 }
@@ -435,9 +484,63 @@ function Button({
     </button>
   );
 }
+function ItemCard({
+  item,
+  action,
+}: {
+  item: {
+    name: string;
+    rarity: string;
+    image_path?: string | null;
+    category?: string | null;
+  };
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className={`rounded-2xl border p-4 ${rarityStyles[item.rarity] || rarityStyles.Common}`}>
+      <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
+        <img
+          src={item.image_path || "/items/fallback.png"}
+          alt={item.name}
+          className="max-h-full max-w-full object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
+        />
+      </div>
 
+      <div className="mt-3 font-bold leading-tight">{item.name}</div>
+      <div className="text-sm opacity-80">{item.rarity}</div>
+      {item.category ? <div className="mt-1 text-xs opacity-60">{item.category}</div> : null}
+
+      {action ? <div className="mt-3">{action}</div> : null}
+    </div>
+  );
+}
 export default function CallOfPicksPage() {
-  const [mounted, setMounted] = useState(false);
+  const loadAllItems = async () => {
+  const { data, error } = await supabase
+    .from("items")
+    .select("id, slug, name, rarity, image_path, category, weight, is_active")
+    .order("name", { ascending: true });
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  setAllItemCatalog(data || []);
+};
+const [allItemCatalog, setAllItemCatalog] = useState<
+  {
+    id: string;
+    slug: string;
+    name: string;
+    rarity: string;
+    image_path: string | null;
+    category: string | null;
+    weight: number | null;
+    is_active: boolean | null;
+  }[]
+>([]);
+const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
     "home" | "picks" | "slot" | "inventory" | "group" | "admin"
   >("home");
@@ -957,7 +1060,7 @@ export default function CallOfPicksPage() {
 
     const { data: invRows, error: invError } = await supabase
       .from("inventory_items")
-      .select("id, owner_id, items(name, rarity, icon)")
+.select("id, owner_id, items(name, rarity, image_path, category)")
       .in("owner_id", groupUserIds)
       .eq("status", "owned");
 
@@ -988,11 +1091,12 @@ export default function CallOfPicksPage() {
       if (!item) return;
 
       entry.items.push({
-        inventory_id: row.id,
-        name: item.name,
-        rarity: item.rarity,
-        icon: item.icon,
-      });
+  inventory_id: row.id,
+  name: item.name,
+  rarity: item.rarity,
+  image_path: item.image_path,
+  category: item.category,
+});
     });
 
     setMemberInventories(Array.from(grouped.values()));
@@ -1199,6 +1303,7 @@ export default function CallOfPicksPage() {
         async () => {
           await loadChallenges(userId);
           if (activeGroupId) {
+            await loadAllItems();
             await loadGroupDetails(activeGroupId);
           }
         }
@@ -2919,6 +3024,29 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                     Alte UI und Slotmachine bleiben lokal, Login, Gruppen,
                     Inventar-Popup, Challenges und News laufen zusammen.
                   </div>
+                  <div className="space-y-3">
+  <div className="text-lg font-bold">Alle Items</div>
+
+  {allItemCatalog.length ? (
+    <div className="grid grid-cols-2 gap-3">
+      {allItemCatalog.map((item) => (
+        <ItemCard
+          key={item.id}
+          item={{
+            name: item.name,
+            rarity: item.rarity,
+            image_path: item.image_path,
+            category: item.category,
+          }}
+        />
+      ))}
+    </div>
+  ) : (
+    <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
+      Keine Items gefunden.
+    </div>
+  )}
+</div>
                 </div>
               </motion.div>
             )}
@@ -2995,35 +3123,33 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
-                      {selectedMember.items.map((item) => (
-                        <div
-                          key={item.inventory_id}
-                          className="rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-black p-4 shadow-lg transition hover:-translate-y-0.5 hover:border-violet-400/40"
-                        >
-                          <div className="text-4xl">{item.icon || "🎁"}</div>
-                          <div className="mt-3 font-bold leading-tight">{item.name}</div>
-                          <div className="text-sm text-zinc-500">{item.rarity}</div>
-
-                          {selectedMember.user_id !== userId ? (
-                            <button
-                              onClick={() => {
-                                if (isInventoryItemLocked(item.inventory_id)) return;
-                                setChallengeTargetItem(item);
-                                setChallengeTargetUser(selectedMember);
-                                setShowChallengePicker(true);
-                              }}
-                              disabled={isInventoryItemLocked(item.inventory_id)}
-                              className={`mt-3 w-full rounded-xl px-3 py-2 text-sm font-semibold text-white transition ${
-                                isInventoryItemLocked(item.inventory_id)
-                                  ? "bg-zinc-700 opacity-50"
-                                  : "bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-[0_8px_24px_rgba(139,92,246,0.28)]"
-                              }`}
-                            >
-                              {isInventoryItemLocked(item.inventory_id) ? "Gebunden" : "Challenge"}
-                            </button>
-                          ) : null}
-                        </div>
-                      ))}
+  {selectedMember.items.map((item) => (
+    <ItemCard
+      key={item.inventory_id}
+      item={item}
+      action={
+        selectedMember.user_id !== userId ? (
+          <button
+            onClick={() => {
+              if (isInventoryItemLocked(item.inventory_id)) return;
+              setChallengeTargetItem(item);
+              setChallengeTargetUser(selectedMember);
+              setShowChallengePicker(true);
+            }}
+            disabled={isInventoryItemLocked(item.inventory_id)}
+            className={`w-full rounded-xl px-3 py-2 text-sm font-semibold text-white transition ${
+              isInventoryItemLocked(item.inventory_id)
+                ? "bg-zinc-700 opacity-50"
+                : "bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-[0_8px_24px_rgba(139,92,246,0.28)]"
+            }`}
+          >
+            {isInventoryItemLocked(item.inventory_id) ? "Gebunden" : "Challenge"}
+          </button>
+        ) : null
+      }
+    />
+  ))}
+</div>
                     </div>
                   )}
                 </div>
@@ -3087,48 +3213,45 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
-                      {myOnlineInventory.map((item) => {
-                        const locked = isInventoryItemLocked(item.inventory_id);
-                        const sameAsTarget =
-                          item.inventory_id === challengeTargetItem.inventory_id;
+  {myOnlineInventory.map((item) => {
+    const locked = isInventoryItemLocked(item.inventory_id);
+    const sameAsTarget = item.inventory_id === challengeTargetItem.inventory_id;
 
-                        return (
-                          <button
-                            key={item.inventory_id}
-                            type="button"
-                            onClick={async () => {
-                              if (locked) {
-                                setMessage("Dieses Item ist bereits in einer aktiven Challenge gebunden.");
-                                return;
-                              }
+    return (
+      <button
+        key={item.inventory_id}
+        type="button"
+        onClick={async () => {
+          if (locked) {
+            setMessage("Dieses Item ist bereits in einer aktiven Challenge gebunden.");
+            return;
+          }
 
-                              if (sameAsTarget) {
-                                setMessage("Du kannst nicht dasselbe Item als Einsatz wählen.");
-                                return;
-                              }
+          if (sameAsTarget) {
+            setMessage("Du kannst nicht dasselbe Item als Einsatz wählen.");
+            return;
+          }
 
-                              await createFirstshotChallenge(item);
-                            }}
-                            className={`rounded-2xl border p-4 text-left ${
-                              locked || sameAsTarget
-                                ? "border-white/10 bg-black/20 opacity-40"
-                                : "border-white/10 bg-black/40 hover:border-violet-400"
-                            }`}
-                          >
-                            <div className="text-3xl">{item.icon || "🎁"}</div>
-                            <div className="mt-2 font-bold">{item.name}</div>
-                            <div className="text-sm text-zinc-500">{item.rarity}</div>
-                            <div className="mt-2 text-xs text-zinc-400">
-                              {sameAsTarget
-                                ? "Kann nicht dasselbe Item sein"
-                                : locked
-                                  ? "Bereits gebunden"
-                                  : "Als Einsatz wählen"}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+          await createFirstshotChallenge(item);
+        }}
+        className="text-left"
+      >
+        <ItemCard
+          item={item}
+          action={
+            <div className="text-xs text-zinc-300">
+              {sameAsTarget
+                ? "Kann nicht dasselbe Item sein"
+                : locked
+                  ? "Bereits gebunden"
+                  : "Als Einsatz wählen"}
+            </div>
+          }
+        />
+      </button>
+    );
+  })}
+</div>
                   )}
                 </div>
               </motion.div>
