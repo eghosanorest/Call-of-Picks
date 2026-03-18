@@ -26,13 +26,11 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-const STORAGE_KEY = "call_of_picks_v4_hybrid";
-
 type MatchResult = "A" | "B" | null;
 type PickSide = "A" | "B";
 
 type MatchType = {
-  id: number;
+  id: string;
   week: number;
   teamA: string;
   teamB: string;
@@ -111,9 +109,9 @@ type LocalData = {
   stageLabel: string;
   sourceLabel: string;
   lastSyncLabel: string;
-  weeks: Record<number, MatchType[]>;
-  picks: Record<number, PickSide>;
-  resolvedWeeks: number[];
+  weeks: Record<string, Record<number, MatchType[]>>;
+  picks: Record<string, PickSide>;
+  resolvedWeeks: string[];
   tokens: number;
   inventory: LocalInventoryItem[];
   spinHistory: { at: number; reels: string[]; won: boolean }[];
@@ -154,6 +152,12 @@ const teamIcons: Record<string, string> = {
 
 const allTeams = Object.keys(teamIcons);
 
+const majorStructure = [
+  { id: "major1", label: "Major I", weeks: [1, 2, 3, 4, 5, 6, 7] },
+  { id: "major2", label: "Major II", weeks: [1, 2, 3, 4, 5, 6, 7] },
+  { id: "major3", label: "Major III", weeks: [1, 2, 3, 4, 5, 6, 7] },
+  { id: "major4", label: "Major IV", weeks: [1, 2, 3, 4, 5, 6, 7] },
+];
 
 const symbolPool: LocalSymbol[] = [
   {
@@ -220,14 +224,16 @@ const rarityStyles: Record<string, string> = {
 };
 
 const defaultData: LocalData = {
-  currentWeek: 6,
-  currentMajor: "major2",
-  stageLabel: "Major II Qualifiers",
-  sourceLabel: "Manual weekly input",
-  lastSyncLabel: "Manual",
+  currentWeek: 1,
+  currentMajor: "major1",
+  stageLabel: "Major I Qualifiers",
+  sourceLabel: "Supabase",
+  lastSyncLabel: "Online",
   weeks: {
-      },
-    ],
+    major1: {},
+    major2: {},
+    major3: {},
+    major4: {},
   },
   picks: {},
   resolvedWeeks: [],
@@ -235,15 +241,6 @@ const defaultData: LocalData = {
   inventory: [],
   spinHistory: [],
 };
-
-function safeParse(value: string | null): LocalData | null {
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as LocalData;
-  } catch {
-    return null;
-  }
-}
 
 function weightedRandom(list: LocalSymbol[]) {
   const total = list.reduce((sum, item) => sum + item.weight, 0);
@@ -268,6 +265,22 @@ function getTodayInputValue() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function resolveItemImage(path?: string | null) {
+  if (!path || typeof path !== "string") return "/items/fallback.png";
+  if (path.startsWith("/")) return path;
+  return `/items/${path}`;
+}
+
+function normalizeRarity(rarity?: string | null) {
+  const value = (rarity || "").trim().toLowerCase();
+  if (value === "common") return "Common";
+  if (value === "rare") return "Rare";
+  if (value === "epic") return "Epic";
+  if (value === "legendary") return "Legendary";
+  if (value === "ultra") return "Ultra";
+  return "Common";
 }
 
 function StatCard({
@@ -328,9 +341,7 @@ function Reel({
       <div className="pointer-events-none absolute inset-x-2 bottom-2 h-6 rounded-full bg-black/40 blur-md" />
       <div className="pointer-events-none absolute inset-y-3 left-0 w-px bg-white/15" />
       <div className="pointer-events-none absolute inset-y-3 right-0 w-px bg-white/15" />
-
       <div className="absolute inset-0 rounded-[28px] ring-1 ring-white/10" />
-
       <img
         src={symbol.image_path}
         alt={symbol.name}
@@ -362,15 +373,10 @@ function SectionTitle({
 
 function TeamMini({ name }: { name: string }) {
   const icon = teamIcons[name];
-
   return (
     <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-sm">
       {icon ? (
-        <img
-          src={icon}
-          alt={name}
-          className="h-full w-full object-contain"
-        />
+        <img src={icon} alt={name} className="h-full w-full object-contain" />
       ) : (
         "🎯"
       )}
@@ -422,22 +428,6 @@ function Button({
     </button>
   );
 }
-function resolveItemImage(path?: string | null) {
-  if (!path || typeof path !== "string") return "/items/fallback.png";
-  if (path.startsWith("/")) return path;
-  return `/items/${path}`;
-}
-function normalizeRarity(rarity?: string | null) {
-  const value = (rarity || "").trim().toLowerCase();
-
-  if (value === "common") return "Common";
-  if (value === "rare") return "Rare";
-  if (value === "epic") return "Epic";
-  if (value === "legendary") return "Legendary";
-  if (value === "ultra") return "Ultra";
-
-  return "Common";
-}
 
 function ItemCard({
   item,
@@ -454,7 +444,6 @@ function ItemCard({
   const normalizedRarity = normalizeRarity(item.rarity);
 
   let rarityClass = rarityStyles.Common;
-
   if (normalizedRarity === "Rare") rarityClass = rarityStyles.Rare;
   if (normalizedRarity === "Epic") rarityClass = rarityStyles.Epic;
   if (normalizedRarity === "Legendary") rarityClass = rarityStyles.Legendary;
@@ -472,45 +461,51 @@ function ItemCard({
           }}
         />
       </div>
-
       <div className="mt-3 font-bold leading-tight">{item.name}</div>
       <div className="text-sm opacity-80">{normalizedRarity}</div>
       {item.category ? (
         <div className="mt-1 text-xs opacity-60">{item.category}</div>
       ) : null}
-
       {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );
 }
+
 export default function CallOfPicksPage() {
-  const loadAllItems = async () => {
-  const { data, error } = await supabase
-    .from("items")
-    .select("id, slug, name, rarity, image_path, category, weight, is_active")
-    .order("name", { ascending: true });
+  useEffect(() => {
+  const channel = supabase
+    .channel("matches-live")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "matches",
+      },
+      async () => {
+        await loadMatches();
+      }
+    )
+    .subscribe();
 
-  if (error) {
-    setMessage(error.message);
-    setAllItemCatalog([]);
-    return;
-  }
-
-  setAllItemCatalog(data || []);
-};
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
 const [allItemCatalog, setAllItemCatalog] = useState<
-  {
-    id: string;
-    slug: string;
-    name: string;
-    rarity: string;
-    image_path: string | null;
-    category: string | null;
-    weight: number | null;
-    is_active: boolean | null;
-  }[]
->([]);
-const [mounted, setMounted] = useState(false);
+    {
+      id: string;
+      slug: string;
+      name: string;
+      rarity: string;
+      image_path: string | null;
+      category: string | null;
+      weight: number | null;
+      is_active: boolean | null;
+    }[]
+  >([]);
+
+  const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
     "home" | "picks" | "slot" | "inventory" | "group" | "admin"
   >("home");
@@ -518,7 +513,11 @@ const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<LocalData>(defaultData);
 
   const [spinning, setSpinning] = useState(false);
-  const [reels, setReels] = useState<LocalSymbol[]>([symbolPool[0], symbolPool[1], symbolPool[2]]);
+  const [reels, setReels] = useState<LocalSymbol[]>([
+    symbolPool[0],
+    symbolPool[1],
+    symbolPool[2],
+  ]);
   const [lastWin, setLastWin] = useState<LocalSymbol | null>(null);
 
   const [message, setMessage] = useState("");
@@ -538,8 +537,10 @@ const [mounted, setMounted] = useState(false);
 
   const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 
-  const [challengeTargetItem, setChallengeTargetItem] = useState<MemberInventoryItem | null>(null);
-  const [challengeTargetUser, setChallengeTargetUser] = useState<MemberInventory | null>(null);
+  const [challengeTargetItem, setChallengeTargetItem] =
+    useState<MemberInventoryItem | null>(null);
+  const [challengeTargetUser, setChallengeTargetUser] =
+    useState<MemberInventory | null>(null);
   const [showChallengePicker, setShowChallengePicker] = useState(false);
 
   const [incomingChallenges, setIncomingChallenges] = useState<ChallengeType[]>([]);
@@ -564,89 +565,210 @@ const [mounted, setMounted] = useState(false);
     setData((prev) => (typeof updater === "function" ? updater(prev) : updater));
   };
 
-  const loadMatches = async () => {
-  const { data: rows, error } = await supabase
-    .from("matches")
-    .select("*")
-    .order("week", { ascending: true })
-    .order("starts_at", { ascending: true });
+  const loadAllItems = async () => {
+    const { data, error } = await supabase
+      .from("items")
+      .select("id, slug, name, rarity, image_path, category, weight, is_active")
+      .order("name", { ascending: true });
 
-  if (error) {
-    setMessage(error.message);
-    return;
-  }
-
-  const grouped: Record<number, MatchType[]> = {};
-
-  (rows || []).forEach((row: any) => {
-    const date = new Date(row.starts_at);
-
-    const formatted = date.toLocaleString("de-DE", {
-      weekday: "short",
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    if (!grouped[row.week]) grouped[row.week] = [];
-
-    grouped[row.week].push({
-      id: Number(row.id),
-      week: row.week,
-      teamA: row.team_a,
-      teamB: row.team_b,
-      startsAt: formatted.replace(",", " ·"),
-      locked: row.locked,
-      result: row.result,
-    });
-  });
-
-  setData((prev) => ({
-    ...prev,
-    weeks: grouped,
-  }));
-};
-useEffect(() => {
-  const initLocal = async () => {
-    const parsed = safeParse(localStorage.getItem(STORAGE_KEY));
-    if (parsed) {
-      setData((prev) => ({ ...prev, ...parsed, weeks: {} }));
+    if (error) {
+      setMessage(error.message);
+      setAllItemCatalog([]);
+      return;
     }
 
-    await loadMatches();
-    setMounted(true);
+    setAllItemCatalog(data || []);
   };
 
-  initLocal();
-}, []);
+  const loadAppConfig = async () => {
+    const { data: row, error } = await supabase
+      .from("app_config")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
 
-  useEffect(() => {
-  loadAllItems();
-}, []);
-useEffect(() => {
-  if (!mounted) return;
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
 
-  const { weeks, ...rest } = data;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
-}, [data, mounted]);
+    if (row) {
+      setData((prev) => ({
+        ...prev,
+        currentWeek: row.current_week ?? prev.currentWeek,
+        currentMajor: row.current_major ?? prev.currentMajor,
+        stageLabel: row.stage_label ?? prev.stageLabel,
+        sourceLabel: row.source_label ?? "Supabase",
+        lastSyncLabel: row.last_sync_label ?? "Online",
+      }));
+    }
+  };
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const loadMatches = async () => {
+    const { data: rows, error } = await supabase
+      .from("matches")
+      .select("*")
+      .order("week", { ascending: true })
+      .order("starts_at", { ascending: true });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const grouped: Record<string, Record<number, MatchType[]>> = {
+  major1: {},
+  major2: {},
+  major3: {},
+  major4: {},
+};
+
+(rows || []).forEach((row: any) => {
+  const date = new Date(row.starts_at);
+
+  const formatted = date.toLocaleString("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const major = row.major || "major1";
+  const week = Number(row.week);
+
+  if (!grouped[major]) grouped[major] = {};
+  if (!grouped[major][week]) grouped[major][week] = [];
+
+  grouped[major][week].push({
+    id: row.id,
+    week,
+    teamA: row.team_a,
+    teamB: row.team_b,
+    startsAt: formatted.replace(",", " ·"),
+    locked: row.locked,
+    result: row.result,
+  });
+});
+
+setData((prev) => ({
+  ...prev,
+  weeks: grouped,
+}));
+  };
+
+  const loadRemoteUserGameState = async (uid: string) => {
+    const [{ data: profile, error: profileError }, { data: picksRows, error: picksError }, { data: resolutionRows, error: resolutionError }, { data: spinRows, error: spinError }, { data: invRows, error: invError }] =
+      await Promise.all([
+        supabase.from("profiles").select("username, tokens").eq("id", uid).maybeSingle(),
+        supabase.from("user_picks").select("match_id, pick_side").eq("user_id", uid),
+        supabase.from("week_resolutions").select("week").eq("user_id", uid),
+        supabase
+          .from("spin_history")
+          .select("created_at, reels, won")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false })
+          .limit(12),
+        supabase
+          .from("inventory_items")
+          .select("id, owner_id, items(id, slug, name, rarity, image_path, weight)")
+          .eq("owner_id", uid)
+          .eq("status", "owned"),
+      ]);
+
+    if (profileError) setMessage(profileError.message);
+    if (picksError) setMessage(picksError.message);
+    if (resolutionError) setMessage(resolutionError.message);
+    if (spinError) setMessage(spinError.message);
+    if (invError) setMessage(invError.message);
+
+    const picksMap: Record<string, PickSide> = {};
+(picksRows || []).forEach((row: any) => {
+  picksMap[String(row.match_id)] = row.pick_side as PickSide;
+});
+
+const resolvedWeeks = (resolutionRows || []).map(
+  (r: any) => `${r.major}-${r.week}`
+);
+
+    const spinHistory =
+      (spinRows || []).map((row: any) => ({
+        at: new Date(row.created_at).getTime(),
+        reels: Array.isArray(row.reels) ? row.reels : [],
+        won: !!row.won,
+      })) || [];
+
+    const inventory: LocalInventoryItem[] = [];
+    (invRows || []).forEach((row: any) => {
+      const item = Array.isArray(row.items) ? row.items[0] : row.items;
+      if (!item) return;
+
+      inventory.push({
+        id: item.slug,
+        slug: item.slug,
+        name: item.name,
+        rarity: normalizeRarity(item.rarity) as LocalInventoryItem["rarity"],
+        image_path: resolveItemImage(item.image_path),
+        weight: item.weight ?? 1,
+      });
+    });
+
+    setData((prev) => ({
+      ...prev,
+      picks: picksMap,
+      resolvedWeeks,
+      tokens: profile?.tokens ?? 0,
+      inventory,
+      spinHistory,
+    }));
+
+    if (profile?.username) {
+      setProfileName(profile.username);
+      setNeedsUsername(false);
+    }
+  };
+
+  const setPickOnline = async (matchId: string, side: PickSide) => {
+    if (!userId) {
+      setMessage("Bitte zuerst mit Google anmelden.");
+      return;
+    }
+
+    const { error } = await supabase.from("user_picks").upsert(
+      {
+        user_id: userId,
+        match_id: matchId,
+        pick_side: side,
+      },
+      { onConflict: "user_id,match_id" }
+    );
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    updateData((prev) => ({
+      ...prev,
+      picks: { ...prev.picks, [matchId]: side },
+    }));
+  };
 
   const currentWeek = data.currentWeek;
-  const weekKeys = useMemo(
-    () => Object.keys(data.weeks).map(Number).sort((a, b) => a - b),
-    [data.weeks]
-  );
+
+
   const currentMajor =
-    majors.find((m) => m.name === data.currentMajor) || majorStructure[0];
-  const visibleWeeks = weekKeys;
-  const matches = data.weeks[currentWeek] || [];
-  const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
+    majorStructure.find((m) => m.id === data.currentMajor) || majorStructure[0];
+
+  const visibleWeeks = currentMajor.weeks.filter(
+  (week) => !!data.weeks[data.currentMajor]?.[week]
+);
+
+const matches = data.weeks[data.currentMajor]?.[currentWeek] || [];
+const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
+
+const resolvedWeekKey = `${data.currentMajor}-${currentWeek}`;
+const resolvedCurrentWeek = data.resolvedWeeks.includes(resolvedWeekKey);
 
   const memberNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -655,7 +777,11 @@ useEffect(() => {
   }, [members]);
 
   const inventoryLookup = useMemo(() => {
-    const map = new Map<string, { ownerId: string; ownerName: string; item: MemberInventoryItem }>();
+    const map = new Map<
+      string,
+      { ownerId: string; ownerName: string; item: MemberInventoryItem }
+    >();
+
     memberInventories.forEach((entry) => {
       entry.items.forEach((item) => {
         map.set(item.inventory_id, {
@@ -665,6 +791,7 @@ useEffect(() => {
         });
       });
     });
+
     return map;
   }, [memberInventories]);
 
@@ -696,49 +823,53 @@ useEffect(() => {
   };
 
   const getChallengeDisplayMeta = (challenge: ChallengeType) => {
-  const fromName = memberNameMap.get(challenge.from_user_id) || "Unbekannt";
-  const toName = memberNameMap.get(challenge.to_user_id) || "Unbekannt";
+    const fromName = memberNameMap.get(challenge.from_user_id) || "Unbekannt";
+    const toName = memberNameMap.get(challenge.to_user_id) || "Unbekannt";
 
-  const offered = getInventoryMeta(challenge.offered_inventory_item_id);
-  const requested = getInventoryMeta(challenge.requested_inventory_item_id);
+    const offered = getInventoryMeta(challenge.offered_inventory_item_id);
+    const requested = getInventoryMeta(challenge.requested_inventory_item_id);
 
-  return {
-    fromName,
-    toName,
-    offeredName: offered?.item.name || "Unbekannt",
-    requestedName: requested?.item.name || "Unbekannt",
-    offeredImage: offered?.item.image_path || "/items/fallback.png",
-    requestedImage: requested?.item.image_path || "/items/fallback.png",
+    return {
+      fromName,
+      toName,
+      offeredName: offered?.item.name || "Unbekannt",
+      requestedName: requested?.item.name || "Unbekannt",
+      offeredImage: offered?.item.image_path || "/items/fallback.png",
+      requestedImage: requested?.item.image_path || "/items/fallback.png",
+    };
   };
-};
 
-  const getDisplayWeek = (week: number) => {
-    const major = majorStructure.find((entry) => entry.weeks.includes(week));
-    if (!major) return week;
-    return major.weeks.indexOf(week) + 1;
-  };
+  const getDisplayWeek = (week: number) => week;
 
   const correctCount = useMemo(
-    () =>
-      matches.filter((m) => data.picks[m.id] && m.result && data.picks[m.id] === m.result).length,
-    [matches, data.picks]
-  );
+  () =>
+    matches.filter(
+      (m) =>
+        data.picks[String(m.id)] &&
+        m.result &&
+        data.picks[String(m.id)] === m.result
+    ).length,
+  [matches, data.picks]
+);
 
-  const totalPicked = useMemo(
-    () => matches.filter((m) => data.picks[m.id]).length,
-    [matches, data.picks]
-  );
+const totalPicked = useMemo(
+  () => matches.filter((m) => data.picks[String(m.id)]).length,
+  [matches, data.picks]
+);
 
-  const resolvedCurrentWeek = data.resolvedWeeks.includes(currentWeek);
+  
 
   const inventoryCounts = useMemo(() => {
     const map = new Map<string, LocalInventoryItem & { quantity: number }>();
+
     data.inventory.forEach((item) => {
       const existing = map.get(item.id);
       if (existing) existing.quantity += 1;
       else map.set(item.id, { ...item, quantity: 1 });
     });
+
     const rarityRank = { Ultra: 5, Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
+
     return Array.from(map.values()).sort(
       (a, b) => (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0)
     );
@@ -758,204 +889,307 @@ useEffect(() => {
   }));
 
   const changeWeek = (week: number) => {
-    const major = majorStructure.find((entry) => entry.weeks.includes(week));
-    updateData((prev) => ({
-      ...prev,
-      currentWeek: week,
-      currentMajor: major ? major.id : prev.currentMajor,
-    }));
-  };
-
-  const changeMajor = (majorName: string) => {
   updateData((prev) => ({
     ...prev,
-    currentMajor: majorName,
+    currentWeek: week,
   }));
 };
 
-  const setPick = (matchId: number, side: PickSide) => {
-    updateData((prev) => ({
-      ...prev,
-      picks: { ...prev.picks, [matchId]: side },
-    }));
-  };
+  const changeMajor = (majorId: string) => {
+  const major = majorStructure.find((entry) => entry.id === majorId);
+  const fallbackWeek =
+    major?.weeks.find((week) => data.weeks[majorId]?.[week]) || 1;
 
-  const resolveWeek = () => {
+  updateData((prev) => ({
+    ...prev,
+    currentMajor: majorId,
+    currentWeek: fallbackWeek,
+  }));
+};
+
+  const setPick = async (matchId: string, side: PickSide) => {
+  await setPickOnline(matchId, side);
+};
+
+  const resolveWeek = async () => {
+    if (!userId) {
+      setMessage("Bitte zuerst mit Google anmelden.");
+      return;
+    }
+
     if (resolvedCurrentWeek || !matches.length) return;
 
     let earned = 0;
     let allResolved = true;
 
     matches.forEach((m) => {
-  if (!m.result) allResolved = false;
-  if (data.picks[m.id] && m.result && data.picks[m.id] === m.result) earned += 5;
-});
+      if (!m.result) allResolved = false;
+      if (
+  data.picks[String(m.id)] &&
+  m.result &&
+  data.picks[String(m.id)] === m.result
+) {
+  earned += 5;
+}
+    });
 
     if (!allResolved) {
       alert("Setze im Admin-Bereich zuerst alle Ergebnisse dieser Woche.");
       return;
     }
 
-    
+    const { error: insertResolutionError } = await supabase
+      .from("week_resolutions")
+      .insert({
+        user_id: userId,
+        week: currentWeek,
+        major: data.currentMajor,
+        earned_tokens: earned,
+      });
+
+    if (insertResolutionError) {
+      setMessage(insertResolutionError.message);
+      return;
+    }
+
+    const nextTokens = data.tokens + earned;
+
+    const { error: profileUpdateError } = await supabase
+      .from("profiles")
+      .update({ tokens: nextTokens })
+      .eq("id", userId);
+
+    if (profileUpdateError) {
+      setMessage(profileUpdateError.message);
+      return;
+    }
 
     updateData((prev) => ({
       ...prev,
-      tokens: prev.tokens + earned,
-      resolvedWeeks: [...prev.resolvedWeeks, currentWeek],
+      tokens: nextTokens,
+      resolvedWeeks: [...prev.resolvedWeeks, `${prev.currentMajor}-${prev.currentWeek}`],
     }));
 
     setScreen("home");
   };
 
   const addWeek = () => {
-    const targetMajor = majors.find((m) => m.name === data.currentMajor);
-    if (!targetMajor) return;
+  const targetMajor = majorStructure.find((m) => m.id === data.currentMajor);
+  if (!targetMajor) return;
 
-    const nextWeek = targetMajor.weeks.find((week) => !data.weeks[week]);
-    if (!nextWeek) {
-      alert("Dieser Major hat bereits alle 3 Wochen.");
-      return;
-    }
+  const nextWeek = targetMajor.weeks.find(
+    (week) => !data.weeks[data.currentMajor]?.[week]
+  );
 
-    updateData((prev) => ({
-      ...prev,
-      currentWeek: nextWeek,
-      weeks: {
-        ...prev.weeks,
+  if (!nextWeek) {
+    alert("Dieser Major hat bereits alle 7 Wochen.");
+    return;
+  }
+
+  updateData((prev) => ({
+    ...prev,
+    currentWeek: nextWeek,
+    weeks: {
+      ...prev.weeks,
+      [prev.currentMajor]: {
+        ...(prev.weeks[prev.currentMajor] || {}),
         [nextWeek]: [],
       },
-    }));
-  };
+    },
+  }));
+};
 
-  const deleteCurrentWeek = () => {
-    if (!confirm(`Willst du Woche ${getDisplayWeek(currentWeek)} in ${currentMajor.label} löschen?`))
-      return;
-
-    updateData((prev) => {
-      const nextWeeks = { ...prev.weeks };
-      delete nextWeeks[currentWeek];
-      const fallbackWeek = currentMajor.weeks.find((week) => nextWeeks[week]) || prev.currentWeek;
-      return {
-        ...prev,
-        weeks: nextWeeks,
-        currentWeek: fallbackWeek,
-      };
-    });
-  };
-
-  const deleteCurrentMajor = () => {
-    if (!confirm(`Willst du ${currentMajor.label} wirklich löschen?`)) return;
-
-    updateData((prev) => {
-      const nextWeeks = { ...prev.weeks };
-      currentMajor.weeks.forEach((week) => {
-        delete nextWeeks[week];
-      });
-
-      const fallbackMajor = majorStructure.find(
-        (major) => major.id !== currentMajor.id && major.weeks.some((week) => nextWeeks[week])
-      );
-      const fallbackWeek = fallbackMajor?.weeks.find((week) => nextWeeks[week]) || 1;
-
-      return {
-        ...prev,
-        weeks: nextWeeks,
-        currentMajor: fallbackMajor?.id || prev.currentMajor,
-        currentWeek: fallbackWeek,
-      };
-    });
-  };
-
-  const addMatch = async (e: React.FormEvent) => {
-  e.preventDefault();
-
+  const deleteCurrentWeek = async () => {
   if (
-    !adminDraft.teamA.trim() ||
-    !adminDraft.teamB.trim() ||
-    !adminDraft.date.trim() ||
-    !adminDraft.startsAt.trim()
+    !confirm(
+      `Willst du Woche ${getDisplayWeek(currentWeek)} in ${currentMajor.label} löschen?`
+    )
   ) {
     return;
   }
 
-  if (adminDraft.teamA === adminDraft.teamB) {
-    alert("Bitte zwei unterschiedliche Teams wählen.");
-    return;
+  const matchIds = (data.weeks[data.currentMajor]?.[currentWeek] || []).map(
+    (m) => m.id
+  );
+
+  if (matchIds.length) {
+    await supabase.from("user_picks").delete().in("match_id", matchIds);
+    await supabase.from("matches").delete().in("id", matchIds);
   }
 
-  const isoDateTime = new Date(`${adminDraft.date}T${adminDraft.startsAt}:00`);
+  updateData((prev) => {
+    const nextMajorWeeks = { ...(prev.weeks[prev.currentMajor] || {}) };
+    delete nextMajorWeeks[prev.currentWeek];
 
-  const { error } = await supabase.from("matches").insert({
-    week: currentWeek,
-    major: data.currentMajor,
-    team_a: adminDraft.teamA.trim(),
-    team_b: adminDraft.teamB.trim(),
-    starts_at: isoDateTime.toISOString(),
-    locked: false,
-    result: null,
-  });
+    const fallbackWeek =
+      majorStructure
+        .find((m) => m.id === prev.currentMajor)
+        ?.weeks.find((week) => !!nextMajorWeeks[week]) || 1;
 
-  if (error) {
-    setMessage(error.message);
-    return;
-  }
-
-  setAdminDraft({
-    teamA: "",
-    teamB: "",
-    startsAt: "20:00",
-    date: getTodayInputValue(),
+    return {
+      ...prev,
+      weeks: {
+        ...prev.weeks,
+        [prev.currentMajor]: nextMajorWeeks,
+      },
+      currentWeek: fallbackWeek,
+    };
   });
 
   await loadMatches();
 };
+
+  const deleteCurrentMajor = async () => {
+  if (!confirm(`Willst du ${currentMajor.label} wirklich löschen?`)) return;
+
+  const majorMatches = Object.values(data.weeks[data.currentMajor] || {}).flat();
+  const matchIds = majorMatches.map((m) => m.id);
+
+  if (matchIds.length) {
+    await supabase.from("user_picks").delete().in("match_id", matchIds);
+    await supabase.from("matches").delete().in("id", matchIds);
+  }
+
+  updateData((prev) => {
+    const nextWeeks = {
+      ...prev.weeks,
+      [prev.currentMajor]: {},
+    };
+
+    const fallbackMajor =
+      majorStructure.find(
+        (major) =>
+          major.id !== prev.currentMajor &&
+          Object.keys(nextWeeks[major.id] || {}).length > 0
+      ) || majorStructure[0];
+
+    const fallbackWeek =
+      fallbackMajor.weeks.find((week) => !!nextWeeks[fallbackMajor.id]?.[week]) || 1;
+
+    return {
+      ...prev,
+      weeks: nextWeeks,
+      currentMajor: fallbackMajor.id,
+      currentWeek: fallbackWeek,
+    };
+  });
+
+  await loadMatches();
+};
+
+  const addMatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      !adminDraft.teamA.trim() ||
+      !adminDraft.teamB.trim() ||
+      !adminDraft.date.trim() ||
+      !adminDraft.startsAt.trim()
+    ) {
+      return;
+    }
+
+    if (adminDraft.teamA === adminDraft.teamB) {
+      alert("Bitte zwei unterschiedliche Teams wählen.");
+      return;
+    }
+
+    const isoDateTime = new Date(`${adminDraft.date}T${adminDraft.startsAt}:00`);
+
+    const { error } = await supabase.from("matches").insert({
+      week: currentWeek,
+      major: data.currentMajor,
+      team_a: adminDraft.teamA.trim(),
+      team_b: adminDraft.teamB.trim(),
+      starts_at: isoDateTime.toISOString(),
+      locked: false,
+      result: null,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setAdminDraft({
+      teamA: "",
+      teamB: "",
+      startsAt: "20:00",
+      date: getTodayInputValue(),
+    });
+
+    await loadMatches();
+  };
 
   const deleteMatch = async (matchId: number) => {
-  const { error } = await supabase.from("matches").delete().eq("id", matchId);
+    await supabase.from("user_picks").delete().eq("match_id", matchId);
 
-  if (error) {
-    setMessage(error.message);
-    return;
-  }
+    const { error } = await supabase.from("matches").delete().eq("id", matchId);
 
-  await loadMatches();
-};
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    await loadMatches();
+  };
 
   const updateMatch = async <K extends keyof MatchType>(
-  matchId: number,
-  field: K,
-  value: MatchType[K]
-) => {
-  let updatePayload: Record<string, any> = {};
+    matchId: number,
+    field: K,
+    value: MatchType[K]
+  ) => {
+    let updatePayload: Record<string, any> = {};
 
-  if (field === "teamA") updatePayload.team_a = value;
-  else if (field === "teamB") updatePayload.team_b = value;
-  else if (field === "locked") updatePayload.locked = value;
-  else if (field === "result") updatePayload.result = value;
-  else if (field === "startsAt") {
-    setMessage("startsAt bitte später direkt mit Datum/Uhrzeit aus DB bearbeiten.");
-    return;
-  } else {
-    return;
-  }
+    if (field === "teamA") updatePayload.team_a = value;
+    else if (field === "teamB") updatePayload.team_b = value;
+    else if (field === "locked") updatePayload.locked = value;
+    else if (field === "result") updatePayload.result = value;
+    else if (field === "startsAt") {
+      setMessage("startsAt bitte direkt in DB mit starts_at bearbeiten.");
+      return;
+    } else {
+      return;
+    }
 
-  const { error } = await supabase
-    .from("matches")
-    .update(updatePayload)
-    .eq("id", matchId);
+    const { error } = await supabase
+      .from("matches")
+      .update(updatePayload)
+      .eq("id", matchId);
 
-  if (error) {
-    setMessage(error.message);
-    return;
-  }
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
 
-  await loadMatches();
-};
+    await loadMatches();
+  };
 
-  const resetAll = () => {
-    if (!confirm("Willst du wirklich alles zurücksetzen?")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    setData(defaultData);
+  const resetAll = async () => {
+    if (!userId) {
+      setMessage("Bitte zuerst einloggen.");
+      return;
+    }
+
+    if (!confirm("Willst du wirklich deine Online-Daten zurücksetzen?")) return;
+
+    await Promise.all([
+      supabase.from("user_picks").delete().eq("user_id", userId),
+      supabase.from("week_resolutions").delete().eq("user_id", userId),
+      supabase.from("spin_history").delete().eq("user_id", userId),
+      supabase.from("inventory_items").delete().eq("owner_id", userId),
+      supabase.from("profiles").update({ tokens: 0 }).eq("id", userId),
+    ]);
+
+    setData((prev) => ({
+      ...prev,
+      picks: {},
+      resolvedWeeks: [],
+      tokens: 0,
+      inventory: [],
+      spinHistory: [],
+    }));
+
     setLastWin(null);
     setScreen("home");
   };
@@ -967,7 +1201,7 @@ useEffect(() => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "call-of-picks-save.json";
+    a.download = "call-of-picks-online-export.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -992,17 +1226,59 @@ useEffect(() => {
     if (activeGroupId) {
       await loadGroupDetails(activeGroupId);
     }
+
+    await loadRemoteUserGameState(userId);
+  };
+
+  const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
+    if (!userId) return;
+
+    await supabase.from("spin_history").insert({
+      user_id: userId,
+      reels,
+      won,
+    });
+  };
+
+  const updateTokensOnline = async (newTokens: number) => {
+    if (!userId) return false;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ tokens: newTokens })
+      .eq("id", userId);
+
+    if (error) {
+      setMessage(error.message);
+      return false;
+    }
+
+    return true;
   };
 
   const spin = async () => {
+    if (!userId) {
+      setMessage("Bitte zuerst mit Google anmelden.");
+      return;
+    }
+
     if (data.tokens <= 0 || spinning) return;
 
     setLastWin(null);
-    updateData((prev) => ({ ...prev, tokens: prev.tokens - 1 }));
+
+    const nextTokens = data.tokens - 1;
+    const tokenSaved = await updateTokensOnline(nextTokens);
+    if (!tokenSaved) return;
+
+    updateData((prev) => ({ ...prev, tokens: nextTokens }));
     setSpinning(true);
 
     const rolling = setInterval(() => {
-      setReels([weightedRandom(symbolPool), weightedRandom(symbolPool), weightedRandom(symbolPool)]);
+      setReels([
+        weightedRandom(symbolPool),
+        weightedRandom(symbolPool),
+        weightedRandom(symbolPool),
+      ]);
     }, 100);
 
     setTimeout(async () => {
@@ -1022,6 +1298,8 @@ useEffect(() => {
         won: win,
       };
 
+      await pushSpinHistoryOnline(spinRecord.reels, win);
+
       updateData((prev) => ({
         ...prev,
         inventory: win ? [...prev.inventory, finalReels[0]] : prev.inventory,
@@ -1033,6 +1311,7 @@ useEffect(() => {
         await grantServerInventoryItem(finalReels[0]);
       }
 
+      await loadRemoteUserGameState(userId);
       setSpinning(false);
     }, 1800);
   };
@@ -1040,7 +1319,7 @@ useEffect(() => {
   const ensureProfile = async (uid: string, email: string) => {
     const { data: existing, error: fetchError } = await supabase
       .from("profiles")
-      .select("id, username")
+      .select("id, username, tokens")
       .eq("id", uid)
       .maybeSingle();
 
@@ -1054,6 +1333,7 @@ useEffect(() => {
       const { error: insertError } = await supabase.from("profiles").insert({
         id: uid,
         username: fallbackName,
+        tokens: 0,
       });
 
       if (insertError) {
@@ -1088,7 +1368,7 @@ useEffect(() => {
 
     const { data: invRows, error: invError } = await supabase
       .from("inventory_items")
-.select("id, owner_id, items(name, rarity, image_path, category)")
+      .select("id, owner_id, items(name, rarity, image_path, category)")
       .in("owner_id", groupUserIds)
       .eq("status", "owned");
 
@@ -1119,12 +1399,12 @@ useEffect(() => {
       if (!item) return;
 
       entry.items.push({
-  inventory_id: row.id,
-  name: item.name,
-  rarity: normalizeRarity(item.rarity),
-  image_path: item.image_path,
-  category: item.category,
-});
+        inventory_id: row.id,
+        name: item.name,
+        rarity: normalizeRarity(item.rarity),
+        image_path: item.image_path,
+        category: item.category,
+      });
     });
 
     setMemberInventories(Array.from(grouped.values()));
@@ -1247,12 +1527,15 @@ useEffect(() => {
     }));
 
     setMembers(nextMembers);
-
     await loadGroupInventories(memberIds);
   };
 
   useEffect(() => {
     const init = async () => {
+      await loadAllItems();
+      await loadAppConfig();
+      await loadMatches();
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -1262,6 +1545,7 @@ useEffect(() => {
         setUserId(user.id);
         setUserEmail(user.email || "");
         await ensureProfile(user.id, user.email || "");
+        await loadRemoteUserGameState(user.id);
         await loadMyGroups(user.id);
       }
 
@@ -1278,6 +1562,7 @@ useEffect(() => {
         setUserId(user.id);
         setUserEmail(user.email || "");
         await ensureProfile(user.id, user.email || "");
+        await loadRemoteUserGameState(user.id);
         await loadMyGroups(user.id);
       } else {
         setUserId("");
@@ -1296,10 +1581,24 @@ useEffect(() => {
         setOutgoingChallenges([]);
         setAllChallenges([]);
         setSelectedChallenge(null);
+        setData((prev) => ({
+          ...prev,
+          picks: {},
+          resolvedWeeks: [],
+          tokens: 0,
+          inventory: [],
+          spinHistory: [],
+        }));
       }
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -1317,44 +1616,91 @@ useEffect(() => {
   }, [activeGroupId, userId]);
 
   useEffect(() => {
-  if (!userId) return;
+    if (!userId) return;
 
-  const channel = supabase
-    .channel(`firstshot-live-${userId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "firstshot_challenges",
-      },
-      async () => {
-        await loadChallenges(userId);
-        if (activeGroupId) {
-          await loadAllItems();
-          await loadGroupDetails(activeGroupId);
+    const channel = supabase
+      .channel(`cop-live-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "firstshot_challenges",
+        },
+        async () => {
+          await loadChallenges(userId);
+          if (activeGroupId) {
+            await loadGroupDetails(activeGroupId);
+          }
         }
-      }
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "inventory_items",
-      },
-      async () => {
-        if (activeGroupId) {
-          await loadGroupDetails(activeGroupId);
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "inventory_items",
+        },
+        async () => {
+          if (activeGroupId) {
+            await loadGroupDetails(activeGroupId);
+          }
+          await loadRemoteUserGameState(userId);
         }
-      }
-    )
-    .subscribe();
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "matches",
+        },
+        async () => {
+          await loadMatches();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_picks",
+          filter: `user_id=eq.${userId}`,
+        },
+        async () => {
+          await loadRemoteUserGameState(userId);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "week_resolutions",
+          filter: `user_id=eq.${userId}`,
+        },
+        async () => {
+          await loadRemoteUserGameState(userId);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "spin_history",
+          filter: `user_id=eq.${userId}`,
+        },
+        async () => {
+          await loadRemoteUserGameState(userId);
+        }
+      )
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [userId, activeGroupId]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, activeGroupId]);
 
   const signInWithGoogle = async () => {
     setMessage("");
@@ -1412,10 +1758,8 @@ useEffect(() => {
     setNeedsUsername(false);
     setMessage("Anzeigename gespeichert.");
 
-    if (userId) {
-      await loadMyGroups(userId);
-      if (activeGroupId) await loadGroupDetails(activeGroupId);
-    }
+    await loadMyGroups(userId);
+    if (activeGroupId) await loadGroupDetails(activeGroupId);
   };
 
   const createGroup = async () => {
@@ -1792,8 +2136,8 @@ useEffect(() => {
     }
 
     const signalAt = round.signalAt;
-const falseStart = signalAt == null;
-const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
+    const falseStart = signalAt == null;
+    const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
 
     setFirstshotRound((prev) => (prev ? { ...prev, clicked: true } : prev));
 
@@ -1821,94 +2165,96 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
             : `Deine Zeit wurde gespeichert (${reactionTime} ms). Jetzt ist der Gegner dran.`
         );
       } else if (
-  challenge.status === "second_turn" &&
-  challenge.second_player_id === userId &&
-  challenge.second_player_time == null
-) {
-  const { error } = await supabase
-    .from("firstshot_challenges")
-    .update({
-      second_player_time: reactionTime,
-      second_player_false_start: falseStart,
-    })
-    .eq("id", challenge.id);
+        challenge.status === "second_turn" &&
+        challenge.second_player_id === userId &&
+        challenge.second_player_time == null
+      ) {
+        const { error } = await supabase
+          .from("firstshot_challenges")
+          .update({
+            second_player_time: reactionTime,
+            second_player_false_start: falseStart,
+          })
+          .eq("id", challenge.id);
 
-  if (error) throw error;
+        if (error) throw error;
 
-  const { data: refreshed, error: refreshError } = await supabase
-    .from("firstshot_challenges")
-    .select("*")
-    .eq("id", challenge.id)
-    .single();
+        const { data: refreshed, error: refreshError } = await supabase
+          .from("firstshot_challenges")
+          .select("*")
+          .eq("id", challenge.id)
+          .single();
 
-  if (refreshError || !refreshed) {
-    throw new Error(refreshError?.message || "Challenge konnte nicht neu geladen werden.");
-  }
+        if (refreshError || !refreshed) {
+          throw new Error(
+            refreshError?.message || "Challenge konnte nicht neu geladen werden."
+          );
+        }
 
-  const refreshedChallenge = refreshed as ChallengeType;
-  const firstTime = refreshedChallenge.first_player_time ?? 999999;
-  const secondTime = refreshedChallenge.second_player_time ?? 999999;
+        const refreshedChallenge = refreshed as ChallengeType;
+        const firstTime = refreshedChallenge.first_player_time ?? 999999;
+        const secondTime = refreshedChallenge.second_player_time ?? 999999;
 
-  if (firstTime === secondTime) {
-    const { error: drawError } = await supabase
-      .from("firstshot_challenges")
-      .update({
-        status: "finished",
-        winner_user_id: null,
-        is_draw: true,
-      })
-      .eq("id", challenge.id);
+        if (firstTime === secondTime) {
+          const { error: drawError } = await supabase
+            .from("firstshot_challenges")
+            .update({
+              status: "finished",
+              winner_user_id: null,
+              is_draw: true,
+            })
+            .eq("id", challenge.id);
 
-    if (drawError) throw drawError;
+          if (drawError) throw drawError;
 
-    setRoundFeedback("Unentschieden. Beide behalten ihre Items.");
-  } else {
-    const winnerId =
-      firstTime < secondTime
-        ? refreshedChallenge.first_player_id
-        : refreshedChallenge.second_player_id;
+          setRoundFeedback("Unentschieden. Beide behalten ihre Items.");
+        } else {
+          const winnerId =
+            firstTime < secondTime
+              ? refreshedChallenge.first_player_id
+              : refreshedChallenge.second_player_id;
 
-    if (!winnerId) {
-      throw new Error("Gewinner konnte nicht bestimmt werden.");
-    }
+          if (!winnerId) {
+            throw new Error("Gewinner konnte nicht bestimmt werden.");
+          }
 
-    const losingItemId =
-      winnerId === refreshedChallenge.from_user_id
-        ? refreshedChallenge.requested_inventory_item_id
-        : refreshedChallenge.offered_inventory_item_id;
+          const losingItemId =
+            winnerId === refreshedChallenge.from_user_id
+              ? refreshedChallenge.requested_inventory_item_id
+              : refreshedChallenge.offered_inventory_item_id;
 
-    const { error: transferError } = await supabase
-      .from("inventory_items")
-      .update({ owner_id: winnerId })
-      .eq("id", losingItemId);
+          const { error: transferError } = await supabase
+            .from("inventory_items")
+            .update({ owner_id: winnerId })
+            .eq("id", losingItemId);
 
-    if (transferError) {
-      throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
-    }
+          if (transferError) {
+            throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
+          }
 
-    const { error: finishError } = await supabase
-      .from("firstshot_challenges")
-      .update({
-        status: "finished",
-        winner_user_id: winnerId,
-        is_draw: false,
-      })
-      .eq("id", challenge.id);
+          const { error: finishError } = await supabase
+            .from("firstshot_challenges")
+            .update({
+              status: "finished",
+              winner_user_id: winnerId,
+              is_draw: false,
+            })
+            .eq("id", challenge.id);
 
-    if (finishError) throw finishError;
+          if (finishError) throw finishError;
 
-    setRoundFeedback(
-      falseStart
-        ? "Fehlstart gespeichert. Ergebnis wurde ausgewertet."
-        : `Deine Zeit: ${reactionTime} ms. Ergebnis wurde ausgewertet.`
-    );
-  }
+          setRoundFeedback(
+            falseStart
+              ? "Fehlstart gespeichert. Ergebnis wurde ausgewertet."
+              : `Deine Zeit: ${reactionTime} ms. Ergebnis wurde ausgewertet.`
+          );
+        }
 
-  await loadChallenges(userId);
-  if (activeGroupId) await loadGroupDetails(activeGroupId);
-
-  setRoundUi("finished");
-}
+        await loadChallenges(userId);
+        if (activeGroupId) await loadGroupDetails(activeGroupId);
+        await loadRemoteUserGameState(userId);
+        setRoundUi("finished");
+      }
 
       await loadChallenges(userId);
       if (activeGroupId) await loadGroupDetails(activeGroupId);
@@ -1950,8 +2296,8 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
           background: rgba(139, 92, 246, 0.7);
         }
       `}</style>
-<div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-gradient-to-b from-zinc-950 via-black to-zinc-950 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
-      
+
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-gradient-to-b from-zinc-950 via-black to-zinc-950 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
         <div className="border-b border-white/10 px-5 pb-4 pt-6">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -1981,7 +2327,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                     <div className="text-sm text-zinc-400">Online Funktionen</div>
                     <div className="mt-1 text-2xl font-black">Melde dich mit Google an</div>
                     <div className="mt-2 text-sm text-zinc-400">
-                      Dann kannst du Gruppen nutzen und Inventare mit Freunden teilen.
+                      Dann werden Picks, Tokens, Inventar, Spins und Gruppen online gespeichert.
                     </div>
                     <Button
                       onClick={signInWithGoogle}
@@ -2012,39 +2358,39 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 )}
 
                 <div className="relative overflow-hidden rounded-[30px] border border-violet-500/20 bg-[linear-gradient(135deg,rgba(91,33,182,0.32),rgba(217,70,239,0.10),rgba(6,182,212,0.12))] p-5 shadow-[0_20px_80px_rgba(76,29,149,0.28)]">
-  <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-violet-400/20 blur-3xl" />
-  <div className="pointer-events-none absolute -bottom-8 left-10 h-24 w-24 rounded-full bg-cyan-400/20 blur-3xl" />
+                  <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-violet-400/20 blur-3xl" />
+                  <div className="pointer-events-none absolute -bottom-8 left-10 h-24 w-24 rounded-full bg-cyan-400/20 blur-3xl" />
 
-  <div className="flex items-start justify-between gap-3">
-    <div>
-      <div className="text-xs uppercase tracking-[0.3em] text-violet-300">
-        {data.stageLabel}
-      </div>
-      <div className="mt-2 text-2xl font-black leading-tight">
-        Tippe Matches, verdiene Tokens und jage seltene Items.
-      </div>
-    </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.3em] text-violet-300">
+                        {data.stageLabel}
+                      </div>
+                      <div className="mt-2 text-2xl font-black leading-tight">
+                        Tippe Matches, verdiene Tokens und jage seltene Items.
+                      </div>
+                    </div>
 
-    <Trophy className="mt-1 h-6 w-6 text-violet-200" />
-  </div>
+                    <Trophy className="mt-1 h-6 w-6 text-violet-200" />
+                  </div>
 
-  <div className="mt-5 flex gap-3">
-    <Button
-      onClick={() => setScreen("picks")}
-      className="flex flex-1 items-center justify-center gap-2"
-    >
-      Jetzt tippen <ChevronRight className="h-4 w-4" />
-    </Button>
+                  <div className="mt-5 flex gap-3">
+                    <Button
+                      onClick={() => setScreen("picks")}
+                      className="flex flex-1 items-center justify-center gap-2"
+                    >
+                      Jetzt tippen <ChevronRight className="h-4 w-4" />
+                    </Button>
 
-    <Button
-      onClick={() => setScreen("slot")}
-      variant="ghost"
-      className="flex-1 border-white/15 bg-white/10"
-    >
-      Slot öffnen
-    </Button>
-  </div>
-</div>
+                    <Button
+                      onClick={() => setScreen("slot")}
+                      variant="ghost"
+                      className="flex-1 border-white/15 bg-white/10"
+                    >
+                      Slot öffnen
+                    </Button>
+                  </div>
+                </div>
 
                 <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
                   <div className="space-y-3">
@@ -2096,7 +2442,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                     label="Tokens"
                     value={data.tokens}
                     glow="border-amber-500/20 bg-gradient-to-br from-zinc-950 to-amber-950/20"
-                    sub="Bleiben gespeichert"
+                    sub="Online gespeichert"
                   />
                   <StatCard
                     icon={Target}
@@ -2110,7 +2456,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                     label="Inventar"
                     value={data.inventory.length}
                     glow="border-violet-500/20 bg-gradient-to-br from-zinc-950 to-violet-950/20"
-                    sub="Lokale Sammlung"
+                    sub="Online Sammlung"
                   />
                   <StatCard
                     icon={Users}
@@ -2192,7 +2538,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 </div>
 
                 {matches.map((match) => {
-                  const selected = data.picks[match.id];
+                  const selected = data.picks[String(match.id)];
                   return (
                     <div
                       key={match.id}
@@ -2264,149 +2610,147 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
             )}
 
             {screen === "slot" && (
-  <motion.div
-    key="slot"
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -10 }}
-    className="mx-auto w-full space-y-4 max-w-md md:max-w-3xl xl:max-w-5xl"
-  >
-    <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
+              <motion.div
+                key="slot"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mx-auto w-full space-y-4 max-w-md md:max-w-3xl xl:max-w-5xl"
+              >
+                <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
 
-    <div className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
-      {/* Hintergrund-Glow */}
-      <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-violet-500/18 blur-3xl" />
-      <div className="pointer-events-none absolute -right-12 bottom-8 h-40 w-40 rounded-full bg-fuchsia-500/16 blur-3xl" />
-      <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-gradient-to-b from-amber-200/10 to-transparent blur-2xl" />
+                <div className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
+                  <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-violet-500/18 blur-3xl" />
+                  <div className="pointer-events-none absolute -right-12 bottom-8 h-40 w-40 rounded-full bg-fuchsia-500/16 blur-3xl" />
+                  <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-gradient-to-b from-amber-200/10 to-transparent blur-2xl" />
 
-      {/* obere Leiste */}
-      <div className="relative z-10 mb-4 flex items-center justify-between rounded-[24px] border border-white/10 bg-black/30 px-4 py-3 backdrop-blur">
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.32em] text-amber-200/80">
-            Premium Slot
-          </div>
-          <div className="mt-1 text-lg font-black text-white">Jackpot Spin</div>
-        </div>
+                  <div className="relative z-10 mb-4 flex items-center justify-between rounded-[24px] border border-white/10 bg-black/30 px-4 py-3 backdrop-blur">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.32em] text-amber-200/80">
+                        Premium Slot
+                      </div>
+                      <div className="mt-1 text-lg font-black text-white">Jackpot Spin</div>
+                    </div>
 
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-right">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
-            Tokens
-          </div>
-          <div className="text-lg font-black text-amber-200">{data.tokens}</div>
-        </div>
-      </div>
+                    <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-right">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
+                        Tokens
+                      </div>
+                      <div className="text-lg font-black text-amber-200">{data.tokens}</div>
+                    </div>
+                  </div>
 
-      {/* Slot-Körper */}
-      <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
-        {/* Lampen oben */}
-        <div className="mb-3 grid grid-cols-6 gap-2">
-  {Array.from({ length: 12 }).map((_, i) => (
-    <div
-      key={i}
-      className={`h-3 rounded-full ${
-        i % 3 === 0
-          ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,1)]"
-          : i % 3 === 1
-          ? "bg-fuchsia-400 shadow-[0_0_18px_rgba(217,70,239,0.95)]"
-          : "bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.95)]"
-      }`}
-    />
-  ))}
-</div>
+                  <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
+                    <div className="mb-3 grid grid-cols-6 gap-2">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`h-3 rounded-full ${
+                            i % 3 === 0
+                              ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,1)]"
+                              : i % 3 === 1
+                                ? "bg-fuchsia-400 shadow-[0_0_18px_rgba(217,70,239,0.95)]"
+                                : "bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.95)]"
+                          }`}
+                        />
+                      ))}
+                    </div>
 
-        {/* Payline */}
-        <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
+                    <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
 
-        {/* Reels */}
-        <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
-          <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
-            {reels.map((symbol, idx) => (
-              <Reel key={idx} symbol={symbol} spinning={spinning} delay={idx * 0.08} />
-            ))}
-          </div>
-        </div>
+                    <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
+                      <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
+                        {reels.map((symbol, idx) => (
+                          <Reel
+                            key={idx}
+                            symbol={symbol}
+                            spinning={spinning}
+                            delay={idx * 0.08}
+                          />
+                        ))}
+                      </div>
+                    </div>
 
-        {/* untere Statusleiste */}
-        <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
-          <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
-            Status
-          </div>
-          <div className="mt-1 text-base font-black text-white">
-            {spinning ? "SPIN LÄUFT..." : "BEREIT FÜR DEN NÄCHSTEN DREH"}
-          </div>
-        </div>
-      </div>
+                    <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
+                      <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
+                        Status
+                      </div>
+                      <div className="mt-1 text-base font-black text-white">
+                        {spinning ? "SPIN LÄUFT..." : "BEREIT FÜR DEN NÄCHSTEN DREH"}
+                      </div>
+                    </div>
+                  </div>
 
-      {/* Button */}
-      <Button
-        onClick={spin}
-        variant="violet"
-        disabled={data.tokens <= 0 || spinning}
-        className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
-      >
-        {spinning ? "Dreht..." : "Spin starten"}
-      </Button>
-    </div>
+                  <Button
+                    onClick={spin}
+                    variant="violet"
+                    disabled={data.tokens <= 0 || spinning}
+                    className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
+                  >
+                    {spinning ? "Dreht..." : "Spin starten"}
+                  </Button>
+                </div>
 
-    <AnimatePresence>
-      {lastWin && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.92, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className={`relative overflow-hidden rounded-3xl border p-4 ${rarityStyles[lastWin.rarity]}`}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_45%)]" />
+                <AnimatePresence>
+                  {lastWin && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.92, y: 12 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className={`relative overflow-hidden rounded-3xl border p-4 ${rarityStyles[lastWin.rarity]}`}
+                    >
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_45%)]" />
 
-          <div className="relative z-10 mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs font-black uppercase tracking-[0.25em]">
-            JACKPOT
-          </div>
+                      <div className="relative z-10 mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs font-black uppercase tracking-[0.25em]">
+                        JACKPOT
+                      </div>
 
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-black/20 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
-              <img
-                src={lastWin.image_path || "/items/fallback.png"}
-                alt={lastWin.name}
-                className="max-h-full max-w-full object-contain"
-              />
-            </div>
+                      <div className="relative z-10 flex items-center gap-3">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-black/20 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                          <img
+                            src={lastWin.image_path || "/items/fallback.png"}
+                            alt={lastWin.name}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
 
-            <div>
-              <div className="text-xl font-black">Treffer! {lastWin.name}</div>
-              <div className="mt-1 text-sm opacity-90">
-                Zum Inventar hinzugefügt
-                {userEmail ? " · auch online gespeichert" : ""}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+                        <div>
+                          <div className="text-xl font-black">Treffer! {lastWin.name}</div>
+                          <div className="mt-1 text-sm opacity-90">
+                            Zum Inventar hinzugefügt · online gespeichert
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-    <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-      <div className="text-sm text-zinc-400">Letzte Spins</div>
-      <div className="mt-3 space-y-2">
-        {data.spinHistory.length ? (
-          data.spinHistory.map((spinItem) => (
-            <div
-              key={spinItem.at}
-              className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3 text-sm"
-            >
-              <span>{spinItem.reels.join(" · ")}</span>
-              <span className={spinItem.won ? "text-emerald-300" : "text-zinc-400"}>
-                {spinItem.won ? "Treffer" : "Kein Treffer"}
-              </span>
-            </div>
-          ))
-        ) : (
-          <div className="rounded-2xl bg-black/40 px-3 py-3 text-sm text-zinc-400">
-            Noch keine Spins.
-          </div>
-        )}
-      </div>
-    </div>
-  </motion.div>
-)}
+                <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+                  <div className="text-sm text-zinc-400">Letzte Spins</div>
+                  <div className="mt-3 space-y-2">
+                    {data.spinHistory.length ? (
+                      data.spinHistory.map((spinItem) => (
+                        <div
+                          key={spinItem.at}
+                          className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3 text-sm"
+                        >
+                          <span>{spinItem.reels.join(" · ")}</span>
+                          <span
+                            className={spinItem.won ? "text-emerald-300" : "text-zinc-400"}
+                          >
+                            {spinItem.won ? "Treffer" : "Kein Treffer"}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl bg-black/40 px-3 py-3 text-sm text-zinc-400">
+                        Noch keine Spins.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {screen === "inventory" && (
               <motion.div
@@ -2424,43 +2768,43 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
-  {inventoryCounts.map((item) => (
-    <ItemCard
-      key={item.id}
-      item={item}
-      action={<div className="text-sm">x{item.quantity}</div>}
-    />
-  ))}
-</div>
+                    {inventoryCounts.map((item) => (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        action={<div className="text-sm">x{item.quantity}</div>}
+                      />
+                    ))}
+                  </div>
                 )}
 
                 {!!userEmail && (
-  <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-    <div className="text-lg font-bold">Online-Inventar</div>
+                  <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+                    <div className="text-lg font-bold">Online-Inventar</div>
 
-    <div className="mt-3">
-      {myOnlineInventory.length ? (
-        <div className="grid grid-cols-2 gap-3">
-          {myOnlineInventory.map((item) => (
-  <ItemCard
-    key={item.inventory_id}
-    item={{
-      name: item.name,
-      rarity: normalizeRarity(item.rarity),
-      image_path: item.image_path,
-      category: item.category,
-    }}
-  />
-))}
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
-          Noch keine online gespeicherten Items.
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                    <div className="mt-3">
+                      {myOnlineInventory.length ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {myOnlineInventory.map((item) => (
+                            <ItemCard
+                              key={item.inventory_id}
+                              item={{
+                                name: item.name,
+                                rarity: normalizeRarity(item.rarity),
+                                image_path: item.image_path,
+                                category: item.category,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
+                          Noch keine online gespeicherten Items.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -2556,9 +2900,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                             >
                               <div>
                                 <div className="font-semibold">{group.name}</div>
-                                <div className="text-xs text-zinc-500">
-                                  {group.invite_code}
-                                </div>
+                                <div className="text-xs text-zinc-500">{group.invite_code}</div>
                               </div>
                               <div className="text-xs text-zinc-400">
                                 {group.owner_id === userId ? "Owner" : "Mitglied"}
@@ -2567,9 +2909,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-3 text-sm text-zinc-500">
-                          Noch keine Gruppen.
-                        </div>
+                        <div className="mt-3 text-sm text-zinc-500">Noch keine Gruppen.</div>
                       )}
                     </div>
 
@@ -2581,8 +2921,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                               <div className="text-sm text-zinc-400">Aktive Gruppe</div>
                               <div className="text-2xl font-black">{activeGroup.name}</div>
                               <div className="mt-2 text-sm text-zinc-400">
-                                Rolle:{" "}
-                                {activeGroup.owner_id === userId ? "Besitzer" : "Mitglied"}
+                                Rolle: {activeGroup.owner_id === userId ? "Besitzer" : "Mitglied"}
                               </div>
                             </div>
                             <button
@@ -2676,154 +3015,158 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                           <div className="text-lg font-bold">Eingehende Challenges</div>
 
                           {incomingChallenges.length ? (
-  incomingChallenges.map((challenge) => {
-    const meta = getChallengeDisplayMeta(challenge);
+                            incomingChallenges.map((challenge) => {
+                              const meta = getChallengeDisplayMeta(challenge);
 
-    return (
-      <div
-        key={challenge.id}
-        className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-      >
-        <div className="text-sm text-zinc-400">
-          Neue Firstshot-Challenge
-        </div>
+                              return (
+                                <div
+                                  key={challenge.id}
+                                  className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+                                >
+                                  <div className="text-sm text-zinc-400">
+                                    Neue Firstshot-Challenge
+                                  </div>
 
-        <div className="mt-1 font-semibold">
-          {meta.fromName} fordert dich heraus
-        </div>
+                                  <div className="mt-1 font-semibold">
+                                    {meta.fromName} fordert dich heraus
+                                  </div>
 
-        <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <ItemCard
-            item={{
-              name: meta.offeredName,
-              rarity:
-                getInventoryMeta(challenge.offered_inventory_item_id)?.item
-                  .rarity || "Common",
-              image_path: meta.offeredImage,
-            }}
-          />
-          <span className="text-center text-zinc-500">↔</span>
-          <ItemCard
-            item={{
-              name: meta.requestedName,
-              rarity:
-                getInventoryMeta(challenge.requested_inventory_item_id)?.item
-                  .rarity || "Common",
-              image_path: meta.requestedImage,
-            }}
-          />
-        </div>
+                                  <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                    <ItemCard
+                                      item={{
+                                        name: meta.offeredName,
+                                        rarity:
+                                          getInventoryMeta(
+                                            challenge.offered_inventory_item_id
+                                          )?.item.rarity || "Common",
+                                        image_path: meta.offeredImage,
+                                      }}
+                                    />
+                                    <span className="text-center text-zinc-500">↔</span>
+                                    <ItemCard
+                                      item={{
+                                        name: meta.requestedName,
+                                        rarity:
+                                          getInventoryMeta(
+                                            challenge.requested_inventory_item_id
+                                          )?.item.rarity || "Common",
+                                        image_path: meta.requestedImage,
+                                      }}
+                                    />
+                                  </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Button
-            onClick={() => acceptChallenge(challenge.id)}
-            variant="violet"
-          >
-            Annehmen
-          </Button>
-          <Button
-            onClick={() => declineChallenge(challenge.id)}
-            variant="danger"
-          >
-            Ablehnen
-          </Button>
-        </div>
-      </div>
-    );
-  })
-) : (
-  <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
-    Keine eingehenden Challenges.
-  </div>
-)}
+                                  <div className="mt-3 grid grid-cols-2 gap-3">
+                                    <Button
+                                      onClick={() => acceptChallenge(challenge.id)}
+                                      variant="violet"
+                                    >
+                                      Annehmen
+                                    </Button>
+                                    <Button
+                                      onClick={() => declineChallenge(challenge.id)}
+                                      variant="danger"
+                                    >
+                                      Ablehnen
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
+                              Keine eingehenden Challenges.
+                            </div>
+                          )}
                         </div>
 
                         <div className="space-y-3">
                           <div className="text-lg font-bold">Alle meine Challenges</div>
 
                           {allChallenges.length ? (
-  allChallenges.map((challenge) => {
-    const meta = getChallengeDisplayMeta(challenge);
+                            allChallenges.map((challenge) => {
+                              const meta = getChallengeDisplayMeta(challenge);
 
-    const canPlayFirst =
-      challenge.status === "accepted" &&
-      challenge.first_player_id === userId &&
-      challenge.first_player_time == null;
+                              const canPlayFirst =
+                                challenge.status === "accepted" &&
+                                challenge.first_player_id === userId &&
+                                challenge.first_player_time == null;
 
-    const canPlaySecond =
-      challenge.status === "second_turn" &&
-      challenge.second_player_id === userId &&
-      challenge.second_player_time == null;
+                              const canPlaySecond =
+                                challenge.status === "second_turn" &&
+                                challenge.second_player_id === userId &&
+                                challenge.second_player_time == null;
 
-    return (
-      <div
-        key={challenge.id}
-        className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="text-sm text-zinc-400">
-              {meta.fromName} vs {meta.toName}
-            </div>
+                              return (
+                                <div
+                                  key={challenge.id}
+                                  className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                      <div className="text-sm text-zinc-400">
+                                        {meta.fromName} vs {meta.toName}
+                                      </div>
 
-            <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <ItemCard
-                item={{
-                  name: meta.offeredName,
-                  rarity:
-                    getInventoryMeta(challenge.offered_inventory_item_id)?.item
-                      .rarity || "Common",
-                  image_path: meta.offeredImage,
-                }}
-              />
-              <span className="text-center text-zinc-500">↔</span>
-              <ItemCard
-                item={{
-                  name: meta.requestedName,
-                  rarity:
-                    getInventoryMeta(challenge.requested_inventory_item_id)?.item
-                      .rarity || "Common",
-                  image_path: meta.requestedImage,
-                }}
-              />
-            </div>
+                                      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                        <ItemCard
+                                          item={{
+                                            name: meta.offeredName,
+                                            rarity:
+                                              getInventoryMeta(
+                                                challenge.offered_inventory_item_id
+                                              )?.item.rarity || "Common",
+                                            image_path: meta.offeredImage,
+                                          }}
+                                        />
+                                        <span className="text-center text-zinc-500">↔</span>
+                                        <ItemCard
+                                          item={{
+                                            name: meta.requestedName,
+                                            rarity:
+                                              getInventoryMeta(
+                                                challenge.requested_inventory_item_id
+                                              )?.item.rarity || "Common",
+                                            image_path: meta.requestedImage,
+                                          }}
+                                        />
+                                      </div>
 
-            <div className="mt-2 text-xs text-zinc-500">
-              {challenge.is_draw
-                ? "Unentschieden"
-                : getChallengeStatusLabel(challenge.status)}
-            </div>
-          </div>
+                                      <div className="mt-2 text-xs text-zinc-500">
+                                        {challenge.is_draw
+                                          ? "Unentschieden"
+                                          : getChallengeStatusLabel(challenge.status)}
+                                      </div>
+                                    </div>
 
-          <div className="text-right text-xs text-zinc-500">
-            {new Date(challenge.created_at).toLocaleString("de-DE")}
-          </div>
-        </div>
+                                    <div className="text-right text-xs text-zinc-500">
+                                      {new Date(challenge.created_at).toLocaleString("de-DE")}
+                                    </div>
+                                  </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {canPlayFirst ? (
-            <Button
-              onClick={() => openChallengeModal(challenge)}
-              variant="violet"
-              className="px-3 py-2 text-sm"
-            >
-              FirstShot starten
-            </Button>
-          ) : null}
+                                  <div className="mt-4 flex flex-wrap gap-2">
+                                    {canPlayFirst ? (
+                                      <Button
+                                        onClick={() => openChallengeModal(challenge)}
+                                        variant="violet"
+                                        className="px-3 py-2 text-sm"
+                                      >
+                                        FirstShot starten
+                                      </Button>
+                                    ) : null}
 
-          {canPlaySecond ? (
-            <Button
-              onClick={() => openChallengeModal(challenge)}
-              variant="violet"
-              className="px-3 py-2 text-sm"
-            >
-              Jetzt spielen
-            </Button>
-          ) : null}
+                                    {canPlaySecond ? (
+                                      <Button
+                                        onClick={() => openChallengeModal(challenge)}
+                                        variant="violet"
+                                        className="px-3 py-2 text-sm"
+                                      >
+                                        Jetzt spielen
+                                      </Button>
+                                    ) : null}
 
-          <Button
-            onClick={() => openChallengeModal(challenge)}
-            variant="ghost"
+                                    <Button
+                                      onClick={() => openChallengeModal(challenge)}
+                                      variant="ghost"
             className="px-3 py-2 text-sm"
           >
             Anzeigen
@@ -3024,7 +3367,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 </form>
 
                 <div className="space-y-3">
-                  {(data.weeks[currentWeek] || []).map((match) => (
+                  {(data.weeks[data.currentMajor]?.[currentWeek] || []).map((match) => (
                     <div
                       key={match.id}
                       className="space-y-3 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
