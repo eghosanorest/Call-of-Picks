@@ -2071,23 +2071,7 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                       <div className="mt-2 text-2xl font-black leading-tight">
                         Tippe Matches, verdiene Tokens und jage seltene Items.
                       </div>
-                      <div className="mt-2 text-sm text-zinc-200">
-                        Alte UI bleibt, Gruppen laufen online, Slots sind wieder drin und
-                        Challenges sind jetzt komplett spielbar.
-                      </div>
-                    </div>
-                    <Trophy className="mt-1 h-6 w-6 text-violet-200" />
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-zinc-300">
-                    <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
-                      <div className="text-zinc-400">Sync</div>
-                      <div className="mt-1 font-semibold">{data.lastSyncLabel}</div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
-                      <div className="text-zinc-400">Quelle</div>
-                      <div className="mt-1 font-semibold">{data.sourceLabel}</div>
-                    </div>
-                  </div>
+                      
                   <div className="mt-5 flex gap-3">
                     <Button
                       onClick={() => setScreen("picks")}
