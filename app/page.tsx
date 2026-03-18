@@ -45,7 +45,7 @@ type LocalSymbol = {
   id: string;
   slug: string;
   name: string;
-  rarity: "Common" | "Rare" | "Epic" | "Legendary";
+  rarity: "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
   image_path: string;
   weight: number;
 };
@@ -220,6 +220,8 @@ const rarityStyles: Record<string, string> = {
     "bg-gradient-to-br from-violet-950/80 to-zinc-950 border-violet-500/40 text-violet-200 shadow-[0_0_28px_rgba(139,92,246,0.22)]",
   Legendary:
     "bg-gradient-to-br from-amber-950/80 to-zinc-950 border-amber-500/40 text-amber-200 shadow-[0_0_32px_rgba(245,158,11,0.26)]",
+  Ultra:
+    "bg-gradient-to-br from-fuchsia-700/30 via-cyan-500/20 to-zinc-950 border-fuchsia-400 text-fuchsia-100 shadow-[0_0_40px_rgba(217,70,239,0.38)]",
 };
 
 const defaultData: LocalData = {
@@ -717,7 +719,7 @@ useEffect(() => {
       if (existing) existing.quantity += 1;
       else map.set(item.id, { ...item, quantity: 1 });
     });
-    const rarityRank = { Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
+    const rarityRank = { Ultra: 5, Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
     return Array.from(map.values()).sort(
       (a, b) => (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0)
     );
