@@ -2455,26 +2455,27 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 )}
 
                 {!!userEmail && (
-                  <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-                    <div className="text-lg font-bold">Online-Inventar</div>
-                    <div className="mt-3">
-  {myOnlineInventory.length ? (
-    <div className="grid grid-cols-2 gap-3">
-      {myOnlineInventory.map((item) => (
-        <ItemCard
-          key={item.inventory_id}
-          item={item}
-        />
-      ))}
+  <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+    <div className="text-lg font-bold">Online-Inventar</div>
+
+    <div className="mt-3">
+      {myOnlineInventory.length ? (
+        <div className="grid grid-cols-2 gap-3">
+          {myOnlineInventory.map((item) => (
+            <ItemCard
+              key={item.inventory_id}
+              item={item}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
+          Noch keine online gespeicherten Items.
+        </div>
+      )}
     </div>
-  ) : (
-    <div className="text-sm text-zinc-500">
-      Noch keine online gespeicherten Items.
-    </div>
-  )}
-</div>
-                  </div>
-                )}
+  </div>
+)}
               </motion.div>
             )}
 
