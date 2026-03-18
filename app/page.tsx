@@ -1351,23 +1351,6 @@ useEffect(() => {
   }, [activeGroupId, userId]);
 
   useEffect(() => {
-    if (!userId) return;
-
-    const channel = supabase
-      .channel(`firstshot-live-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "firstshot_challenges",
-        },
-        async () => {
-          await loadChallenges(userId);
-          if (activeGroupId) {
-            await loadAllItems();
-            await loadGroupDetails(activeGroupId);
-            useEffect(() => {
   if (!mounted) return;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -1382,9 +1365,6 @@ useEffect(() => {
     };
   });
 }, [mounted]);
-          }
-        }
-      )
       .on(
         "postgres_changes",
         {
@@ -2061,33 +2041,39 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 )}
 
                 <div className="relative overflow-hidden rounded-[30px] border border-violet-500/20 bg-[linear-gradient(135deg,rgba(91,33,182,0.32),rgba(217,70,239,0.10),rgba(6,182,212,0.12))] p-5 shadow-[0_20px_80px_rgba(76,29,149,0.28)]">
-                  <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-violet-400/20 blur-3xl" />
-                  <div className="pointer-events-none absolute -bottom-8 left-10 h-24 w-24 rounded-full bg-cyan-400/20 blur-3xl" />
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.3em] text-violet-300">
-                        {data.stageLabel}
-                      </div>
-                      <div className="mt-2 text-2xl font-black leading-tight">
-                        Tippe Matches, verdiene Tokens und jage seltene Items.
-                      </div>
-                      
-                  <div className="mt-5 flex gap-3">
-                    <Button
-                      onClick={() => setScreen("picks")}
-                      className="flex flex-1 items-center justify-center gap-2"
-                    >
-                      Jetzt tippen <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      onClick={() => setScreen("slot")}
-                      variant="ghost"
-                      className="flex-1 border-white/15 bg-white/10"
-                    >
-                      Slot öffnen
-                    </Button>
-                  </div>
-                </div>
+  <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-violet-400/20 blur-3xl" />
+  <div className="pointer-events-none absolute -bottom-8 left-10 h-24 w-24 rounded-full bg-cyan-400/20 blur-3xl" />
+
+  <div className="flex items-start justify-between gap-3">
+    <div>
+      <div className="text-xs uppercase tracking-[0.3em] text-violet-300">
+        {data.stageLabel}
+      </div>
+      <div className="mt-2 text-2xl font-black leading-tight">
+        Tippe Matches, verdiene Tokens und jage seltene Items.
+      </div>
+    </div>
+
+    <Trophy className="mt-1 h-6 w-6 text-violet-200" />
+  </div>
+
+  <div className="mt-5 flex gap-3">
+    <Button
+      onClick={() => setScreen("picks")}
+      className="flex flex-1 items-center justify-center gap-2"
+    >
+      Jetzt tippen <ChevronRight className="h-4 w-4" />
+    </Button>
+
+    <Button
+      onClick={() => setScreen("slot")}
+      variant="ghost"
+      className="flex-1 border-white/15 bg-white/10"
+    >
+      Slot öffnen
+    </Button>
+  </div>
+</div>
 
                 <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
                   <div className="space-y-3">
