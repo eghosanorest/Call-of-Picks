@@ -609,28 +609,15 @@ export default function CallOfPicksPage() {
   };
 
   const loadAppConfig = async () => {
-    const { data: row, error } = await supabase
-      .from("app_config")
-      .select("*")
-      .eq("id", 1)
-      .maybeSingle();
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    if (row) {
-      setData((prev) => ({
-        ...prev,
-        currentWeek: row.current_week ?? prev.currentWeek,
-        currentMajor: row.current_major ?? prev.currentMajor,
-        stageLabel: row.stage_label ?? prev.stageLabel,
-        sourceLabel: row.source_label ?? "Supabase",
-        lastSyncLabel: row.last_sync_label ?? "Online",
-      }));
-    }
-  };
+  setData((prev) => ({
+    ...prev,
+    currentMajor: "major1",
+    currentWeek: 1,
+    stageLabel: "Major I",
+    sourceLabel: "Supabase",
+    lastSyncLabel: "Online",
+  }));
+};
 
   const loadWeeks = async () => {
   setData((prev) => ({
@@ -982,9 +969,7 @@ const totalPicked = useMemo(
     currentWeek: week,
   }));
 
-  await supabase.from("app_config").update({
-    current_week: week,
-  }).eq("id", 1);
+  
 };
 
   const changeMajor = async (majorId: string) => {
@@ -998,10 +983,7 @@ const totalPicked = useMemo(
     currentWeek: fallbackWeek,
   }));
 
-  await supabase.from("app_config").update({
-    current_major: majorId,
-    current_week: fallbackWeek,
-  }).eq("id", 1);
+  
 };
 
   const setPick = async (matchId: string, side: PickSide) => {
@@ -1075,11 +1057,11 @@ const totalPicked = useMemo(
   if (!targetMajor) return;
 
   const nextWeek = targetMajor.weeks.find(
-    (week) => !data.weeks[data.currentMajor]?.[week]
+    (week) => data.weeks[data.currentMajor]?.[week.id] === undefined
   );
 
   if (!nextWeek) {
-    alert("Dieser Major hat bereits alle 7 Wochen.");
+    alert("Dieser Major hat bereits alle vorgesehenen Wochen.");
     return;
   }
 
@@ -1087,7 +1069,7 @@ const totalPicked = useMemo(
     .from("competition_weeks")
     .insert({
       major: data.currentMajor,
-      week: nextWeek,
+      week: nextWeek.id,
     });
 
   if (error) {
@@ -1095,14 +1077,8 @@ const totalPicked = useMemo(
     return;
   }
 
-  await supabase.from("app_config").update({
-    current_major: data.currentMajor,
-    current_week: nextWeek,
-  }).eq("id", 1);
-
-  await loadAppConfig();
-await loadWeeks();
-await loadMatches();
+  await loadWeeks();
+  await loadMatches();
 };
   
 
