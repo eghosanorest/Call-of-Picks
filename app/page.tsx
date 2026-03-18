@@ -153,10 +153,56 @@ const teamIcons: Record<string, string> = {
 const allTeams = Object.keys(teamIcons);
 
 const majorStructure = [
-  { id: "major1", label: "Major I", weeks: [1, 2, 3, 4, 5, 6, 7] },
-  { id: "major2", label: "Major II", weeks: [1, 2, 3, 4, 5, 6, 7] },
-  { id: "major3", label: "Major III", weeks: [1, 2, 3, 4, 5, 6, 7] },
-  { id: "major4", label: "Major IV", weeks: [1, 2, 3, 4, 5, 6, 7] },
+  {
+    id: "major1",
+    label: "Major I",
+    weeks: [
+      { id: 1, label: "W1" },
+      { id: 2, label: "W2" },
+      { id: 3, label: "W3" },
+      { id: 4, label: "W4" },
+      { id: 5, label: "W5" },
+      { id: 8, label: "Bracket" },
+    ],
+  },
+  {
+    id: "major2",
+    label: "Major II",
+    weeks: [
+      { id: 1, label: "W1" },
+      { id: 2, label: "W2" },
+      { id: 3, label: "W3" },
+      { id: 4, label: "W4" },
+      { id: 5, label: "W5" },
+      { id: 6, label: "W6" },
+      { id: 8, label: "Bracket" },
+    ],
+  },
+  {
+    id: "major3",
+    label: "Major III",
+    weeks: [
+      { id: 1, label: "W1" },
+      { id: 2, label: "W2" },
+      { id: 3, label: "W3" },
+      { id: 8, label: "Bracket" },
+    ],
+  },
+  {
+    id: "major4",
+    label: "Major IV",
+    weeks: [
+      { id: 1, label: "W1" },
+      { id: 2, label: "W2" },
+      { id: 3, label: "W3" },
+      { id: 8, label: "Bracket" },
+    ],
+  },
+  {
+    id: "champs",
+    label: "Champs",
+    weeks: [{ id: 1, label: "Champs" }],
+  },
 ];
 
 const symbolPool: LocalSymbol[] = [
@@ -234,6 +280,7 @@ const defaultData: LocalData = {
     major2: {},
     major3: {},
     major4: {},
+    champs: {},
   },
   picks: {},
   resolvedWeeks: [],
@@ -585,7 +632,46 @@ export default function CallOfPicksPage() {
     }
   };
 
-  const loadMatches = async () => {
+  const loadWeeks = async () => {
+  setData((prev) => ({
+    ...prev,
+    weeks: {
+      major1: {
+        1: prev.weeks.major1?.[1] || [],
+        2: prev.weeks.major1?.[2] || [],
+        3: prev.weeks.major1?.[3] || [],
+        4: prev.weeks.major1?.[4] || [],
+        5: prev.weeks.major1?.[5] || [],
+        8: prev.weeks.major1?.[8] || [],
+      },
+      major2: {
+        1: prev.weeks.major2?.[1] || [],
+        2: prev.weeks.major2?.[2] || [],
+        3: prev.weeks.major2?.[3] || [],
+        4: prev.weeks.major2?.[4] || [],
+        5: prev.weeks.major2?.[5] || [],
+        6: prev.weeks.major2?.[6] || [],
+        8: prev.weeks.major2?.[8] || [],
+      },
+      major3: {
+        1: prev.weeks.major3?.[1] || [],
+        2: prev.weeks.major3?.[2] || [],
+        3: prev.weeks.major3?.[3] || [],
+        8: prev.weeks.major3?.[8] || [],
+      },
+      major4: {
+        1: prev.weeks.major4?.[1] || [],
+        2: prev.weeks.major4?.[2] || [],
+        3: prev.weeks.major4?.[3] || [],
+        8: prev.weeks.major4?.[8] || [],
+      },
+      champs: {
+        1: prev.weeks.champs?.[1] || [],
+      },
+    },
+  }));
+};
+const loadMatches = async () => {
     const { data: rows, error } = await supabase
       .from("matches")
       .select("*")
@@ -602,6 +688,7 @@ export default function CallOfPicksPage() {
   major2: {},
   major3: {},
   major4: {},
+  champs: {},
 };
 
 (rows || []).forEach((row: any) => {
@@ -632,10 +719,27 @@ export default function CallOfPicksPage() {
   });
 });
 
-setData((prev) => ({
-  ...prev,
-  weeks: grouped,
-}));
+setData((prev) => {
+  const merged = {
+  major1: { ...(prev.weeks.major1 || {}) },
+  major2: { ...(prev.weeks.major2 || {}) },
+  major3: { ...(prev.weeks.major3 || {}) },
+  major4: { ...(prev.weeks.major4 || {}) },
+  champs: { ...(prev.weeks.champs || {}) },
+};
+
+  Object.entries(grouped).forEach(([major, weeks]) => {
+    Object.entries(weeks).forEach(([week, matches]) => {
+      if (!merged[major as keyof typeof merged]) return;
+      merged[major as keyof typeof merged][Number(week)] = matches;
+    });
+  });
+
+  return {
+    ...prev,
+    weeks: merged,
+  };
+});
   };
 
   const loadRemoteUserGameState = async (uid: string) => {
@@ -739,10 +843,10 @@ const resolvedWeeks = (resolutionRows || []).map(
 
 
   const currentMajor =
-    majorStructure.find((m) => m.id === data.currentMajor) || majorStructure[0];
+  majorStructure.find((m) => m.id === data.currentMajor) || majorStructure[0];
 
-  const visibleWeeks = currentMajor.weeks.filter(
-  (week) => !!data.weeks[data.currentMajor]?.[week]
+const visibleWeeks = currentMajor.weeks.filter(
+  (week) => data.weeks[data.currentMajor]?.[week.id] !== undefined
 );
 
 const matches = data.weeks[data.currentMajor]?.[currentWeek] || [];
@@ -820,7 +924,10 @@ const resolvedCurrentWeek = data.resolvedWeeks.includes(resolvedWeekKey);
     };
   };
 
-  const getDisplayWeek = (week: number) => week;
+  const getDisplayWeek = (week: number) => {
+  if (week === 8) return "Bracket";
+  return `W${week}`;
+};
 
   const correctCount = useMemo(
   () =>
@@ -869,23 +976,32 @@ const totalPicked = useMemo(
     isMe: member.user_id === userId,
   }));
 
-  const changeWeek = (week: number) => {
+  const changeWeek = async (week: number) => {
   updateData((prev) => ({
     ...prev,
     currentWeek: week,
   }));
+
+  await supabase.from("app_config").update({
+    current_week: week,
+  }).eq("id", 1);
 };
 
-  const changeMajor = (majorId: string) => {
+  const changeMajor = async (majorId: string) => {
   const major = majorStructure.find((entry) => entry.id === majorId);
   const fallbackWeek =
-    major?.weeks.find((week) => data.weeks[majorId]?.[week]) || 1;
+    major?.weeks.find((week) => data.weeks[majorId]?.[week.id] !== undefined)?.id || 1;
 
   updateData((prev) => ({
     ...prev,
     currentMajor: majorId,
     currentWeek: fallbackWeek,
   }));
+
+  await supabase.from("app_config").update({
+    current_major: majorId,
+    current_week: fallbackWeek,
+  }).eq("id", 1);
 };
 
   const setPick = async (matchId: string, side: PickSide) => {
@@ -954,7 +1070,7 @@ const totalPicked = useMemo(
     setScreen("home");
   };
 
-  const addWeek = () => {
+  const addWeek = async () => {
   const targetMajor = majorStructure.find((m) => m.id === data.currentMajor);
   if (!targetMajor) return;
 
@@ -967,18 +1083,28 @@ const totalPicked = useMemo(
     return;
   }
 
-  updateData((prev) => ({
-    ...prev,
-    currentWeek: nextWeek,
-    weeks: {
-      ...prev.weeks,
-      [prev.currentMajor]: {
-        ...(prev.weeks[prev.currentMajor] || {}),
-        [nextWeek]: [],
-      },
-    },
-  }));
+  const { error } = await supabase
+    .from("competition_weeks")
+    .insert({
+      major: data.currentMajor,
+      week: nextWeek,
+    });
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  await supabase.from("app_config").update({
+    current_major: data.currentMajor,
+    current_week: nextWeek,
+  }).eq("id", 1);
+
+  await loadAppConfig();
+await loadWeeks();
+await loadMatches();
 };
+  
 
   const deleteCurrentWeek = async () => {
   if (
@@ -1016,8 +1142,14 @@ const totalPicked = useMemo(
       currentWeek: fallbackWeek,
     };
   });
-
-  await loadMatches();
+await supabase
+  .from("competition_weeks")
+  .delete()
+  .eq("major", data.currentMajor)
+  .eq("week", currentWeek);
+  await loadAppConfig();
+await loadWeeks();
+await loadMatches();
 };
 
   const deleteCurrentMajor = async () => {
@@ -1025,6 +1157,11 @@ const totalPicked = useMemo(
 
   const majorMatches = Object.values(data.weeks[data.currentMajor] || {}).flat();
   const matchIds = majorMatches.map((m) => m.id);
+
+  await supabase
+    .from("competition_weeks")
+    .delete()
+    .eq("major", data.currentMajor);
 
   if (matchIds.length) {
     await supabase.from("user_picks").delete().in("match_id", matchIds);
@@ -1055,7 +1192,10 @@ const totalPicked = useMemo(
     };
   });
 
+  await loadAppConfig();
+  await loadWeeks();
   await loadMatches();
+
 };
 
   const addMatch = async (e: React.FormEvent) => {
@@ -1514,8 +1654,9 @@ const totalPicked = useMemo(
   useEffect(() => {
     const init = async () => {
       await loadAllItems();
-      await loadAppConfig();
-      await loadMatches();
+await loadAppConfig();
+await loadWeeks();
+await loadMatches();
 
       const {
         data: { session },
@@ -1577,6 +1718,55 @@ const totalPicked = useMemo(
   }, []);
 
   useEffect(() => {
+  const channel = supabase
+    .channel("cop-global-live")
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "competition_weeks",
+      },
+      async () => {
+        await loadWeeks();
+        await loadMatches();
+      }
+    )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "app_config",
+      },
+      async () => {
+        await loadAppConfig();
+        await loadWeeks();
+        await loadMatches();
+      }
+    )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "matches",
+      },
+      async () => {
+        await loadMatches();
+      }
+    )
+
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
+useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
@@ -1601,7 +1791,8 @@ const totalPicked = useMemo(
 
     const channel = supabase
       .channel(`cop-live-${userId}`)
-      .on(
+      
+.on(
         "postgres_changes",
         {
           event: "*",
@@ -1629,17 +1820,7 @@ const totalPicked = useMemo(
           await loadRemoteUserGameState(userId);
         }
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "matches",
-        },
-        async () => {
-          await loadMatches();
-        }
-      )
+      
       .on(
         "postgres_changes",
         {
@@ -2401,18 +2582,18 @@ const totalPicked = useMemo(
                     </div>
                     <div className="flex gap-2 overflow-x-auto">
                       {visibleWeeks.map((week) => (
-                        <button
-                          key={week}
-                          onClick={() => changeWeek(week)}
-                          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-                            week === currentWeek
-                              ? "bg-violet-500 text-white"
-                              : "bg-white/5 text-zinc-300"
-                          }`}
-                        >
-                          W{getDisplayWeek(week)}
-                        </button>
-                      ))}
+  <button
+    key={week.id}
+    onClick={() => changeWeek(week.id)}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+      week.id === currentWeek
+        ? "bg-violet-500 text-white"
+        : "bg-white/5 text-zinc-300"
+    }`}
+  >
+    {week.label}
+  </button>
+))}
                     </div>
                   </div>
                 </div>
@@ -2504,18 +2685,18 @@ const totalPicked = useMemo(
 
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {visibleWeeks.map((week) => (
-                    <button
-                      key={week}
-                      onClick={() => changeWeek(week)}
-                      className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-                        week === currentWeek
-                          ? "bg-violet-500 text-white"
-                          : "bg-white/5 text-zinc-300"
-                      }`}
-                    >
-                      W{getDisplayWeek(week)}
-                    </button>
-                  ))}
+  <button
+    key={week.id}
+    onClick={() => changeWeek(week.id)}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+      week.id === currentWeek
+        ? "bg-violet-500 text-white"
+        : "bg-white/5 text-zinc-300"
+    }`}
+  >
+    {week.label}
+  </button>
+))}
                 </div>
 
                 {matches.map((match) => {
@@ -3216,18 +3397,18 @@ const totalPicked = useMemo(
 
                     <div className="flex gap-2 overflow-x-auto">
                       {visibleWeeks.map((week) => (
-                        <button
-                          key={week}
-                          onClick={() => changeWeek(week)}
-                          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-                            week === currentWeek
-                              ? "bg-violet-500 text-white"
-                              : "bg-white/5 text-zinc-300"
-                          }`}
-                        >
-                          W{getDisplayWeek(week)}
-                        </button>
-                      ))}
+  <button
+    key={week.id}
+    onClick={() => changeWeek(week.id)}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+      week.id === currentWeek
+        ? "bg-violet-500 text-white"
+        : "bg-white/5 text-zinc-300"
+    }`}
+  >
+    {week.label}
+  </button>
+))}
                       <button
                         onClick={addWeek}
                         className="rounded-xl bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-200"
