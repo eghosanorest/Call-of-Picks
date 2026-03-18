@@ -526,17 +526,7 @@ function normalizeRarity(rarity?: string | null) {
 
   return "Common";
 }
-function normalizeRarity(rarity?: string | null) {
-  const value = (rarity || "").trim().toLowerCase();
 
-  if (value === "common") return "Common";
-  if (value === "rare") return "Rare";
-  if (value === "epic") return "Epic";
-  if (value === "legendary") return "Legendary";
-  if (value === "ultra") return "Ultra";
-
-  return "Common";
-}
 function ItemCard({
   item,
   action,
@@ -551,12 +541,15 @@ function ItemCard({
 }) {
   const normalizedRarity = normalizeRarity(item.rarity);
 
+  let rarityClass = rarityStyles.Common;
+
+  if (normalizedRarity === "Rare") rarityClass = rarityStyles.Rare;
+  if (normalizedRarity === "Epic") rarityClass = rarityStyles.Epic;
+  if (normalizedRarity === "Legendary") rarityClass = rarityStyles.Legendary;
+  if (normalizedRarity === "Ultra") rarityClass = rarityStyles.Ultra;
+
   return (
-    <div
-      className={`rounded-2xl border p-4 ${
-        rarityStyles[normalizedRarity] || rarityStyles.Common
-      }`}
-    >
+    <div className={`rounded-2xl border p-4 ${rarityClass}`}>
       <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
         <img
           src={resolveItemImage(item.image_path)}
@@ -570,7 +563,9 @@ function ItemCard({
 
       <div className="mt-3 font-bold leading-tight">{item.name}</div>
       <div className="text-sm opacity-80">{normalizedRarity}</div>
-      {item.category ? <div className="mt-1 text-xs opacity-60">{item.category}</div> : null}
+      {item.category ? (
+        <div className="mt-1 text-xs opacity-60">{item.category}</div>
+      ) : null}
 
       {action ? <div className="mt-3">{action}</div> : null}
     </div>
