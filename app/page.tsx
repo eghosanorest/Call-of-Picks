@@ -154,12 +154,6 @@ const teamIcons: Record<string, string> = {
 
 const allTeams = Object.keys(teamIcons);
 
-const majorStructure = [
-  { id: "major1", label: "Major I", weeks: [1, 2, 3] },
-  { id: "major2", label: "Major II", weeks: [4, 5, 6] },
-  { id: "major3", label: "Major III", weeks: [7, 8, 9] },
-  { id: "major4", label: "Major IV", weeks: [10, 11, 12] },
-];
 
 const symbolPool: LocalSymbol[] = [
   {
@@ -232,89 +226,6 @@ const defaultData: LocalData = {
   sourceLabel: "Manual weekly input",
   lastSyncLabel: "Manual",
   weeks: {
-    5: [
-      {
-        id: 13181,
-        week: 5,
-        teamA: "Miami Heretics",
-        teamB: "Vancouver Surge",
-        startsAt: "Sun 15 Mar · 15:00",
-        locked: true,
-        result: null,
-      },
-      {
-        id: 13182,
-        week: 5,
-        teamA: "Riyadh Falcons",
-        teamB: "Los Angeles Thieves",
-        startsAt: "Sun 15 Mar · 16:30",
-        locked: true,
-        result: null,
-      },
-      {
-        id: 13183,
-        week: 5,
-        teamA: "FaZe Vegas",
-        teamB: "Carolina Royal Ravens",
-        startsAt: "Sun 15 Mar · 18:00",
-        locked: true,
-        result: "A",
-      },
-    ],
-    6: [
-      {
-        id: 601,
-        week: 6,
-        teamA: "FaZe Vegas",
-        teamB: "Paris Gentle Mates",
-        startsAt: "Fri 20 Mar · 12:00",
-        locked: false,
-        result: null,
-      },
-      {
-        id: 602,
-        week: 6,
-        teamA: "Miami Heretics",
-        teamB: "Carolina Royal Ravens",
-        startsAt: "Sat 21 Mar · 12:00",
-        locked: false,
-        result: null,
-      },
-      {
-        id: 603,
-        week: 6,
-        teamA: "FaZe Vegas",
-        teamB: "Cloud9 New York",
-        startsAt: "Sat 21 Mar · 13:30",
-        locked: false,
-        result: null,
-      },
-      {
-        id: 604,
-        week: 6,
-        teamA: "OpTic Texas",
-        teamB: "Riyadh Falcons",
-        startsAt: "Sat 21 Mar · 15:00",
-        locked: false,
-        result: null,
-      },
-      {
-        id: 605,
-        week: 6,
-        teamA: "G2 Minnesota",
-        teamB: "Los Angeles Thieves",
-        startsAt: "Sat 21 Mar · 16:30",
-        locked: false,
-        result: null,
-      },
-      {
-        id: 606,
-        week: 6,
-        teamA: "Riyadh Falcons",
-        teamB: "Vancouver Surge",
-        startsAt: "Sun 22 Mar · 12:00",
-        locked: false,
-        result: null,
       },
     ],
   },
@@ -653,21 +564,72 @@ const [mounted, setMounted] = useState(false);
     setData((prev) => (typeof updater === "function" ? updater(prev) : updater));
   };
 
-  useEffect(() => {
+  const loadMatches = async () => {
+  const { data: rows, error } = await supabase
+    .from("matches")
+    .select("*")
+    .order("week", { ascending: true })
+    .order("starts_at", { ascending: true });
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  const grouped: Record<number, MatchType[]> = {};
+
+  (rows || []).forEach((row: any) => {
+    const date = new Date(row.starts_at);
+
+    const formatted = date.toLocaleString("de-DE", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    if (!grouped[row.week]) grouped[row.week] = [];
+
+    grouped[row.week].push({
+      id: Number(row.id),
+      week: row.week,
+      teamA: row.team_a,
+      teamB: row.team_b,
+      startsAt: formatted.replace(",", " ·"),
+      locked: row.locked,
+      result: row.result,
+    });
+  });
+
+  setData((prev) => ({
+    ...prev,
+    weeks: grouped,
+  }));
+};
+useEffect(() => {
+  const initLocal = async () => {
     const parsed = safeParse(localStorage.getItem(STORAGE_KEY));
     if (parsed) {
-      setData({ ...defaultData, ...parsed });
+      setData((prev) => ({ ...prev, ...parsed, weeks: {} }));
     }
+
+    await loadMatches();
     setMounted(true);
-  }, []);
+  };
+
+  initLocal();
+}, []);
 
   useEffect(() => {
   loadAllItems();
 }, []);
 useEffect(() => {
-    if (!mounted) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data, mounted]);
+  if (!mounted) return;
+
+  const { weeks, ...rest } = data;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+}, [data, mounted]);
 
   useEffect(() => {
     return () => {
@@ -681,8 +643,8 @@ useEffect(() => {
     [data.weeks]
   );
   const currentMajor =
-    majorStructure.find((major) => major.id === data.currentMajor) || majorStructure[0];
-  const visibleWeeks = currentMajor.weeks.filter((week) => weekKeys.includes(week));
+    majors.find((m) => m.name === data.currentMajor) || majorStructure[0];
+  const visibleWeeks = weekKeys;
   const matches = data.weeks[currentWeek] || [];
   const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
 
@@ -804,16 +766,12 @@ useEffect(() => {
     }));
   };
 
-  const changeMajor = (majorId: string) => {
-    const major = majorStructure.find((entry) => entry.id === majorId);
-    const fallbackWeek =
-      major?.weeks.find((week) => data.weeks[week]) || major?.weeks[0] || data.currentWeek;
-    updateData((prev) => ({
-      ...prev,
-      currentMajor: majorId,
-      currentWeek: fallbackWeek,
-    }));
-  };
+  const changeMajor = (majorName: string) => {
+  updateData((prev) => ({
+    ...prev,
+    currentMajor: majorName,
+  }));
+};
 
   const setPick = (matchId: number, side: PickSide) => {
     updateData((prev) => ({
@@ -850,7 +808,7 @@ useEffect(() => {
   };
 
   const addWeek = () => {
-    const targetMajor = majorStructure.find((major) => major.id === data.currentMajor);
+    const targetMajor = majors.find((m) => m.name === data.currentMajor);
     if (!targetMajor) return;
 
     const nextWeek = targetMajor.weeks.find((week) => !data.weeks[week]);
@@ -908,83 +866,91 @@ useEffect(() => {
     });
   };
 
-  const addMatch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const addMatch = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (
-      !adminDraft.teamA.trim() ||
-      !adminDraft.teamB.trim() ||
-      !adminDraft.date.trim() ||
-      !adminDraft.startsAt.trim()
-    ) {
-      return;
-    }
+  if (
+    !adminDraft.teamA.trim() ||
+    !adminDraft.teamB.trim() ||
+    !adminDraft.date.trim() ||
+    !adminDraft.startsAt.trim()
+  ) {
+    return;
+  }
 
-    if (adminDraft.teamA === adminDraft.teamB) {
-      alert("Bitte zwei unterschiedliche Teams wählen.");
-      return;
-    }
+  if (adminDraft.teamA === adminDraft.teamB) {
+    alert("Bitte zwei unterschiedliche Teams wählen.");
+    return;
+  }
 
-    const formattedDate = new Date(`${adminDraft.date}T12:00:00`).toLocaleDateString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+  const isoDateTime = new Date(`${adminDraft.date}T${adminDraft.startsAt}:00`);
 
-    const newMatch: MatchType = {
-      id: Date.now(),
-      week: currentWeek,
-      teamA: adminDraft.teamA.trim(),
-      teamB: adminDraft.teamB.trim(),
-      startsAt: `${formattedDate} · ${adminDraft.startsAt.trim()}`,
-      locked: false,
-      result: null,
-    };
+  const { error } = await supabase.from("matches").insert({
+    week: currentWeek,
+    major: data.currentMajor,
+    team_a: adminDraft.teamA.trim(),
+    team_b: adminDraft.teamB.trim(),
+    starts_at: isoDateTime.toISOString(),
+    locked: false,
+    result: null,
+  });
 
-    updateData((prev) => ({
-      ...prev,
-      weeks: {
-        ...prev.weeks,
-        [currentWeek]: [...(prev.weeks[currentWeek] || []), newMatch],
-      },
-    }));
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
 
-    setAdminDraft({
-      teamA: "",
-      teamB: "",
-      startsAt: "20:00",
-      date: getTodayInputValue(),
-    });
-  };
+  setAdminDraft({
+    teamA: "",
+    teamB: "",
+    startsAt: "20:00",
+    date: getTodayInputValue(),
+  });
 
-  const deleteMatch = (matchId: number) => {
-    updateData((prev) => ({
-      ...prev,
-      weeks: {
-        ...prev.weeks,
-        [currentWeek]: (prev.weeks[currentWeek] || []).filter((m) => m.id !== matchId),
-      },
-      picks: Object.fromEntries(
-        Object.entries(prev.picks).filter(([key]) => Number(key) !== matchId)
-      ),
-    }));
-  };
+  await loadMatches();
+};
 
-  const updateMatch = <K extends keyof MatchType>(
-    matchId: number,
-    field: K,
-    value: MatchType[K]
-  ) => {
-    updateData((prev) => ({
-      ...prev,
-      weeks: {
-        ...prev.weeks,
-        [currentWeek]: (prev.weeks[currentWeek] || []).map((m) =>
-          m.id === matchId ? { ...m, [field]: value } : m
-        ),
-      },
-    }));
-  };
+  const deleteMatch = async (matchId: number) => {
+  const { error } = await supabase.from("matches").delete().eq("id", matchId);
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  await loadMatches();
+};
+
+  const updateMatch = async <K extends keyof MatchType>(
+  matchId: number,
+  field: K,
+  value: MatchType[K]
+) => {
+  let updatePayload: Record<string, any> = {};
+
+  if (field === "teamA") updatePayload.team_a = value;
+  else if (field === "teamB") updatePayload.team_b = value;
+  else if (field === "locked") updatePayload.locked = value;
+  else if (field === "result") updatePayload.result = value;
+  else if (field === "startsAt") {
+    setMessage("startsAt bitte später direkt mit Datum/Uhrzeit aus DB bearbeiten.");
+    return;
+  } else {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("matches")
+    .update(updatePayload)
+    .eq("id", matchId);
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  await loadMatches();
+};
 
   const resetAll = () => {
     if (!confirm("Willst du wirklich alles zurücksetzen?")) return;
@@ -3094,13 +3060,9 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                         />
                       </div>
 
-                      <input
-                        value={match.startsAt}
-                        onChange={(e) =>
-                          updateMatch(match.id, "startsAt", e.target.value)
-                        }
-                        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-                      />
+                      <div className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-300">
+  {match.startsAt}
+</div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <Button
