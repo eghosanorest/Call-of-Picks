@@ -162,11 +162,11 @@ const majorStructure = [
 
 const symbolPool: LocalSymbol[] = [
   {
-    id: "ak-gold-super",
-    slug: "ak-gold-super",
+    id: "goldak-super",
+    slug: "goldak-super",
     name: "AK-47 Gold Super",
     rarity: "Legendary",
-    image_path: "/items/ak-gold-super.png",
+    image_path: "/items/goldak-super.png",
     weight: 5,
   },
   {
@@ -178,11 +178,11 @@ const symbolPool: LocalSymbol[] = [
     weight: 10,
   },
   {
-    id: "famas-common",
-    slug: "famas-common",
+    id: "mwfamas-common",
+    slug: "mwfamas-common",
     name: "FAMAS MW2 Common",
     rarity: "Rare",
-    image_path: "/items/famas-common.png",
+    image_path: "/items/mwfamas-common.png",
     weight: 25,
   },
   {
