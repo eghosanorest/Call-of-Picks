@@ -164,7 +164,7 @@ const symbolPool: LocalSymbol[] = [
   {
     id: "ak-47-gold-super",
     slug: "ak-47-gold-super",
-    name: "ak-47-gold-super",
+    name: "AK-47 Gold Super",
     rarity: "Legendary",
     image_path: "/items/ak-47-gold-super.png",
     weight: 5,
@@ -172,23 +172,23 @@ const symbolPool: LocalSymbol[] = [
   {
     id: "intervention-fall-epic",
     slug: "intervention-fall-epic",
-    name: "intervention-fall-epic",
+    name: "Intervention Fall Epic",
     rarity: "Epic",
     image_path: "/items/intervention-fall-epic.png",
     weight: 10,
   },
   {
-    id: "fAMAS-mw2-common",
-    slug: "fAMAS-mw2-common",
-    name: "fAMAS-mw2-common",
+    id: "famas-mw2-common",
+    slug: "famas-mw2-common",
+    name: "FAMAS MW2 Common",
     rarity: "Rare",
-    image_path: "/items/fAMAS-mw2-common.png",
+    image_path: "/items/famas-mw2-common.png",
     weight: 25,
   },
   {
     id: "m8a7-snake-rare",
     slug: "m8a7-snake-rare",
-    name: "m8a7-snake-rare",
+    name: "M8A7 Snake Rare",
     rarity: "Rare",
     image_path: "/items/m8a7-snake-rare.png",
     weight: 25,
@@ -196,7 +196,7 @@ const symbolPool: LocalSymbol[] = [
   {
     id: "scumpii-sign-super",
     slug: "scumpii-sign-super",
-    name: "scumpii-sign-super",
+    name: "Scumpii Sign Super",
     rarity: "Epic",
     image_path: "/items/scumpii-sign-super.png",
     weight: 10,
@@ -204,7 +204,7 @@ const symbolPool: LocalSymbol[] = [
   {
     id: "mercules-bpcard97-ultra",
     slug: "mercules-bpcard97-ultra",
-    name: "mercules-bpcard97-ultra",
+    name: "Mercules BPCard97 Ultra",
     rarity: "Legendary",
     image_path: "/items/mercules-bpcard97-ultra.png",
     weight: 5,
@@ -603,6 +603,9 @@ const [mounted, setMounted] = useState(false);
   }, []);
 
   useEffect(() => {
+  loadAllItems();
+}, []);
+useEffect(() => {
     if (!mounted) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data, mounted]);
@@ -672,21 +675,21 @@ const [mounted, setMounted] = useState(false);
   };
 
   const getChallengeDisplayMeta = (challenge: ChallengeType) => {
-    const fromName = memberNameMap.get(challenge.from_user_id) || "Unbekannt";
-    const toName = memberNameMap.get(challenge.to_user_id) || "Unbekannt";
+  const fromName = memberNameMap.get(challenge.from_user_id) || "Unbekannt";
+  const toName = memberNameMap.get(challenge.to_user_id) || "Unbekannt";
 
-    const offered = getInventoryMeta(challenge.offered_inventory_item_id);
-    const requested = getInventoryMeta(challenge.requested_inventory_item_id);
+  const offered = getInventoryMeta(challenge.offered_inventory_item_id);
+  const requested = getInventoryMeta(challenge.requested_inventory_item_id);
 
-    return {
-      fromName,
-      toName,
-      offeredName: offered?.item.name || "Unbekannt",
-      requestedName: requested?.item.name || "Unbekannt",
-      offeredIcon: offered?.item.icon || "🎁",
-      requestedIcon: requested?.item.icon || "🎁",
-    };
+  return {
+    fromName,
+    toName,
+    offeredName: offered?.item.name || "Unbekannt",
+    requestedName: requested?.item.name || "Unbekannt",
+    offeredImage: offered?.item.image_path || "/items/fallback.png",
+    requestedImage: requested?.item.image_path || "/items/fallback.png",
   };
+};
 
   const getDisplayWeek = (week: number) => {
     const major = majorStructure.find((entry) => entry.weeks.includes(week));
@@ -2280,7 +2283,13 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                       className={`rounded-3xl border p-4 ${rarityStyles[lastWin.rarity]}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="text-4xl">{lastWin.emoji}</div>
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/20 p-2">
+  <img
+    src={lastWin.image_path || "/items/fallback.png"}
+    alt={lastWin.name}
+    className="max-h-full max-w-full object-contain"
+  />
+</div>
                         <div>
                           <div className="text-lg font-bold">Treffer! {lastWin.name}</div>
                           <div className="text-sm opacity-80">
@@ -2341,8 +2350,14 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                         key={item.id}
                         className={`rounded-3xl border p-4 ${rarityStyles[item.rarity]}`}
                       >
-                        <div className="text-4xl">{item.emoji}</div>
-                        <div className="mt-2 font-bold">{item.name}</div>
+                        
+                        <div className="mt-2 font-bold">{item.name}</d<div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
+  <img
+    src={item.image_path || "/items/fallback.png"}
+    alt={item.name}
+    className="max-h-full max-w-full object-contain"
+  />
+</div>iv>
                         <div className="text-sm opacity-80">{item.rarity}</div>
                         <div className="mt-2 text-sm">x{item.quantity}</div>
                       </div>
@@ -2360,7 +2375,13 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                             key={item.inventory_id}
                             className="min-w-[88px] rounded-2xl border border-white/10 bg-black/40 p-3 text-center"
                           >
-                            <div className="text-2xl">{item.icon || "🎁"}</div>
+                            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-black/20 p-2 mx-auto">
+  <img
+    src={item.image_path || "/items/fallback.png"}
+    alt={item.name}
+    className="max-h-full max-w-full object-contain"
+  />
+</div>
                             <div className="mt-1 text-sm font-semibold">{item.name}</div>
                             <div className="text-xs text-zinc-500">{item.rarity}</div>
                           </div>
@@ -2603,12 +2624,24 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                                     {meta.fromName} fordert dich heraus
                                   </div>
                                   <div className="mt-2 flex items-center gap-2 text-sm">
-                                    <span className="text-xl">{meta.offeredIcon}</span>
-                                    <span>{meta.offeredName}</span>
-                                    <span className="text-zinc-500">↔</span>
-                                    <span className="text-xl">{meta.requestedIcon}</span>
-                                    <span>{meta.requestedName}</span>
-                                  </div>
+  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
+    <img
+      src={meta.offeredImage}
+      alt={meta.offeredName}
+      className="max-h-full max-w-full object-contain"
+    />
+  </div>
+  <span>{meta.offeredName}</span>
+  <span className="text-zinc-500">↔</span>
+  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
+    <img
+      src={meta.requestedImage}
+      alt={meta.requestedName}
+      className="max-h-full max-w-full object-contain"
+    />
+  </div>
+  <span>{meta.requestedName}</span>
+</div>
                                   <div className="mt-3 grid grid-cols-2 gap-3">
                                     <Button
                                       onClick={() => acceptChallenge(challenge.id)}
@@ -2661,12 +2694,24 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                                         {meta.fromName} vs {meta.toName}
                                       </div>
                                       <div className="mt-2 flex items-center gap-2 text-sm">
-                                        <span className="text-xl">{meta.offeredIcon}</span>
-                                        <span>{meta.offeredName}</span>
-                                        <span className="text-zinc-500">↔</span>
-                                        <span className="text-xl">{meta.requestedIcon}</span>
-                                        <span>{meta.requestedName}</span>
-                                      </div>
+  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
+    <img
+      src={meta.offeredImage}
+      alt={meta.offeredName}
+      className="max-h-full max-w-full object-contain"
+    />
+  </div>
+  <span>{meta.offeredName}</span>
+  <span className="text-zinc-500">↔</span>
+  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
+    <img
+      src={meta.requestedImage}
+      alt={meta.requestedName}
+      className="max-h-full max-w-full object-contain"
+    />
+  </div>
+  <span>{meta.requestedName}</span>
+</div>
                                       <div className="mt-2 text-xs text-zinc-500">
                                         {challenge.is_draw
                                           ? "Unentschieden"
@@ -3117,42 +3162,41 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 </div>
 
                 <div className="mt-4 flex-1 overflow-y-auto pr-1">
-                  {selectedMember.items.length === 0 ? (
-                    <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
-                      Keine Items
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-  {selectedMember.items.map((item) => (
-    <ItemCard
-      key={item.inventory_id}
-      item={item}
-      action={
-        selectedMember.user_id !== userId ? (
-          <button
-            onClick={() => {
-              if (isInventoryItemLocked(item.inventory_id)) return;
-              setChallengeTargetItem(item);
-              setChallengeTargetUser(selectedMember);
-              setShowChallengePicker(true);
-            }}
-            disabled={isInventoryItemLocked(item.inventory_id)}
-            className={`w-full rounded-xl px-3 py-2 text-sm font-semibold text-white transition ${
-              isInventoryItemLocked(item.inventory_id)
-                ? "bg-zinc-700 opacity-50"
-                : "bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-[0_8px_24px_rgba(139,92,246,0.28)]"
-            }`}
-          >
-            {isInventoryItemLocked(item.inventory_id) ? "Gebunden" : "Challenge"}
-          </button>
-        ) : null
-      }
-    />
-  ))}
+  {selectedMember.items.length === 0 ? (
+    <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
+      Keine Items
+    </div>
+  ) : (
+    <div className="grid grid-cols-2 gap-3">
+      {selectedMember.items.map((item) => (
+        <ItemCard
+          key={item.inventory_id}
+          item={item}
+          action={
+            selectedMember.user_id !== userId ? (
+              <button
+                onClick={() => {
+                  if (isInventoryItemLocked(item.inventory_id)) return;
+                  setChallengeTargetItem(item);
+                  setChallengeTargetUser(selectedMember);
+                  setShowChallengePicker(true);
+                }}
+                disabled={isInventoryItemLocked(item.inventory_id)}
+                className={`w-full rounded-xl px-3 py-2 text-sm font-semibold text-white transition ${
+                  isInventoryItemLocked(item.inventory_id)
+                    ? "bg-zinc-700 opacity-50"
+                    : "bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-[0_8px_24px_rgba(139,92,246,0.28)]"
+                }`}
+              >
+                {isInventoryItemLocked(item.inventory_id) ? "Gebunden" : "Challenge"}
+              </button>
+            ) : null
+          }
+        />
+      ))}
+    </div>
+  )}
 </div>
-                    </div>
-                  )}
-                </div>
               </motion.div>
             </motion.div>
           )}
@@ -3192,7 +3236,13 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                 <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
                   <div className="text-sm text-zinc-400">Gewünschtes Item</div>
                   <div className="mt-2 flex items-center gap-3">
-                    <div className="text-3xl">{challengeTargetItem.icon || "🎁"}</div>
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/20 p-2">
+  <img
+    src={challengeTargetItem.image_path || "/items/fallback.png"}
+    alt={challengeTargetItem.name}
+    className="max-h-full max-w-full object-contain"
+  />
+</div>
                     <div>
                       <div className="font-bold">{challengeTargetItem.name}</div>
                       <div className="text-sm text-zinc-500">
