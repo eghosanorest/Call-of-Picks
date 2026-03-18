@@ -472,26 +472,16 @@ function ItemCard({
 }
 
 export default function CallOfPicksPage() {
-  useEffect(() => {
-  const channel = supabase
-    .channel("matches-live")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "matches",
-      },
-      async () => {
-        await loadMatches();
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, []);
+  // 1
+supabase.from("week_resolutions").select("major, week").eq("user_id", uid)
+// 2
+const deleteMatch = async (matchId: string) => {
+  // 3
+const updateMatch = async <K extends keyof MatchType>(
+  matchId: string,
+  field: K,
+  value: MatchType[K]
+) => {
 const [allItemCatalog, setAllItemCatalog] = useState<
     {
       id: string;
@@ -662,7 +652,7 @@ setData((prev) => ({
       await Promise.all([
         supabase.from("profiles").select("username, tokens").eq("id", uid).maybeSingle(),
         supabase.from("user_picks").select("match_id, pick_side").eq("user_id", uid),
-        supabase.from("week_resolutions").select("week").eq("user_id", uid),
+        supabase.from("week_resolutions").select("major, week").eq("user_id", uid),
         supabase
           .from("spin_history")
           .select("created_at, reels, won")
@@ -1121,7 +1111,7 @@ const totalPicked = useMemo(
     await loadMatches();
   };
 
-  const deleteMatch = async (matchId: number) => {
+  const deleteMatch = async (matchId: string) => {
     await supabase.from("user_picks").delete().eq("match_id", matchId);
 
     const { error } = await supabase.from("matches").delete().eq("id", matchId);
@@ -1135,10 +1125,10 @@ const totalPicked = useMemo(
   };
 
   const updateMatch = async <K extends keyof MatchType>(
-    matchId: number,
-    field: K,
-    value: MatchType[K]
-  ) => {
+  matchId: string,
+  field: K,
+  value: MatchType[K]
+) => {
     let updatePayload: Record<string, any> = {};
 
     if (field === "teamA") updatePayload.team_a = value;
