@@ -399,15 +399,30 @@ function Reel({
   return (
     <motion.div
       animate={
-        spinning ? { y: [0, -12, 12, -8, 8, 0], scale: [1, 1.03, 1] } : { y: 0, scale: 1 }
+        spinning
+          ? {
+              y: [0, -22, 22, -12, 12, 0],
+              scale: [1, 1.05, 1],
+              rotateX: [0, -6, 6, -3, 3, 0],
+            }
+          : { y: 0, scale: 1, rotateX: 0 }
       }
-      transition={{ duration: 0.45, repeat: spinning ? 5 : 0, delay }}
-      className="flex h-24 w-24 items-center justify-center rounded-3xl border border-white/10 bg-zinc-900 p-3 shadow-2xl"
+      transition={{ duration: 0.42, repeat: spinning ? 6 : 0, delay }}
+      className="relative flex h-36 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-[linear-gradient(180deg,rgba(50,50,56,0.98),rgba(10,10,12,1))] p-3 shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)]"
+      style={{ transformStyle: "preserve-3d" }}
     >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-x-2 top-2 h-7 rounded-full bg-white/12 blur-md" />
+      <div className="pointer-events-none absolute inset-x-2 bottom-2 h-6 rounded-full bg-black/40 blur-md" />
+      <div className="pointer-events-none absolute inset-y-3 left-0 w-px bg-white/15" />
+      <div className="pointer-events-none absolute inset-y-3 right-0 w-px bg-white/15" />
+
+      <div className="absolute inset-0 rounded-[28px] ring-1 ring-white/10" />
+
       <img
         src={symbol.image_path}
         alt={symbol.name}
-        className="max-h-full max-w-full object-contain"
+        className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,0.6)]"
       />
     </motion.div>
   );
@@ -495,6 +510,11 @@ function Button({
     </button>
   );
 }
+function resolveItemImage(path?: string | null) {
+  if (!path || typeof path !== "string") return "/items/fallback.png";
+  if (path.startsWith("/")) return path;
+  return `/items/${path}`;
+}
 function ItemCard({
   item,
   action,
@@ -511,9 +531,12 @@ function ItemCard({
     <div className={`rounded-2xl border p-4 ${rarityStyles[item.rarity] || rarityStyles.Common}`}>
       <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
         <img
-          src={item.image_path || "/items/fallback.png"}
+          src={resolveItemImage(item.image_path)}
           alt={item.name}
           className="max-h-full max-w-full object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
+          onError={(e) => {
+            e.currentTarget.src = "/items/fallback.png";
+          }}
         />
       </div>
 
@@ -534,6 +557,7 @@ export default function CallOfPicksPage() {
 
   if (error) {
     setMessage(error.message);
+    setAllItemCatalog([]);
     return;
   }
 
@@ -2260,85 +2284,149 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
             )}
 
             {screen === "slot" && (
-              <motion.div
-                key="slot"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
-              >
-                <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
+  <motion.div
+    key="slot"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="space-y-4"
+  >
+    <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
 
-                <div className="rounded-[2rem] border border-violet-500/20 bg-gradient-to-b from-zinc-950 to-black p-5 shadow-[0_0_60px_rgba(139,92,246,0.15)]">
-                  <div className="mb-5 grid grid-cols-3 gap-3">
-                    {reels.map((symbol, idx) => (
-                      <Reel key={idx} symbol={symbol} spinning={spinning} delay={idx * 0.08} />
-                    ))}
-                  </div>
-                  <Button
-                    onClick={spin}
-                    variant="violet"
-                    disabled={data.tokens <= 0 || spinning}
-                    className="w-full"
-                  >
-                    {spinning ? "Dreht..." : "Spin starten"}
-                  </Button>
-                </div>
+    <div className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
+      {/* Hintergrund-Glow */}
+      <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-violet-500/18 blur-3xl" />
+      <div className="pointer-events-none absolute -right-12 bottom-8 h-40 w-40 rounded-full bg-fuchsia-500/16 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-gradient-to-b from-amber-200/10 to-transparent blur-2xl" />
 
-                <AnimatePresence>
-                  {lastWin && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                      className={`rounded-3xl border p-4 ${rarityStyles[lastWin.rarity]}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/20 p-2">
-  <img
-    src={lastWin.image_path || "/items/fallback.png"}
-    alt={lastWin.name}
-    className="max-h-full max-w-full object-contain"
-  />
+      {/* obere Leiste */}
+      <div className="relative z-10 mb-4 flex items-center justify-between rounded-[24px] border border-white/10 bg-black/30 px-4 py-3 backdrop-blur">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.32em] text-amber-200/80">
+            Premium Slot
+          </div>
+          <div className="mt-1 text-lg font-black text-white">Jackpot Spin</div>
+        </div>
+
+        <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-right">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
+            Tokens
+          </div>
+          <div className="text-lg font-black text-amber-200">{data.tokens}</div>
+        </div>
+      </div>
+
+      {/* Slot-Körper */}
+      <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
+        {/* Lampen oben */}
+        <div className="mb-3 grid grid-cols-6 gap-2">
+  {Array.from({ length: 12 }).map((_, i) => (
+    <div
+      key={i}
+      className={`h-3 rounded-full ${
+        i % 3 === 0
+          ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,1)]"
+          : i % 3 === 1
+          ? "bg-fuchsia-400 shadow-[0_0_18px_rgba(217,70,239,0.95)]"
+          : "bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.95)]"
+      }`}
+    />
+  ))}
 </div>
-                        <div>
-                          <div className="text-lg font-bold">Treffer! {lastWin.name}</div>
-                          <div className="text-sm opacity-80">
-                            Zum Inventar hinzugefügt
-                            {userEmail ? " · auch online gespeichert" : ""}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
 
-                <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-                  <div className="text-sm text-zinc-400">Letzte Spins</div>
-                  <div className="mt-3 space-y-2">
-                    {data.spinHistory.length ? (
-                      data.spinHistory.map((spinItem) => (
-                        <div
-                          key={spinItem.at}
-                          className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3 text-sm"
-                        >
-                          <span>{spinItem.reels.join(" · ")}</span>
-                          <span
-                            className={spinItem.won ? "text-emerald-300" : "text-zinc-400"}
-                          >
-                            {spinItem.won ? "Treffer" : "Kein Treffer"}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl bg-black/40 px-3 py-3 text-sm text-zinc-400">
-                        Noch keine Spins.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
+        {/* Payline */}
+        <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
+
+        {/* Reels */}
+        <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
+          <div className="grid grid-cols-3 gap-3 justify-items-center">
+            {reels.map((symbol, idx) => (
+              <Reel key={idx} symbol={symbol} spinning={spinning} delay={idx * 0.08} />
+            ))}
+          </div>
+        </div>
+
+        {/* untere Statusleiste */}
+        <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
+          <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
+            Status
+          </div>
+          <div className="mt-1 text-base font-black text-white">
+            {spinning ? "SPIN LÄUFT..." : "BEREIT FÜR DEN NÄCHSTEN DREH"}
+          </div>
+        </div>
+      </div>
+
+      {/* Button */}
+      <Button
+        onClick={spin}
+        variant="violet"
+        disabled={data.tokens <= 0 || spinning}
+        className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
+      >
+        {spinning ? "Dreht..." : "Spin starten"}
+      </Button>
+    </div>
+
+    <AnimatePresence>
+      {lastWin && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className={`relative overflow-hidden rounded-3xl border p-4 ${rarityStyles[lastWin.rarity]}`}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_45%)]" />
+
+          <div className="relative z-10 mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs font-black uppercase tracking-[0.25em]">
+            JACKPOT
+          </div>
+
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-black/20 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+              <img
+                src={lastWin.image_path || "/items/fallback.png"}
+                alt={lastWin.name}
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
+
+            <div>
+              <div className="text-xl font-black">Treffer! {lastWin.name}</div>
+              <div className="mt-1 text-sm opacity-90">
+                Zum Inventar hinzugefügt
+                {userEmail ? " · auch online gespeichert" : ""}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+      <div className="text-sm text-zinc-400">Letzte Spins</div>
+      <div className="mt-3 space-y-2">
+        {data.spinHistory.length ? (
+          data.spinHistory.map((spinItem) => (
+            <div
+              key={spinItem.at}
+              className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3 text-sm"
+            >
+              <span>{spinItem.reels.join(" · ")}</span>
+              <span className={spinItem.won ? "text-emerald-300" : "text-zinc-400"}>
+                {spinItem.won ? "Treffer" : "Kein Treffer"}
+              </span>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-2xl bg-black/40 px-3 py-3 text-sm text-zinc-400">
+            Noch keine Spins.
+          </div>
+        )}
+      </div>
+    </div>
+  </motion.div>
+)}
 
             {screen === "inventory" && (
               <motion.div
@@ -2356,53 +2444,35 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
-                    {inventoryCounts.map((item) => (
-                      <div
-  key={item.id}
-  className={`rounded-3xl border p-4 ${rarityStyles[item.rarity]}`}
->
-  <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
-    <img
-      src={item.image_path || "/items/fallback.png"}
-      alt={item.name}
-      className="max-h-full max-w-full object-contain"
+  {inventoryCounts.map((item) => (
+    <ItemCard
+      key={item.id}
+      item={item}
+      action={<div className="text-sm">x{item.quantity}</div>}
     />
-  </div>
-  <div className="mt-2 font-bold">{item.name}</div>
-  <div className="text-sm opacity-80">{item.rarity}</div>
-  <div className="mt-2 text-sm">x{item.quantity}</div>
+  ))}
 </div>
-                    ))}
-                  </div>
                 )}
 
                 {!!userEmail && (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
                     <div className="text-lg font-bold">Online-Inventar</div>
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      {myOnlineInventory.length ? (
-                        myOnlineInventory.map((item) => (
-                          <div
-                            key={item.inventory_id}
-                            className="min-w-[88px] rounded-2xl border border-white/10 bg-black/40 p-3 text-center"
-                          >
-                            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-black/20 p-2 mx-auto">
-  <img
-    src={item.image_path || "/items/fallback.png"}
-    alt={item.name}
-    className="max-h-full max-w-full object-contain"
-  />
+                    <div className="mt-3">
+  {myOnlineInventory.length ? (
+    <div className="grid grid-cols-2 gap-3">
+      {myOnlineInventory.map((item) => (
+        <ItemCard
+          key={item.inventory_id}
+          item={item}
+        />
+      ))}
+    </div>
+  ) : (
+    <div className="text-sm text-zinc-500">
+      Noch keine online gespeicherten Items.
+    </div>
+  )}
 </div>
-                            <div className="mt-1 text-sm font-semibold">{item.name}</div>
-                            <div className="text-xs text-zinc-500">{item.rarity}</div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-sm text-zinc-500">
-                          Noch keine online gespeicherten Items.
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </motion.div>
@@ -2634,40 +2704,38 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                                   <div className="mt-1 font-semibold">
                                     {meta.fromName} fordert dich heraus
                                   </div>
-                                  <div className="mt-2 flex items-center gap-2 text-sm">
-  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
-    <img
-      src={meta.offeredImage}
-      alt={meta.offeredName}
-      className="max-h-full max-w-full object-contain"
-    />
-  </div>
-  <span>{meta.offeredName}</span>
-  <span className="text-zinc-500">↔</span>
-  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
-    <img
-      src={meta.requestedImage}
-      alt={meta.requestedName}
-      className="max-h-full max-w-full object-contain"
-    />
-  </div>
-  <span>{meta.requestedName}</span>
+                                  <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+  <ItemCard
+    item={{
+      name: meta.offeredName,
+      rarity: getInventoryMeta(challenge.offered_inventory_item_id)?.item.rarity || "Common",
+      image_path: meta.offeredImage,
+    }}
+  />
+  <span className="text-zinc-500 text-center">↔</span>
+  <ItemCard
+    item={{
+      name: meta.requestedName,
+      rarity: getInventoryMeta(challenge.requested_inventory_item_id)?.item.rarity || "Common",
+      image_path: meta.requestedImage,
+    }}
+  />
 </div>
-                                  <div className="mt-3 grid grid-cols-2 gap-3">
-                                    <Button
-                                      onClick={() => acceptChallenge(challenge.id)}
-                                      variant="violet"
-                                    >
-                                      Annehmen
-                                    </Button>
-                                    <Button
-                                      onClick={() => declineChallenge(challenge.id)}
-                                      variant="danger"
-                                    >
-                                      Ablehnen
-                                    </Button>
-                                  </div>
-                                </div>
+
+<div className="mt-3 grid grid-cols-2 gap-3">
+  <Button
+    onClick={() => acceptChallenge(challenge.id)}
+    variant="violet"
+  >
+    Annehmen
+  </Button>
+  <Button
+    onClick={() => declineChallenge(challenge.id)}
+    variant="danger"
+  >
+    Ablehnen
+  </Button>
+</div>
                               );
                             })
                           ) : (
@@ -2704,31 +2772,29 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                                       <div className="text-sm text-zinc-400">
                                         {meta.fromName} vs {meta.toName}
                                       </div>
-                                      <div className="mt-2 flex items-center gap-2 text-sm">
-  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
-    <img
-      src={meta.offeredImage}
-      alt={meta.offeredName}
-      className="max-h-full max-w-full object-contain"
-    />
-  </div>
-  <span>{meta.offeredName}</span>
-  <span className="text-zinc-500">↔</span>
-  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 p-1">
-    <img
-      src={meta.requestedImage}
-      alt={meta.requestedName}
-      className="max-h-full max-w-full object-contain"
-    />
-  </div>
-  <span>{meta.requestedName}</span>
+                                      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+  <ItemCard
+    item={{
+      name: meta.offeredName,
+      rarity: getInventoryMeta(challenge.offered_inventory_item_id)?.item.rarity || "Common",
+      image_path: meta.offeredImage,
+    }}
+  />
+  <span className="text-zinc-500 text-center">↔</span>
+  <ItemCard
+    item={{
+      name: meta.requestedName,
+      rarity: getInventoryMeta(challenge.requested_inventory_item_id)?.item.rarity || "Common",
+      image_path: meta.requestedImage,
+    }}
+  />
 </div>
-                                      <div className="mt-2 text-xs text-zinc-500">
-                                        {challenge.is_draw
-                                          ? "Unentschieden"
-                                          : getChallengeStatusLabel(challenge.status)}
-                                      </div>
-                                    </div>
+
+<div className="mt-2 text-xs text-zinc-500">
+  {challenge.is_draw
+    ? "Unentschieden"
+    : getChallengeStatusLabel(challenge.status)}
+</div>
 
                                     <div className="text-right text-xs text-zinc-500">
                                       {new Date(challenge.created_at).toLocaleString("de-DE")}
@@ -3244,24 +3310,10 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                   </button>
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
-                  <div className="text-sm text-zinc-400">Gewünschtes Item</div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/20 p-2">
-  <img
-    src={challengeTargetItem.image_path || "/items/fallback.png"}
-    alt={challengeTargetItem.name}
-    className="max-h-full max-w-full object-contain"
-  />
+                <div className="mt-4">
+  <div className="mb-2 text-sm text-zinc-400">Gewünschtes Item</div>
+  <ItemCard item={challengeTargetItem} />
 </div>
-                    <div>
-                      <div className="font-bold">{challengeTargetItem.name}</div>
-                      <div className="text-sm text-zinc-500">
-                        {challengeTargetItem.rarity}
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 <div className="mt-4 flex-1 overflow-y-auto pr-1">
                   <div className="mb-3 text-sm text-zinc-400">
