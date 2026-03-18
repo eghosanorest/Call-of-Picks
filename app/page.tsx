@@ -2347,20 +2347,20 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
                   <div className="grid grid-cols-2 gap-3">
                     {inventoryCounts.map((item) => (
                       <div
-                        key={item.id}
-                        className={`rounded-3xl border p-4 ${rarityStyles[item.rarity]}`}
-                      >
-                        
-                        <div className="mt-2 font-bold">{item.name}</d<div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
-  <img
-    src={item.image_path || "/items/fallback.png"}
-    alt={item.name}
-    className="max-h-full max-w-full object-contain"
-  />
-</div>iv>
-                        <div className="text-sm opacity-80">{item.rarity}</div>
-                        <div className="mt-2 text-sm">x{item.quantity}</div>
-                      </div>
+  key={item.id}
+  className={`rounded-3xl border p-4 ${rarityStyles[item.rarity]}`}
+>
+  <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
+    <img
+      src={item.image_path || "/items/fallback.png"}
+      alt={item.name}
+      className="max-h-full max-w-full object-contain"
+    />
+  </div>
+  <div className="mt-2 font-bold">{item.name}</div>
+  <div className="text-sm opacity-80">{item.rarity}</div>
+  <div className="mt-2 text-sm">x{item.quantity}</div>
+</div>
                     ))}
                   </div>
                 )}
