@@ -320,7 +320,7 @@ const defaultData: LocalData = {
   },
   picks: {},
   resolvedWeeks: [],
-  tokens: 3,
+  tokens: 0,
   inventory: [],
   spinHistory: [],
 };
