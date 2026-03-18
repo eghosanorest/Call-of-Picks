@@ -515,6 +515,28 @@ function resolveItemImage(path?: string | null) {
   if (path.startsWith("/")) return path;
   return `/items/${path}`;
 }
+function normalizeRarity(rarity?: string | null) {
+  const value = (rarity || "").trim().toLowerCase();
+
+  if (value === "common") return "Common";
+  if (value === "rare") return "Rare";
+  if (value === "epic") return "Epic";
+  if (value === "legendary") return "Legendary";
+  if (value === "ultra") return "Ultra";
+
+  return "Common";
+}
+function normalizeRarity(rarity?: string | null) {
+  const value = (rarity || "").trim().toLowerCase();
+
+  if (value === "common") return "Common";
+  if (value === "rare") return "Rare";
+  if (value === "epic") return "Epic";
+  if (value === "legendary") return "Legendary";
+  if (value === "ultra") return "Ultra";
+
+  return "Common";
+}
 function ItemCard({
   item,
   action,
@@ -527,8 +549,14 @@ function ItemCard({
   };
   action?: React.ReactNode;
 }) {
+  const normalizedRarity = normalizeRarity(item.rarity);
+
   return (
-    <div className={`rounded-2xl border p-4 ${rarityStyles[item.rarity] || rarityStyles.Common}`}>
+    <div
+      className={`rounded-2xl border p-4 ${
+        rarityStyles[normalizedRarity] || rarityStyles.Common
+      }`}
+    >
       <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
         <img
           src={resolveItemImage(item.image_path)}
@@ -541,7 +569,7 @@ function ItemCard({
       </div>
 
       <div className="mt-3 font-bold leading-tight">{item.name}</div>
-      <div className="text-sm opacity-80">{item.rarity}</div>
+      <div className="text-sm opacity-80">{normalizedRarity}</div>
       {item.category ? <div className="mt-1 text-xs opacity-60">{item.category}</div> : null}
 
       {action ? <div className="mt-3">{action}</div> : null}
@@ -2462,11 +2490,16 @@ const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
       {myOnlineInventory.length ? (
         <div className="grid grid-cols-2 gap-3">
           {myOnlineInventory.map((item) => (
-            <ItemCard
-              key={item.inventory_id}
-              item={item}
-            />
-          ))}
+  <ItemCard
+    key={item.inventory_id}
+    item={{
+      name: item.name,
+      rarity: item.rarity,
+      image_path: item.image_path,
+      category: item.category,
+    }}
+  />
+))}
         </div>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
