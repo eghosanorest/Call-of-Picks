@@ -632,115 +632,67 @@ export default function CallOfPicksPage() {
   }
 };
 
-  const loadWeeks = async () => {
-  setData((prev) => ({
-    ...prev,
-    weeks: {
-      major1: {
-        1: prev.weeks.major1?.[1] || [],
-        2: prev.weeks.major1?.[2] || [],
-        3: prev.weeks.major1?.[3] || [],
-        4: prev.weeks.major1?.[4] || [],
-        5: prev.weeks.major1?.[5] || [],
-        8: prev.weeks.major1?.[8] || [],
-      },
-      major2: {
-        1: prev.weeks.major2?.[1] || [],
-        2: prev.weeks.major2?.[2] || [],
-        3: prev.weeks.major2?.[3] || [],
-        4: prev.weeks.major2?.[4] || [],
-        5: prev.weeks.major2?.[5] || [],
-        6: prev.weeks.major2?.[6] || [],
-        8: prev.weeks.major2?.[8] || [],
-      },
-      major3: {
-        1: prev.weeks.major3?.[1] || [],
-        2: prev.weeks.major3?.[2] || [],
-        3: prev.weeks.major3?.[3] || [],
-        8: prev.weeks.major3?.[8] || [],
-      },
-      major4: {
-        1: prev.weeks.major4?.[1] || [],
-        2: prev.weeks.major4?.[2] || [],
-        3: prev.weeks.major4?.[3] || [],
-        8: prev.weeks.major4?.[8] || [],
-      },
-      champs: {
-        1: prev.weeks.champs?.[1] || [],
-      },
-    },
-  }));
-};
+  
 const loadMatches = async () => {
-    const { data: rows, error } = await supabase
-      .from("matches")
-      .select("*")
-      .order("week", { ascending: true })
-      .order("starts_at", { ascending: true });
+  const { data: rows, error } = await supabase
+    .from("matches")
+    .select("*")
+    .order("week", { ascending: true })
+    .order("starts_at", { ascending: true });
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
 
-    const grouped: Record<string, Record<number, MatchType[]>> = {
-  major1: {},
-  major2: {},
-  major3: {},
-  major4: {},
-  champs: {},
-};
+  const allowedWeeksByMajor: Record<string, number[]> = {
+    major1: [1, 2, 3, 4, 5, 8],
+    major2: [1, 2, 3, 4, 5, 6, 8],
+    major3: [1, 2, 3, 8],
+    major4: [1, 2, 3, 8],
+    champs: [1],
+  };
 
-(rows || []).forEach((row: any) => {
-  const date = new Date(row.starts_at);
+  const grouped: Record<string, Record<number, MatchType[]>> = {
+    major1: { 1: [], 2: [], 3: [], 4: [], 5: [], 8: [] },
+    major2: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 8: [] },
+    major3: { 1: [], 2: [], 3: [], 8: [] },
+    major4: { 1: [], 2: [], 3: [], 8: [] },
+    champs: { 1: [] },
+  };
 
-  const formatted = date.toLocaleString("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  (rows || []).forEach((row: any) => {
+    const major = String(row.major || "major1");
+    const week = Number(row.week);
 
-  const major = row.major || "major1";
-  const week = Number(row.week);
+    if (!allowedWeeksByMajor[major]) return;
+    if (!allowedWeeksByMajor[major].includes(week)) return;
 
-  if (!grouped[major]) grouped[major] = {};
-  if (!grouped[major][week]) grouped[major][week] = [];
+    const date = new Date(row.starts_at);
+    const formatted = date.toLocaleString("de-DE", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-  grouped[major][week].push({
-    id: row.id,
-    week,
-    teamA: row.team_a,
-    teamB: row.team_b,
-    startsAt: formatted.replace(",", " ·"),
-    locked: row.locked,
-    result: row.result,
-  });
-});
-
-setData((prev) => {
-  const merged = {
-  major1: { ...(prev.weeks.major1 || {}) },
-  major2: { ...(prev.weeks.major2 || {}) },
-  major3: { ...(prev.weeks.major3 || {}) },
-  major4: { ...(prev.weeks.major4 || {}) },
-  champs: { ...(prev.weeks.champs || {}) },
-};
-
-  Object.entries(grouped).forEach(([major, weeks]) => {
-    Object.entries(weeks).forEach(([week, matches]) => {
-      if (!merged[major as keyof typeof merged]) return;
-      merged[major as keyof typeof merged][Number(week)] = matches;
+    grouped[major][week].push({
+      id: row.id,
+      week,
+      teamA: row.team_a,
+      teamB: row.team_b,
+      startsAt: formatted.replace(",", " ·"),
+      locked: row.locked,
+      result: row.result,
     });
   });
 
-  return {
+  setData((prev) => ({
     ...prev,
-    weeks: merged,
-  };
-});
-  };
+    weeks: grouped,
+  }));
+};
 
   const loadRemoteUserGameState = async (uid: string) => {
     const [{ data: profile, error: profileError }, { data: picksRows, error: picksError }, { data: resolutionRows, error: resolutionError }, { data: spinRows, error: spinError }, { data: invRows, error: invError }] =
@@ -845,9 +797,7 @@ const resolvedWeeks = (resolutionRows || []).map(
   const currentMajor =
   majorStructure.find((m) => m.id === data.currentMajor) || majorStructure[0];
 
-const visibleWeeks = currentMajor.weeks.filter(
-  (week) => data.weeks[data.currentMajor]?.[week.id] !== undefined
-);
+const visibleWeeks = currentMajor.weeks;
 
 const matches = data.weeks[data.currentMajor]?.[currentWeek] || [];
 const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
@@ -1083,127 +1033,7 @@ const totalPicked = useMemo(
     setScreen("home");
   };
 
-  const addWeek = async () => {
-  const targetMajor = majorStructure.find((m) => m.id === data.currentMajor);
-  if (!targetMajor) return;
-
-  const nextWeek = targetMajor.weeks.find(
-    (week) => data.weeks[data.currentMajor]?.[week.id] === undefined
-  );
-
-  if (!nextWeek) {
-    alert("Dieser Major hat bereits alle vorgesehenen Wochen.");
-    return;
-  }
-
-  const { error } = await supabase
-    .from("competition_weeks")
-    .insert({
-      major: data.currentMajor,
-      week: nextWeek.id,
-    });
-
-  if (error) {
-    setMessage(error.message);
-    return;
-  }
-
-  await loadWeeks();
-  await loadMatches();
-};
   
-
-  const deleteCurrentWeek = async () => {
-  if (
-    !confirm(
-      `Willst du Woche ${getDisplayWeek(currentWeek)} in ${currentMajor.label} löschen?`
-    )
-  ) {
-    return;
-  }
-
-  const matchIds = (data.weeks[data.currentMajor]?.[currentWeek] || []).map(
-    (m) => m.id
-  );
-
-  if (matchIds.length) {
-    await supabase.from("user_picks").delete().in("match_id", matchIds);
-    await supabase.from("matches").delete().in("id", matchIds);
-  }
-
-  updateData((prev) => {
-    const nextMajorWeeks = { ...(prev.weeks[prev.currentMajor] || {}) };
-    delete nextMajorWeeks[prev.currentWeek];
-
-    const fallbackWeek =
-      majorStructure
-        .find((m) => m.id === prev.currentMajor)
-        ?.weeks.find((week) => !!nextMajorWeeks[week]) || 1;
-
-    return {
-      ...prev,
-      weeks: {
-        ...prev.weeks,
-        [prev.currentMajor]: nextMajorWeeks,
-      },
-      currentWeek: fallbackWeek,
-    };
-  });
-await supabase
-  .from("competition_weeks")
-  .delete()
-  .eq("major", data.currentMajor)
-  .eq("week", currentWeek);
-  await loadAppConfig();
-await loadWeeks();
-await loadMatches();
-};
-
-  const deleteCurrentMajor = async () => {
-  if (!confirm(`Willst du ${currentMajor.label} wirklich löschen?`)) return;
-
-  const majorMatches = Object.values(data.weeks[data.currentMajor] || {}).flat();
-  const matchIds = majorMatches.map((m) => m.id);
-
-  await supabase
-    .from("competition_weeks")
-    .delete()
-    .eq("major", data.currentMajor);
-
-  if (matchIds.length) {
-    await supabase.from("user_picks").delete().in("match_id", matchIds);
-    await supabase.from("matches").delete().in("id", matchIds);
-  }
-
-  updateData((prev) => {
-    const nextWeeks = {
-      ...prev.weeks,
-      [prev.currentMajor]: {},
-    };
-
-    const fallbackMajor =
-      majorStructure.find(
-        (major) =>
-          major.id !== prev.currentMajor &&
-          Object.keys(nextWeeks[major.id] || {}).length > 0
-      ) || majorStructure[0];
-
-    const fallbackWeek =
-      fallbackMajor.weeks.find((week) => !!nextWeeks[fallbackMajor.id]?.[week]) || 1;
-
-    return {
-      ...prev,
-      weeks: nextWeeks,
-      currentMajor: fallbackMajor.id,
-      currentWeek: fallbackWeek,
-    };
-  });
-
-  await loadAppConfig();
-  await loadWeeks();
-  await loadMatches();
-
-};
 
   const addMatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1660,26 +1490,25 @@ await loadMatches();
 
   useEffect(() => {
     const init = async () => {
-      await loadAllItems();
-await loadAppConfig();
-await loadWeeks();
-await loadMatches();
+  await loadAllItems();
+  await loadAppConfig();
+  await loadMatches();
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        const user = session.user;
-        setUserId(user.id);
-        setUserEmail(user.email || "");
-        await ensureProfile(user.id, user.email || "");
-        await loadRemoteUserGameState(user.id);
-        await loadMyGroups(user.id);
-      }
+  if (session?.user) {
+    const user = session.user;
+    setUserId(user.id);
+    setUserEmail(user.email || "");
+    await ensureProfile(user.id, user.email || "");
+    await loadRemoteUserGameState(user.id);
+    await loadMyGroups(user.id);
+  }
 
-      setMounted(true);
-    };
+  setMounted(true);
+};
 
     init();
 
@@ -1728,32 +1557,20 @@ await loadMatches();
   const channel = supabase
     .channel("cop-global-live")
 
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "competition_weeks",
-      },
-      async () => {
-        await loadWeeks();
-        await loadMatches();
-      }
-    )
+    
 
     .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "app_config",
-      },
-      async () => {
-        await loadAppConfig();
-        await loadWeeks();
-        await loadMatches();
-      }
-    )
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "app_config",
+  },
+  async () => {
+    await loadAppConfig();
+    await loadMatches();
+  }
+)
 
     .on(
       "postgres_changes",
@@ -2618,7 +2435,7 @@ useEffect(() => {
                     label="Richtige Picks"
                     value={correctCount}
                     glow="border-cyan-500/20 bg-gradient-to-br from-zinc-950 to-cyan-950/20"
-                    sub={`${currentMajor.label} W${getDisplayWeek(currentWeek)}`}
+                    sub={`${currentMajor.label} ${getDisplayWeek(currentWeek)}`}
                   />
                   <StatCard
                     icon={Package}
@@ -3416,24 +3233,7 @@ useEffect(() => {
     {week.label}
   </button>
 ))}
-                      <button
-                        onClick={addWeek}
-                        className="rounded-xl bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-200"
-                      >
-                        + Woche
-                      </button>
-                      <button
-                        onClick={deleteCurrentWeek}
-                        className="rounded-xl bg-amber-500/15 px-3 py-2 text-sm font-semibold text-amber-200"
-                      >
-                        Woche löschen
-                      </button>
-                      <button
-                        onClick={deleteCurrentMajor}
-                        className="rounded-xl bg-red-500/15 px-3 py-2 text-sm font-semibold text-red-200"
-                      >
-                        Major löschen
-                      </button>
+                      
                     </div>
                   </div>
                 </div>
