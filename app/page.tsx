@@ -4082,14 +4082,14 @@ useEffect(() => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+              className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/85 p-3 pt-4 backdrop-blur-md"
             >
               <motion.div
                 initial={{ scale: 0.96, opacity: 0, y: 18 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.98, opacity: 0, y: 12 }}
                 transition={{ duration: 0.2 }}
-                className={`relative w-full max-w-3xl overflow-hidden rounded-[34px] border shadow-[0_30px_120px_rgba(0,0,0,0.75)] ${
+                className={`relative w-full max-w-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-[34px] border shadow-[0_30px_120px_rgba(0,0,0,0.75)] ${
                   roundUi === "live"
                     ? "border-red-500/40 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.18),transparent_28%),linear-gradient(180deg,rgba(26,6,6,0.98),rgba(7,7,9,1))]"
                     : roundUi === "waiting"
