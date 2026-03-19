@@ -1893,12 +1893,7 @@ if (!userId) {
   };
 
   
-useEffect(() => {
-  if (!userId) return;
-  if (!allLoadedMatches.length) return;
 
-  settleBetSlips(userId);
-}, [userId, allLoadedMatches]);
 useEffect(() => {
   const init = async () => {
     await loadAllItems();
@@ -2000,11 +1995,7 @@ await settleBetSlips(user.id);
         await autoLockExpiredMatches();
         await loadMatches();
 
-        if (userId) {
-          await settleBetSlips(userId);
-          await loadMyBetSlips(userId);
-          await loadRemoteUserGameState(userId);
-        }
+        
       }
     )
     .subscribe();
@@ -2886,6 +2877,34 @@ const placeBetSlip = async () => {
   await loadMyBetSlips(userId);
 
   setMessage("Wette erfolgreich platziert.");
+};
+const settleMyBetSlipsManual = async () => {
+  setMessage("");
+
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  await settleBetSlips(userId);
+  await loadMyBetSlips(userId);
+  await loadRemoteUserGameState(userId);
+
+  setMessage("Wettscheine wurden geprüft.");
+};
+const settleMyBetSlipsManual = async () => {
+  setMessage("");
+
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  await settleBetSlips(userId);
+  await loadMyBetSlips(userId);
+  await loadRemoteUserGameState(userId);
+
+  setMessage("Wettscheine wurden geprüft.");
 };
 const settleBetSlips = async (uid: string) => {
   const { data: slips, error: slipsError } = await supabase
@@ -4735,19 +4754,37 @@ const getChallengeStatusLabel = (status: string) => {
                 className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
               >
                 <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-zinc-400">Wetten</div>
-                    <div className="text-2xl font-black">Meine Wettscheine</div>
-                  </div>
-                  <button
-                    onClick={() => setShowMyBetsModal(false)}
-                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+  <div>
+    <div className="text-sm text-zinc-400">Wetten</div>
+    <div className="text-2xl font-black">Meine Wettscheine</div>
+  </div>
+  <button
+    onClick={() => setShowMyBetsModal(false)}
+    className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+  >
+    <X className="h-4 w-4" />
+  </button>
+</div>
 
-                <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+<div className="mb-4 grid grid-cols-2 gap-3">
+  <Button
+    onClick={settleMyBetSlipsManual}
+    variant="violet"
+    className="w-full"
+  >
+    Wettscheine auswerten
+  </Button>
+
+  <Button
+    onClick={() => userId && loadMyBetSlips(userId)}
+    variant="ghost"
+    className="w-full"
+  >
+    Aktualisieren
+  </Button>
+</div>
+
+<div className="flex-1 overflow-y-auto pr-1 space-y-3">
                   {myBetSlips.length ? (
                     myBetSlips.map((slip) => {
                       const legs = myBetSlipLegs[slip.id] || [];
