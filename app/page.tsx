@@ -4076,193 +4076,488 @@ useEffect(() => {
           )}
         </AnimatePresence>
 
-        <AnimatePresence>
+                <AnimatePresence>
           {selectedChallengeFresh && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4"
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
             >
               <motion.div
-                initial={{ scale: 0.96, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.96, opacity: 0 }}
-                className="w-full max-w-md rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+                initial={{ scale: 0.96, opacity: 0, y: 18 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.98, opacity: 0, y: 12 }}
+                transition={{ duration: 0.2 }}
+                className={`relative w-full max-w-3xl overflow-hidden rounded-[34px] border shadow-[0_30px_120px_rgba(0,0,0,0.75)] ${
+                  roundUi === "live"
+                    ? "border-red-500/40 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.18),transparent_28%),linear-gradient(180deg,rgba(26,6,6,0.98),rgba(7,7,9,1))]"
+                    : roundUi === "waiting"
+                      ? "border-amber-400/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.16),transparent_28%),linear-gradient(180deg,rgba(28,18,5,0.98),rgba(7,7,9,1))]"
+                      : roundUi === "finished"
+                        ? selectedChallengeFresh.status === "declined"
+                          ? "border-zinc-500/25 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(7,7,9,1))]"
+                          : selectedChallengeFresh.is_draw
+                            ? "border-zinc-500/25 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(7,7,9,1))]"
+                            : selectedChallengeFresh.winner_user_id === userId
+                              ? "border-emerald-500/30 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_28%),linear-gradient(180deg,rgba(6,24,18,0.98),rgba(7,7,9,1))]"
+                              : "border-red-500/30 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.16),transparent_28%),linear-gradient(180deg,rgba(26,8,8,0.98),rgba(7,7,9,1))]"
+                        : roundUi === "saved"
+                          ? "border-cyan-500/25 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_28%),linear-gradient(180deg,rgba(8,20,24,0.98),rgba(7,7,9,1))]"
+                          : "border-violet-500/25 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.16),transparent_28%),linear-gradient(180deg,rgba(20,14,30,0.98),rgba(7,7,9,1))]"
+                }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-zinc-400">FirstShot</div>
-                    <div className="text-2xl font-black">
-                      {memberNameMap.get(selectedChallengeFresh.from_user_id) || "Spieler"} vs{" "}
-                      {memberNameMap.get(selectedChallengeFresh.to_user_id) || "Spieler"}
-                    </div>
-                  </div>
-                  <button
-                    onClick={closeChallengeModal}
-                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4">
-                  <div className="text-sm text-zinc-400">Status</div>
-                  <div className="mt-1 font-semibold">
-                    {selectedChallengeFresh.is_draw
-                      ? "Unentschieden"
-                      : getChallengeStatusLabel(selectedChallengeFresh.status)}
-                  </div>
-
-                  <div className="mt-3 text-sm text-zinc-400">Items</div>
-                  <div className="mt-2 text-sm">
-                    {getInventoryMeta(selectedChallengeFresh.offered_inventory_item_id)?.item
-                      .name || "Unbekannt"}{" "}
-                    ↔{" "}
-                    {getInventoryMeta(
-                      selectedChallengeFresh.requested_inventory_item_id
-                    )?.item.name || "Unbekannt"}
-                  </div>
-                </div>
-
-                {roundUi === "pending" && (
-                  <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-6 text-center">
-                    <div className="text-3xl font-black">PENDING</div>
-                    <div className="mt-2 text-sm text-zinc-400">
-                      Die Challenge wartet noch auf Annahme.
-                    </div>
-                  </div>
-                )}
-
-                {roundUi === "ready" && (
-                  <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-6 text-center">
-                    <div className="text-3xl font-black">DU BIST DRAN</div>
-                    <div className="mt-2 text-sm text-zinc-400">
-                      Warte auf das Signal und klicke dann sofort. Zu frühes
-                      Klicken zählt als Fehlstart.
-                    </div>
-                    <Button
-                      onClick={() => beginFirstshotRound(selectedChallengeFresh)}
-                      className="mt-4 w-full"
-                    >
-                      FirstShot starten
-                    </Button>
-                  </div>
-                )}
+                <div className="pointer-events-none absolute -left-16 top-8 h-36 w-36 rounded-full bg-violet-500/15 blur-3xl" />
+                <div className="pointer-events-none absolute -right-12 top-14 h-40 w-40 rounded-full bg-fuchsia-500/10 blur-3xl" />
+                <div className="pointer-events-none absolute bottom-0 left-1/2 h-32 w-60 -translate-x-1/2 rounded-full bg-cyan-400/8 blur-3xl" />
 
                 {(roundUi === "waiting" || roundUi === "live") && (
-                  <button
-                    onClick={submitReaction}
-                    className={`mt-4 flex h-72 w-full items-center justify-center rounded-[28px] border text-center transition duration-150 ${
+                  <motion.div
+                    animate={{
+                      opacity: [0.16, 0.34, 0.16],
+                      scale: [1, 1.02, 1],
+                    }}
+                    transition={{ duration: 1.1, repeat: Infinity }}
+                    className={`pointer-events-none absolute inset-0 ${
                       roundUi === "live"
-                        ? "border-red-500/60 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.35),rgba(69,10,10,0.9))] shadow-[0_0_60px_rgba(239,68,68,0.28)]"
-                        : "border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.95),rgba(10,10,10,1))]"
+                        ? "bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.18),transparent_48%)]"
+                        : "bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.14),transparent_48%)]"
                     }`}
-                  >
+                  />
+                )}
+
+                <div className="relative z-10 p-5 md:p-7">
+                  <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
                     <div>
-                      <div className="text-6xl font-black tracking-[0.08em]">
-                        {roundUi === "live" ? "SHOT!" : "WARTEN..."}
+                      <div className="text-[11px] font-black uppercase tracking-[0.35em] text-zinc-500">
+                        FirstShot
                       </div>
-                      <div className="mt-3 text-base text-zinc-300">
-                        {roundFeedback}
-                      </div>
-                      <div className="mt-4 text-xs uppercase tracking-[0.25em] text-zinc-500">
-                        Tippe auf diese Fläche
+                      <div className="mt-1 text-2xl font-black tracking-tight md:text-3xl">
+                        eSports Duel
                       </div>
                     </div>
-                  </button>
-                )}
 
-                {roundUi === "saved" && (
-                  <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-6 text-center">
-                    <div className="text-3xl font-black">GESPEICHERT</div>
-                    <div className="mt-2 text-sm text-zinc-400">
-                      {roundFeedback || "Dein Versuch wurde gespeichert."}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] ${
+                          roundUi === "live"
+                            ? "border-red-400/30 bg-red-500/15 text-red-200"
+                            : roundUi === "waiting"
+                              ? "border-amber-400/30 bg-amber-500/15 text-amber-200"
+                              : roundUi === "saved"
+                                ? "border-cyan-400/30 bg-cyan-500/15 text-cyan-200"
+                                : roundUi === "finished"
+                                  ? selectedChallengeFresh.status === "declined"
+                                    ? "border-zinc-400/20 bg-zinc-500/10 text-zinc-200"
+                                    : selectedChallengeFresh.is_draw
+                                      ? "border-zinc-400/20 bg-zinc-500/10 text-zinc-200"
+                                      : selectedChallengeFresh.winner_user_id === userId
+                                        ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-200"
+                                        : "border-red-400/30 bg-red-500/15 text-red-200"
+                                  : "border-violet-400/30 bg-violet-500/15 text-violet-200"
+                        }`}
+                      >
+                        {selectedChallengeFresh.is_draw
+                          ? "Draw"
+                          : getChallengeStatusLabel(selectedChallengeFresh.status)}
+                      </div>
+
+                      <button
+                        onClick={closeChallengeModal}
+                        className="rounded-2xl border border-white/10 bg-white/5 p-2 text-zinc-300 transition hover:bg-white/10"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-                )}
 
-                {roundUi === "watch" && (
-                  <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-6 text-center">
-                    <div className="text-3xl font-black">WARTE</div>
-                    <div className="mt-2 text-sm text-zinc-400">
-                      Der andere Spieler ist zuerst dran.
+                  <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                    <div
+                      className={`rounded-[26px] border p-4 ${
+                        selectedChallengeFresh.from_user_id === userId
+                          ? "border-violet-400/25 bg-violet-500/10"
+                          : "border-white/10 bg-white/5"
+                      }`}
+                    >
+                      <div className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-500">
+                        Player One
+                      </div>
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/40 text-lg font-black">
+                          1
+                        </div>
+                        <div>
+                          <div className="text-lg font-black leading-none">
+                            {memberNameMap.get(selectedChallengeFresh.from_user_id) || "Spieler"}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                            <span>Angreifer</span>
+                            {selectedChallengeFresh.from_user_id === userId && (
+                              <span className="rounded-full border border-violet-400/25 bg-violet-500/15 px-2 py-0.5 font-semibold text-violet-200">
+                                DU
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-center">
+                      <motion.div
+                        animate={{ scale: [1, 1.05, 1] }}
+                        transition={{ duration: 1.4, repeat: Infinity }}
+                        className="rounded-full border border-white/10 bg-white/5 px-5 py-3 shadow-[0_0_25px_rgba(255,255,255,0.05)]"
+                      >
+                        <div className="text-center">
+                          <div className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500">
+                            Duel
+                          </div>
+                          <div className="text-2xl font-black tracking-[0.16em]">VS</div>
+                        </div>
+                      </motion.div>
+                    </div>
+
+                    <div
+                      className={`rounded-[26px] border p-4 ${
+                        selectedChallengeFresh.to_user_id === userId
+                          ? "border-cyan-400/25 bg-cyan-500/10"
+                          : "border-white/10 bg-white/5"
+                      }`}
+                    >
+                      <div className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-500">
+                        Player Two
+                      </div>
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/40 text-lg font-black">
+                          2
+                        </div>
+                        <div>
+                          <div className="text-lg font-black leading-none">
+                            {memberNameMap.get(selectedChallengeFresh.to_user_id) || "Spieler"}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                            <span>Verteidiger</span>
+                            {selectedChallengeFresh.to_user_id === userId && (
+                              <span className="rounded-full border border-cyan-400/25 bg-cyan-500/15 px-2 py-0.5 font-semibold text-cyan-200">
+                                DU
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )}
 
-                {roundUi === "finished" && (
-                  <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-6">
-                    <div className="text-center">
-                      <div className="text-3xl font-black">
-  {selectedChallengeFresh.status === "declined"
-    ? "ABGELEHNT"
-    : selectedChallengeFresh.is_draw
-      ? "UNENTSCHIEDEN"
-      : selectedChallengeFresh.winner_user_id === userId
-        ? "DU HAST GEWONNEN"
-        : "DU HAST VERLOREN"}
-</div>
+                  <div className="mt-4 rounded-[28px] border border-white/10 bg-black/25 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-zinc-300">Einsatz</div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500">
+                        Winner takes item
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                      <div className="scale-[0.92] origin-left">
+                        <ItemCard
+                          item={{
+                            name:
+                              getInventoryMeta(selectedChallengeFresh.offered_inventory_item_id)
+                                ?.item.name || "Unbekannt",
+                            rarity:
+                              getInventoryMeta(selectedChallengeFresh.offered_inventory_item_id)
+                                ?.item.rarity || "Common",
+                            image_path:
+                              getInventoryMeta(selectedChallengeFresh.offered_inventory_item_id)
+                                ?.item.image_path || "/items/fallback.png",
+                            slug:
+                              getInventoryMeta(selectedChallengeFresh.offered_inventory_item_id)
+                                ?.item.slug || null,
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-red-200">
+                          Stake
+                        </div>
+                        <div className="mt-2 text-2xl font-black text-zinc-500">↔</div>
+                      </div>
+
+                      <div className="scale-[0.92] origin-right">
+                        <ItemCard
+                          item={{
+                            name:
+                              getInventoryMeta(selectedChallengeFresh.requested_inventory_item_id)
+                                ?.item.name || "Unbekannt",
+                            rarity:
+                              getInventoryMeta(selectedChallengeFresh.requested_inventory_item_id)
+                                ?.item.rarity || "Common",
+                            image_path:
+                              getInventoryMeta(selectedChallengeFresh.requested_inventory_item_id)
+                                ?.item.image_path || "/items/fallback.png",
+                            slug:
+                              getInventoryMeta(selectedChallengeFresh.requested_inventory_item_id)
+                                ?.item.slug || null,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {roundUi === "pending" && (
+                    <div className="mt-5 rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-8 text-center">
+                      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-violet-400/25 bg-violet-500/10">
+                        <Shield className="h-9 w-9 text-violet-200" />
+                      </div>
+                      <div className="mt-5 text-3xl font-black">Challenge Pending</div>
                       <div className="mt-2 text-sm text-zinc-400">
-  {selectedChallengeFresh.status === "declined"
-    ? "Diese Challenge wurde abgelehnt."
-    : selectedChallengeFresh.is_draw
-      ? "Beide behalten ihre Items."
-      : selectedChallengeFresh.winner_user_id === userId
-        ? "Das gegnerische Item wurde dir übertragen."
-        : "Dein Item wurde an den Gewinner übertragen."}
-</div>
+                        Die Challenge wartet noch auf Annahme.
+                      </div>
                     </div>
+                  )}
 
-                    <div className="mt-4 grid gap-2">
-                      <div className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm">
-                        <strong>
-                          {memberNameMap.get(
-                            selectedChallengeFresh.first_player_id || ""
-                          ) || "Spieler 1"}
-                          :
-                        </strong>{" "}
-                        {selectedChallengeFresh.first_player_time === 999999
-                          ? "Fehlstart"
-                          : selectedChallengeFresh.first_player_time ?? "-"}{" "}
-                        {selectedChallengeFresh.first_player_time &&
-                        selectedChallengeFresh.first_player_time !== 999999
-                          ? "ms"
-                          : ""}
+                  {roundUi === "ready" && (
+                    <div className="mt-5 rounded-[32px] border border-violet-500/20 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.16),transparent_35%),linear-gradient(180deg,rgba(22,16,32,0.98),rgba(7,7,9,1))] p-8 text-center">
+                      <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-violet-400/25 bg-violet-500/10 shadow-[0_0_35px_rgba(139,92,246,0.16)]">
+                        <Target className="h-10 w-10 text-violet-200" />
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm">
-                        <strong>
-                          {memberNameMap.get(
-                            selectedChallengeFresh.second_player_id || ""
-                          ) || "Spieler 2"}
-                          :
-                        </strong>{" "}
-                        {selectedChallengeFresh.second_player_time === 999999
-                          ? "Fehlstart"
-                          : selectedChallengeFresh.second_player_time ?? "-"}{" "}
-                        {selectedChallengeFresh.second_player_time &&
-                        selectedChallengeFresh.second_player_time !== 999999
-                          ? "ms"
-                          : ""}
+                      <div className="mt-5 text-4xl font-black tracking-tight">Bereit?</div>
+                      <div className="mt-2 text-sm text-zinc-400">
+                        Warte auf das Signal und reagiere sofort. Zu frühes Klicken zählt als Fehlstart.
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm">
-                        <strong>Ergebnis:</strong>{" "}
-                        {selectedChallengeFresh.status === "declined"
-                          ? "Keine Auswertung"
-                          : selectedChallengeFresh.is_draw
-                            ? "Kein Item-Wechsel"
-                            : `${
-                                getInventoryMeta(
-                                  selectedChallengeFresh.winner_user_id ===
-                                    selectedChallengeFresh.from_user_id
-                                    ? selectedChallengeFresh.requested_inventory_item_id
-                                    : selectedChallengeFresh.offered_inventory_item_id
-                                )?.item.name || "Item"
-                              } gewonnen`}
+                      <Button
+                        onClick={() => beginFirstshotRound(selectedChallengeFresh)}
+                        variant="violet"
+                        className="mt-6 w-full py-4 text-base font-black uppercase tracking-[0.16em]"
+                      >
+                        FirstShot starten
+                      </Button>
+                    </div>
+                  )}
+
+                  {(roundUi === "waiting" || roundUi === "live") && (
+                    <div className="mt-5 rounded-[32px] border border-white/10 bg-black/30 p-5">
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+                            Reaction Zone
+                          </div>
+                          <div className="text-lg font-black">
+                            {roundUi === "live" ? "Jetzt feuern" : "Signal abwarten"}
+                          </div>
+                        </div>
+                        <div
+                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${
+                            roundUi === "live"
+                              ? "bg-red-500/15 text-red-200"
+                              : "bg-amber-500/15 text-amber-200"
+                          }`}
+                        >
+                          {roundUi === "live" ? "LIVE" : "ARMED"}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={submitReaction}
+                        className={`relative flex h-[360px] w-full items-center justify-center overflow-hidden rounded-[30px] border transition duration-150 ${
+                          roundUi === "live"
+                            ? "border-red-500/50 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.34),rgba(69,10,10,0.96))] shadow-[0_0_80px_rgba(239,68,68,0.22)]"
+                            : "border-amber-400/25 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.16),rgba(32,24,10,0.96))]"
+                        }`}
+                      >
+                        <motion.div
+                          animate={
+                            roundUi === "live"
+                              ? { scale: [1, 1.08, 1], opacity: [0.5, 0.95, 0.5] }
+                              : { scale: [1, 1.03, 1], opacity: [0.18, 0.3, 0.18] }
+                          }
+                          transition={{ duration: 1, repeat: Infinity }}
+                          className={`pointer-events-none absolute h-72 w-72 rounded-full blur-2xl ${
+                            roundUi === "live" ? "bg-red-500/30" : "bg-amber-400/20"
+                          }`}
+                        />
+
+                        <motion.div
+                          animate={
+                            roundUi === "live"
+                              ? { scale: [1, 1.1, 1] }
+                              : { scale: [1, 1.02, 1] }
+                          }
+                          transition={{ duration: 0.9, repeat: Infinity }}
+                          className={`relative z-10 flex h-44 w-44 items-center justify-center rounded-full border ${
+                            roundUi === "live"
+                              ? "border-red-300/40 bg-red-500/10 shadow-[0_0_50px_rgba(239,68,68,0.26)]"
+                              : "border-amber-300/30 bg-amber-500/10 shadow-[0_0_35px_rgba(251,191,36,0.16)]"
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div
+                              className={`text-5xl font-black tracking-[0.12em] md:text-7xl ${
+                                roundUi === "live" ? "text-red-100" : "text-amber-100"
+                              }`}
+                            >
+                              {roundUi === "live" ? "SHOT!" : "WAIT"}
+                            </div>
+                            <div className="mt-2 text-[10px] font-black uppercase tracking-[0.28em] text-zinc-300">
+                              Tap this zone
+                            </div>
+                          </div>
+                        </motion.div>
+
+                        <div className="pointer-events-none absolute bottom-8 left-1/2 z-10 w-full max-w-lg -translate-x-1/2 px-5 text-center">
+                          <div className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm text-zinc-200 backdrop-blur">
+                            {roundFeedback}
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+
+                  {roundUi === "saved" && (
+                    <div className="mt-5 rounded-[30px] border border-cyan-500/20 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_35%),linear-gradient(180deg,rgba(8,20,24,0.98),rgba(7,7,9,1))] p-8 text-center">
+                      <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-cyan-400/25 bg-cyan-500/10 shadow-[0_0_35px_rgba(34,211,238,0.16)]">
+                        <CheckCircle2 className="h-10 w-10 text-cyan-200" />
+                      </div>
+                      <div className="mt-5 text-4xl font-black">Gespeichert</div>
+                      <div className="mt-2 text-sm text-zinc-400">
+                        {roundFeedback || "Dein Versuch wurde gespeichert."}
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {roundUi === "watch" && (
+                    <div className="mt-5 rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-8 text-center">
+                      <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-white/10 bg-white/5">
+                        <Lock className="h-10 w-10 text-zinc-300" />
+                      </div>
+                      <div className="mt-5 text-4xl font-black">Warte</div>
+                      <div className="mt-2 text-sm text-zinc-400">
+                        Der andere Spieler ist zuerst dran.
+                      </div>
+                    </div>
+                  )}
+
+                  {roundUi === "finished" && (
+                    <div className="mt-5">
+                      <div
+                        className={`rounded-[30px] border p-7 text-center ${
+                          selectedChallengeFresh.status === "declined"
+                            ? "border-zinc-500/20 bg-zinc-500/10"
+                            : selectedChallengeFresh.is_draw
+                              ? "border-zinc-500/20 bg-zinc-500/10"
+                              : selectedChallengeFresh.winner_user_id === userId
+                                ? "border-emerald-500/25 bg-emerald-500/10"
+                                : "border-red-500/25 bg-red-500/10"
+                        }`}
+                      >
+                        <motion.div
+                          initial={{ scale: 0.92, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full border ${
+                            selectedChallengeFresh.status === "declined"
+                              ? "border-zinc-400/20 bg-zinc-500/10"
+                              : selectedChallengeFresh.is_draw
+                                ? "border-zinc-400/20 bg-zinc-500/10"
+                                : selectedChallengeFresh.winner_user_id === userId
+                                  ? "border-emerald-400/25 bg-emerald-500/10 shadow-[0_0_40px_rgba(16,185,129,0.18)]"
+                                  : "border-red-400/25 bg-red-500/10 shadow-[0_0_40px_rgba(239,68,68,0.14)]"
+                          }`}
+                        >
+                          {selectedChallengeFresh.status === "declined" ? (
+                            <X className="h-10 w-10 text-zinc-200" />
+                          ) : selectedChallengeFresh.is_draw ? (
+                            <Shield className="h-10 w-10 text-zinc-200" />
+                          ) : selectedChallengeFresh.winner_user_id === userId ? (
+                            <Trophy className="h-10 w-10 text-emerald-200" />
+                          ) : (
+                            <Target className="h-10 w-10 text-red-200" />
+                          )}
+                        </motion.div>
+
+                        <div className="mt-5 text-4xl font-black tracking-tight">
+                          {selectedChallengeFresh.status === "declined"
+                            ? "Abgelehnt"
+                            : selectedChallengeFresh.is_draw
+                              ? "Unentschieden"
+                              : selectedChallengeFresh.winner_user_id === userId
+                                ? "Du hast gewonnen"
+                                : "Du hast verloren"}
+                        </div>
+
+                        <div className="mt-2 text-sm text-zinc-400">
+                          {selectedChallengeFresh.status === "declined"
+                            ? "Diese Challenge wurde abgelehnt."
+                            : selectedChallengeFresh.is_draw
+                              ? "Beide behalten ihre Items."
+                              : selectedChallengeFresh.winner_user_id === userId
+                                ? "Das gegnerische Item wurde dir übertragen."
+                                : "Dein Item wurde an den Gewinner übertragen."}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <div className="rounded-3xl border border-white/10 bg-black/35 p-4">
+                          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                            Player 1
+                          </div>
+                          <div className="mt-2 text-lg font-black">
+                            {memberNameMap.get(selectedChallengeFresh.first_player_id || "") ||
+                              "Spieler 1"}
+                          </div>
+                          <div className="mt-3 text-3xl font-black">
+                            {selectedChallengeFresh.first_player_time === 999999
+                              ? "FS"
+                              : selectedChallengeFresh.first_player_time ?? "-"}
+                            {selectedChallengeFresh.first_player_time &&
+                            selectedChallengeFresh.first_player_time !== 999999
+                              ? <span className="ml-1 text-base font-semibold text-zinc-400">ms</span>
+                              : null}
+                          </div>
+                        </div>
+
+                        <div className="rounded-3xl border border-white/10 bg-black/35 p-4">
+                          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                            Player 2
+                          </div>
+                          <div className="mt-2 text-lg font-black">
+                            {memberNameMap.get(selectedChallengeFresh.second_player_id || "") ||
+                              "Spieler 2"}
+                          </div>
+                          <div className="mt-3 text-3xl font-black">
+                            {selectedChallengeFresh.second_player_time === 999999
+                              ? "FS"
+                              : selectedChallengeFresh.second_player_time ?? "-"}
+                            {selectedChallengeFresh.second_player_time &&
+                            selectedChallengeFresh.second_player_time !== 999999
+                              ? <span className="ml-1 text-base font-semibold text-zinc-400">ms</span>
+                              : null}
+                          </div>
+                        </div>
+
+                        <div className="rounded-3xl border border-white/10 bg-black/35 p-4">
+                          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                            Reward
+                          </div>
+                          <div className="mt-2 text-lg font-black">Ergebnis</div>
+                          <div className="mt-3 text-sm text-zinc-300">
+                            {selectedChallengeFresh.status === "declined"
+                              ? "Keine Auswertung"
+                              : selectedChallengeFresh.is_draw
+                                ? "Kein Item-Wechsel"
+                                : `${
+                                    getInventoryMeta(
+                                      selectedChallengeFresh.winner_user_id ===
+                                        selectedChallengeFresh.from_user_id
+                                        ? selectedChallengeFresh.requested_inventory_item_id
+                                        : selectedChallengeFresh.offered_inventory_item_id
+                                    )?.item.name || "Item"
+                                  } gewonnen`}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </motion.div>
             </motion.div>
           )}
