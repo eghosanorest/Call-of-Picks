@@ -1223,7 +1223,24 @@ const inventoryCounts = useMemo(() => {
     isMe: member.user_id === userId,
   }));
 
-  const changeWeek = async (week: number) => {
+  const selectWeekLocal = (week: number) => {
+  updateData((prev) => ({
+    ...prev,
+    currentWeek: week,
+  }));
+};
+
+const selectMajorLocal = (majorId: string) => {
+  const major = majorStructure.find((entry) => entry.id === majorId);
+  const fallbackWeek = major?.weeks?.[0]?.id || 1;
+
+  updateData((prev) => ({
+    ...prev,
+    currentMajor: majorId,
+    currentWeek: fallbackWeek,
+  }));
+};
+const changeWeek = async (week: number) => {
   if (!isAdmin) {
     setMessage("Kein Admin-Zugriff.");
     return;
@@ -1480,6 +1497,10 @@ await supabase.from("user_picks").delete().eq("match_id", matchId);
   }
 
   await loadMatches();
+
+  if (userId) {
+    await settleBetSlips(userId);
+  }
 };
 
   const resetAll = async () => {
@@ -1890,6 +1911,11 @@ if (!userId) {
     }
   }
 }, [data.weeks, data.currentMajor, data.currentWeek, isAdmin]);
+useEffect(() => {
+  if (!userId) return;
+
+  settleBetSlips(userId);
+}, [userId, data.weeks]);
 useEffect(() => {
   const init = async () => {
     await loadAllItems();
@@ -2882,7 +2908,7 @@ const settleBetSlips = async (uid: string) => {
     .from("bet_slips")
     .select("*")
     .eq("user_id", uid)
-    .in("status", ["open"]);
+    .eq("status", "open");
 
   if (slipsError || !slips?.length) return;
 
@@ -2896,76 +2922,109 @@ const settleBetSlips = async (uid: string) => {
 
     if (legsError || !legs?.length) continue;
 
+    const matchIds = legs.map((leg) => leg.match_id);
+
+    const { data: matchRows, error: matchError } = await supabase
+      .from("matches")
+      .select("id, result")
+      .in("id", matchIds);
+
+    if (matchError || !matchRows?.length) continue;
+
+    const matchMap = new Map(
+      matchRows.map((match: any) => [String(match.id), match.result as MatchResult])
+    );
+
     let hasLost = false;
     let allResolved = true;
 
     for (const leg of legs as BetSlipLegType[]) {
-      const allLoadedMatches = Object.values(data.weeks)
-  .flatMap((weekMap) => Object.values(weekMap).flat());
+      const result = matchMap.get(String(leg.match_id));
 
-const targetMatch = allLoadedMatches.find(
-  (m) => String(m.id) === String(leg.match_id)
-);
-
-      if (!targetMatch || !hasMatchResult(targetMatch)) {
+      if (result !== "A" && result !== "B") {
         allResolved = false;
         continue;
       }
 
       const won =
-        (leg.selected_side === "A" && targetMatch.result === "A") ||
-        (leg.selected_side === "B" && targetMatch.result === "B");
+        (leg.selected_side === "A" && result === "A") ||
+        (leg.selected_side === "B" && result === "B");
 
       const desiredStatus: "won" | "lost" = won ? "won" : "lost";
 
       if (leg.result_status !== desiredStatus) {
-        await supabase
+        const { error: legUpdateError } = await supabase
           .from("bet_slip_legs")
           .update({ result_status: desiredStatus })
           .eq("id", leg.id);
+
+        if (legUpdateError) {
+          console.error("Leg update error:", legUpdateError);
+        }
       }
 
-      if (!won) hasLost = true;
+      if (!won) {
+        hasLost = true;
+      }
     }
 
     if (hasLost) {
-      await supabase
+      const { error: slipUpdateError } = await supabase
         .from("bet_slips")
         .update({
           status: "lost",
           settled_at: new Date().toISOString(),
         })
-        .eq("id", slip.id);
+        .eq("id", slip.id)
+        .eq("status", "open");
+
+      if (slipUpdateError) {
+        console.error("Slip lost update error:", slipUpdateError);
+      }
+
       continue;
     }
 
     if (allResolved) {
       payoutTotal += Number(slip.potential_win);
 
-      await supabase
+      const { error: slipUpdateError } = await supabase
         .from("bet_slips")
         .update({
           status: "paid_out",
           settled_at: new Date().toISOString(),
           paid_out_at: new Date().toISOString(),
         })
-        .eq("id", slip.id);
+        .eq("id", slip.id)
+        .eq("status", "open");
+
+      if (slipUpdateError) {
+        console.error("Slip payout update error:", slipUpdateError);
+      }
     }
   }
 
   if (payoutTotal > 0) {
-    const nextTokens = data.tokens + payoutTotal;
-
-    const { error } = await supabase
+    const { data: profileRow, error: profileError } = await supabase
       .from("profiles")
-      .update({ tokens: nextTokens })
-      .eq("id", uid);
+      .select("tokens")
+      .eq("id", uid)
+      .single();
 
-    if (!error) {
-      updateData((prev) => ({
-        ...prev,
-        tokens: prev.tokens + payoutTotal,
-      }));
+    if (!profileError && profileRow) {
+      const nextTokens = Number(profileRow.tokens || 0) + payoutTotal;
+
+      const { error: profileUpdateError } = await supabase
+        .from("profiles")
+        .update({ tokens: nextTokens })
+        .eq("id", uid);
+
+      if (!profileUpdateError) {
+        updateData((prev) => ({
+          ...prev,
+          tokens: nextTokens,
+        }));
+      }
     }
   }
 
@@ -3113,7 +3172,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {majorStructure.map((major) => (
                         <button
                           key={major.id}
-                          onClick={() => changeMajor(major.id)}
+                          onClick={() => (isAdmin ? changeMajor(major.id) : selectMajorLocal(major.id))}
                           className={`rounded-xl px-3 py-2 text-sm font-semibold ${
                             major.id === data.currentMajor
                               ? "bg-violet-500 text-white"
@@ -3128,7 +3187,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {visibleWeeks.map((week) => (
   <button
     key={week.id}
-    onClick={() => changeWeek(week.id)}
+    onClick={() => (isAdmin ? changeWeek(week.id) : selectWeekLocal(week.id))}
     className={`rounded-xl px-3 py-2 text-sm font-semibold ${
       week.id === currentWeek
         ? "bg-violet-500 text-white"
@@ -3231,7 +3290,7 @@ const getChallengeStatusLabel = (status: string) => {
                   {visibleWeeks.map((week) => (
   <button
     key={week.id}
-    onClick={() => changeWeek(week.id)}
+    onClick={() => (isAdmin ? changeWeek(week.id) : selectWeekLocal(week.id))}
     className={`rounded-xl px-3 py-2 text-sm font-semibold ${
       week.id === currentWeek
         ? "bg-violet-500 text-white"
@@ -3980,7 +4039,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {majorStructure.map((major) => (
                         <button
                           key={major.id}
-                          onClick={() => changeMajor(major.id)}
+                          onClick={() => (isAdmin ? changeMajor(major.id) : selectMajorLocal(major.id))}
                           className={`rounded-xl px-3 py-2 text-sm font-semibold ${
                             major.id === data.currentMajor
                               ? "bg-violet-500 text-white"
@@ -3996,7 +4055,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {visibleWeeks.map((week) => (
   <button
     key={week.id}
-    onClick={() => changeWeek(week.id)}
+    onClick={() => (isAdmin ? changeWeek(week.id) : selectWeekLocal(week.id))}
     className={`rounded-xl px-3 py-2 text-sm font-semibold ${
       week.id === currentWeek
         ? "bg-violet-500 text-white"
