@@ -1976,48 +1976,43 @@ await settleBetSlips(user.id);
   useEffect(() => {
   const channel = supabase
     .channel("cop-global-live")
-
-    
-
     .on(
-  "postgres_changes",
-  {
-    event: "*",
-    schema: "public",
-    table: "app_config",
-  },
-  async () => {
-    await loadAppConfig();
-    await autoLockExpiredMatches();
-    await loadMatches();
-  }
-)
-
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "app_config",
+      },
+      async () => {
+        await loadAppConfig();
+        await autoLockExpiredMatches();
+        await loadMatches();
+      }
+    )
     .on(
-  "postgres_changes",
-  {
-    event: "*",
-    schema: "public",
-    table: "matches",
-  },
-  async () => {
-    await autoLockExpiredMatches();
-    await loadMatches();
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "matches",
+      },
+      async () => {
+        await autoLockExpiredMatches();
+        await loadMatches();
 
-    if (userId) {
-      await settleBetSlips(userId);
-      await loadMyBetSlips(userId);
-      await loadRemoteUserGameState(userId);
-    }
-  }
-)
-
+        if (userId) {
+          await settleBetSlips(userId);
+          await loadMyBetSlips(userId);
+          await loadRemoteUserGameState(userId);
+        }
+      }
+    )
     .subscribe();
 
   return () => {
     supabase.removeChannel(channel);
   };
-}, []);
+}, [userId]);
 useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
