@@ -2900,7 +2900,16 @@ const settleBetSlips = async (uid: string) => {
     .eq("user_id", uid)
     .eq("status", "open");
 
-  if (slipsError || !slips?.length) return;
+  if (slipsError) {
+    console.error("Slips load error:", slipsError);
+    return;
+  }
+
+  if (!slips?.length) {
+    await loadMyBetSlips(uid);
+    await loadRemoteUserGameState(uid);
+    return;
+  }
 
   let payoutTotal = 0;
 
@@ -2910,7 +2919,10 @@ const settleBetSlips = async (uid: string) => {
       .select("*")
       .eq("bet_slip_id", slip.id);
 
-    if (legsError || !legs?.length) continue;
+    if (legsError || !legs?.length) {
+      console.error("Leg load error:", legsError);
+      continue;
+    }
 
     const matchIds = legs.map((leg) => leg.match_id);
 
@@ -2919,7 +2931,10 @@ const settleBetSlips = async (uid: string) => {
       .select("id, result")
       .in("id", matchIds);
 
-    if (matchError || !matchRows?.length) continue;
+    if (matchError || !matchRows?.length) {
+      console.error("Match load error:", matchError);
+      continue;
+    }
 
     const matchMap = new Map(
       matchRows.map((match: any) => [String(match.id), match.result as MatchResult])
@@ -2966,6 +2981,7 @@ const settleBetSlips = async (uid: string) => {
           settled_at: new Date().toISOString(),
         })
         .eq("id", slip.id)
+        .eq("user_id", uid)
         .eq("status", "open");
 
       if (slipLostError) {
@@ -2976,7 +2992,7 @@ const settleBetSlips = async (uid: string) => {
     }
 
     if (allResolved) {
-      const { error: slipPaidError } = await supabase
+      const { data: updatedSlip, error: slipPaidError } = await supabase
         .from("bet_slips")
         .update({
           status: "paid_out",
@@ -2984,12 +3000,15 @@ const settleBetSlips = async (uid: string) => {
           paid_out_at: new Date().toISOString(),
         })
         .eq("id", slip.id)
-        .eq("status", "open");
+        .eq("user_id", uid)
+        .eq("status", "open")
+        .select("id, potential_win")
+        .maybeSingle();
 
       if (slipPaidError) {
         console.error("Slip payout update error:", slipPaidError);
-      } else {
-        payoutTotal += Number(slip.potential_win);
+      } else if (updatedSlip) {
+        payoutTotal += Number(updatedSlip.potential_win || 0);
       }
     }
   }
@@ -3009,7 +3028,9 @@ const settleBetSlips = async (uid: string) => {
         .update({ tokens: nextTokens })
         .eq("id", uid);
 
-      if (!profileUpdateError) {
+      if (profileUpdateError) {
+        console.error("Profile payout update error:", profileUpdateError);
+      } else {
         updateData((prev) => ({
           ...prev,
           tokens: nextTokens,
