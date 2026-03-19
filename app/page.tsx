@@ -441,13 +441,21 @@ const slugMap: Record<string, string> = {
   "champsringlat-epic": "/items/champsringlat-epic.png",
 };
 
+  function getSafeItemImagePath(
+  slug?: string | null,
+  imagePath?: string | null
+) {
   if (slug && slugMap[slug]) return `${slugMap[slug]}?v=2`;
 
-  if (!imagePath || typeof imagePath !== "string") return "/items/fallback.png";
+  if (!imagePath || typeof imagePath !== "string") {
+    return "/items/fallback.png";
+  }
 
   let finalPath = imagePath.trim();
 
-  if (!finalPath) return "/items/fallback.png";
+  if (!finalPath) {
+    return "/items/fallback.png";
+  }
 
   if (!finalPath.startsWith("/items/")) {
     if (finalPath.startsWith("/")) {
