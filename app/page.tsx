@@ -1938,11 +1938,7 @@ useEffect(() => {
     loadChallenges(userId);
   }, [activeGroupId, userId]);
 
-  useEffect(() => {
-  if (!isAdmin && screen === "admin") {
-    setScreen("home");
-  }
-}, [isAdmin, screen]);
+  
 useEffect(() => {
     if (!userId) return;
 
@@ -3541,14 +3537,46 @@ useEffect(() => {
               </motion.div>
             )}
 
-            {screen === "admin" && isAdmin && (
+            {screen === "admin" && (
   <motion.div
     key="admin"
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
     className="mx-auto w-full max-w-md space-y-4 pb-24 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
-  >
+    
+  >{!isAdmin ? (
+  <>
+    <SectionTitle
+      eyebrow="Sammlung"
+      title="Lobby"
+      right={<Package className="h-5 w-5 text-emerald-300" />}
+    />
+
+    <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+      <div className="flex items-center gap-2 font-semibold">
+        <CheckCircle2 className="h-4 w-4" />
+        Alle Items
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {allItemCatalog.map((item) => (
+          <ItemCard
+            key={item.id}
+            item={{
+              name: item.name,
+              rarity: item.rarity,
+              image_path: item.image_path,
+              slug: item.slug,
+              category: item.category,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  </>
+) : (
+<>
                 <SectionTitle
                   eyebrow="Verwaltung"
                   title="Admin-Bereich"
@@ -3840,9 +3868,11 @@ useEffect(() => {
     </div>
   )}
 </div>
-                </div>
-              </motion.div>
+                                </div>
+              </>
             )}
+          </motion.div>
+        )}
           </AnimatePresence>
 
           {message ? (
@@ -3855,13 +3885,13 @@ useEffect(() => {
         <div className="fixed bottom-0 left-0 right-0 z-40 mx-auto w-full max-w-md border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
           <div className="grid grid-cols-6 gap-2">
   {[
-    { id: "home", label: "Home", icon: Trophy },
-    { id: "picks", label: "Picks", icon: Target },
-    { id: "slot", label: "Slot", icon: Zap },
-    { id: "inventory", label: "Inventar", icon: Package },
-    { id: "group", label: "Gruppe", icon: Users },
-    ...(isAdmin ? [{ id: "admin", label: "Admin", icon: Shield }] : []),
-  ].map((item) => {
+  { id: "home", label: "Home", icon: Trophy },
+  { id: "picks", label: "Picks", icon: Target },
+  { id: "slot", label: "Slot", icon: Zap },
+  { id: "inventory", label: "Inventar", icon: Package },
+  { id: "group", label: "Gruppe", icon: Users },
+  { id: "admin", label: isAdmin ? "Admin" : "Lobby", icon: isAdmin ? Shield : Package },
+].map((item) => {
     const Icon = item.icon;
     const active = screen === (item.id as typeof screen);
 
@@ -3869,9 +3899,8 @@ useEffect(() => {
       <button
         key={item.id}
         onClick={() => {
-          if (item.id === "admin" && !isAdmin) return;
-          setScreen(item.id as typeof screen);
-        }}
+  setScreen(item.id as typeof screen);
+}}
         className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[11px] transition ${
           active
             ? "bg-gradient-to-b from-violet-500 to-fuchsia-500 text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)]"
