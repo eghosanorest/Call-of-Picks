@@ -2003,6 +2003,12 @@ await settleBetSlips(user.id);
   async () => {
     await autoLockExpiredMatches();
     await loadMatches();
+
+    if (userId) {
+      await settleBetSlips(userId);
+      await loadMyBetSlips(userId);
+      await loadRemoteUserGameState(userId);
+    }
   }
 )
 
@@ -2968,10 +2974,90 @@ const settleBetSlips = async (uid: string) => {
       continue;
     }
 
-    if (allResolved) {
-      payoutTotal += Number(slip.potential_win);
+    const settleBetSlips = async (uid: string) => {
+  const { data: slips, error: slipsError } = await supabase
+    .from("bet_slips")
+    .select("*")
+    .eq("user_id", uid)
+    .eq("status", "open");
 
-      const { error: slipUpdateError } = await supabase
+  if (slipsError || !slips?.length) return;
+
+  let payoutTotal = 0;
+
+  for (const slip of slips as BetSlipType[]) {
+    const { data: legs, error: legsError } = await supabase
+      .from("bet_slip_legs")
+      .select("*")
+      .eq("bet_slip_id", slip.id);
+
+    if (legsError || !legs?.length) continue;
+
+    const matchIds = legs.map((leg) => leg.match_id);
+
+    const { data: matchRows, error: matchError } = await supabase
+      .from("matches")
+      .select("id, result")
+      .in("id", matchIds);
+
+    if (matchError || !matchRows?.length) continue;
+
+    const matchMap = new Map(
+      matchRows.map((match: any) => [String(match.id), match.result as MatchResult])
+    );
+
+    let hasLost = false;
+    let allResolved = true;
+
+    for (const leg of legs as BetSlipLegType[]) {
+      const result = matchMap.get(String(leg.match_id));
+
+      if (result !== "A" && result !== "B") {
+        allResolved = false;
+        continue;
+      }
+
+      const won =
+        (leg.selected_side === "A" && result === "A") ||
+        (leg.selected_side === "B" && result === "B");
+
+      const desiredStatus: "won" | "lost" = won ? "won" : "lost";
+
+      if (leg.result_status !== desiredStatus) {
+        const { error: legUpdateError } = await supabase
+          .from("bet_slip_legs")
+          .update({ result_status: desiredStatus })
+          .eq("id", leg.id);
+
+        if (legUpdateError) {
+          console.error("Leg update error:", legUpdateError);
+        }
+      }
+
+      if (!won) {
+        hasLost = true;
+      }
+    }
+
+    if (hasLost) {
+      const { error: slipLostError } = await supabase
+        .from("bet_slips")
+        .update({
+          status: "lost",
+          settled_at: new Date().toISOString(),
+        })
+        .eq("id", slip.id)
+        .eq("status", "open");
+
+      if (slipLostError) {
+        console.error("Slip lost update error:", slipLostError);
+      }
+
+      continue;
+    }
+
+    if (allResolved) {
+      const { error: slipPaidError } = await supabase
         .from("bet_slips")
         .update({
           status: "paid_out",
@@ -2981,9 +3067,41 @@ const settleBetSlips = async (uid: string) => {
         .eq("id", slip.id)
         .eq("status", "open");
 
-      if (slipUpdateError) {
-        console.error("Slip payout update error:", slipUpdateError);
+      if (slipPaidError) {
+        console.error("Slip payout update error:", slipPaidError);
+      } else {
+        payoutTotal += Number(slip.potential_win);
       }
+    }
+  }
+
+  if (payoutTotal > 0) {
+    const { data: profileRow, error: profileError } = await supabase
+      .from("profiles")
+      .select("tokens")
+      .eq("id", uid)
+      .single();
+
+    if (!profileError && profileRow) {
+      const nextTokens = Number(profileRow.tokens || 0) + payoutTotal;
+
+      const { error: profileUpdateError } = await supabase
+        .from("profiles")
+        .update({ tokens: nextTokens })
+        .eq("id", uid);
+
+      if (!profileUpdateError) {
+        updateData((prev) => ({
+          ...prev,
+          tokens: nextTokens,
+        }));
+      }
+    }
+  }
+
+  await loadMyBetSlips(uid);
+  await loadRemoteUserGameState(uid);
+};
     }
   }
 
