@@ -1543,10 +1543,23 @@ if (!userId) {
       await pushSpinHistoryOnline(spinRecord.reels, win);
 
       updateData((prev) => ({
-        ...prev,
-        inventory: win ? [...prev.inventory, finalReels[0]] : prev.inventory,
-        spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
-      }));
+  ...prev,
+  inventory: win
+    ? [
+        ...prev.inventory,
+        {
+          inventory_id: `local-${Date.now()}`,
+          id: finalReels[0].id,
+          slug: finalReels[0].slug,
+          name: finalReels[0].name,
+          rarity: finalReels[0].rarity,
+          image_path: finalReels[0].image_path,
+          weight: finalReels[0].weight,
+        },
+      ]
+    : prev.inventory,
+  spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
+}));
 
       if (win) {
         setLastWin(finalReels[0]);
