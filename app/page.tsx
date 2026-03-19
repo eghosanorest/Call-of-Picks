@@ -2992,25 +2992,23 @@ const settleBetSlips = async (uid: string) => {
     }
 
     if (allResolved) {
-      const { data: updatedSlip, error: slipPaidError } = await supabase
-        .from("bet_slips")
-        .update({
-          status: "paid_out",
-          settled_at: new Date().toISOString(),
-          paid_out_at: new Date().toISOString(),
-        })
-        .eq("id", slip.id)
-        .eq("user_id", uid)
-        .eq("status", "open")
-        .select("id, potential_win")
-        .maybeSingle();
+  const { error: slipPaidError } = await supabase
+    .from("bet_slips")
+    .update({
+      status: "paid_out",
+      settled_at: new Date().toISOString(),
+      paid_out_at: new Date().toISOString(),
+    })
+    .eq("id", slip.id)
+    .eq("user_id", uid)
+    .eq("status", "open");
 
-      if (slipPaidError) {
-        console.error("Slip payout update error:", slipPaidError);
-      } else if (updatedSlip) {
-        payoutTotal += Number(updatedSlip.potential_win || 0);
-      }
-    }
+  if (slipPaidError) {
+    console.error("Slip payout update error:", slipPaidError);
+  } else {
+    payoutTotal += Number(slip.potential_win || 0);
+  }
+}
   }
 
   if (payoutTotal > 0) {
