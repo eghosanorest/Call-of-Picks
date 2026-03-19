@@ -1066,6 +1066,11 @@ const matches =
   data.weeks[data.currentMajor]?.[currentWeek] ||
   Object.values(data.weeks[data.currentMajor] || {}).find((list) => list.length > 0) ||
   [];
+  const allLoadedMatches = useMemo(() => {
+  return Object.values(data.weeks)
+    .flatMap((weekMap) => Object.values(weekMap))
+    .flat();
+}, [data.weeks]);
 const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
 
 const pendingRewardMatches = matches.filter((m) =>
@@ -1890,9 +1895,10 @@ if (!userId) {
   
 useEffect(() => {
   if (!userId) return;
+  if (!allLoadedMatches.length) return;
 
   settleBetSlips(userId);
-}, [userId, data.weeks]);
+}, [userId, allLoadedMatches]);
 useEffect(() => {
   const init = async () => {
     await loadAllItems();
