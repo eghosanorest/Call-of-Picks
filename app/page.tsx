@@ -2892,20 +2892,7 @@ const settleMyBetSlipsManual = async () => {
 
   setMessage("Wettscheine wurden geprüft.");
 };
-const settleMyBetSlipsManual = async () => {
-  setMessage("");
 
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
-
-  await settleBetSlips(userId);
-  await loadMyBetSlips(userId);
-  await loadRemoteUserGameState(userId);
-
-  setMessage("Wettscheine wurden geprüft.");
-};
 const settleBetSlips = async (uid: string) => {
   const { data: slips, error: slipsError } = await supabase
     .from("bet_slips")
