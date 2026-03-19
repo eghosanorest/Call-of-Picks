@@ -1887,30 +1887,7 @@ if (!userId) {
     await loadGroupInventories(memberIds);
   };
 
-  useEffect(() => {
-  if (isAdmin) return;
-
-  const currentMatches = data.weeks[data.currentMajor]?.[data.currentWeek] || [];
-  if (currentMatches.length > 0) return;
-
-  for (const major of majorStructure) {
-    const weekMap = data.weeks[major.id];
-    if (!weekMap) continue;
-
-    const firstFilledWeek = Object.entries(weekMap).find(
-      ([, list]) => Array.isArray(list) && list.length > 0
-    );
-
-    if (firstFilledWeek) {
-      setData((prev) => ({
-        ...prev,
-        currentMajor: major.id,
-        currentWeek: Number(firstFilledWeek[0]),
-      }));
-      return;
-    }
-  }
-}, [data.weeks, data.currentMajor, data.currentWeek, isAdmin]);
+  
 useEffect(() => {
   if (!userId) return;
 
