@@ -35,6 +35,7 @@ type MatchType = {
   teamA: string;
   teamB: string;
   startsAt: string;
+  startsAtIso: string;
   locked: boolean;
   result: MatchResult;
 };
@@ -48,7 +49,15 @@ type LocalSymbol = {
   weight: number;
 };
 
-type LocalInventoryItem = LocalSymbol;
+type LocalInventoryItem = {
+  inventory_id: string;
+  id: string;
+  slug: string;
+  name: string;
+  rarity: "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
+  image_path: string;
+  weight: number;
+};
 
 type GroupType = {
   id: string;
@@ -67,6 +76,7 @@ type MemberInventoryItem = {
   name: string;
   rarity: string;
   image_path: string | null;
+  slug?: string | null;
   category?: string | null;
 };
 
@@ -111,7 +121,7 @@ type LocalData = {
   lastSyncLabel: string;
   weeks: Record<string, Record<number, MatchType[]>>;
   picks: Record<string, PickSide>;
-  resolvedWeeks: string[];
+  resolvedMatchIds: string[];
   tokens: number;
   inventory: LocalInventoryItem[];
   spinHistory: { at: number; reels: string[]; won: boolean }[];
@@ -152,6 +162,9 @@ const teamIcons: Record<string, string> = {
 
 const allTeams = Object.keys(teamIcons);
 
+const ADMIN_USER_IDS = [
+  "197e055b-e6d1-44aa-8a6c-b715a365f1e1",
+];
 const majorStructure = [
   {
     id: "major1",
@@ -206,6 +219,39 @@ const majorStructure = [
 ];
 
 const symbolPool: LocalSymbol[] = [
+  
+  {
+    id: "torontoultra-rare",
+    slug: "torontoultra-rare",
+    name: "Toronto Ultra",
+    rarity: "Rare",
+    image_path: "/items/torontoultra-rare.png",
+    weight: 10,
+  },
+  {
+    id: "mw2gamecover-rare",
+    slug: "mw2gamecover-rare",
+    name: "MW2 Cover",
+    rarity: "Rare",
+    image_path: "/items/mw2gamecover-rare.png",
+    weight: 10,
+  },
+  {
+    id: "magnum-common",
+    slug: "magnum-common",
+    name: "Magnum",
+    rarity: "Common",
+    image_path: "/items/magnum-common.png",
+    weight: 25,
+  },
+  {
+    id: "bo3gamecover-legendary",
+    slug: "bo3gamecover-legendary",
+    name: "BO3 Cover",
+    rarity: "Legendary",
+    image_path: "/items/bo3gamecover-legendary.png",
+    weight: 5,
+  },
   {
     id: "goldak-super",
     slug: "goldak-super",
@@ -223,6 +269,14 @@ const symbolPool: LocalSymbol[] = [
     weight: 10,
   },
   {
+  id: "champsringlat-epic",
+  slug: "champsringlat-epic",
+  name: "Champs Ring LAT",
+  rarity: "Epic",
+  image_path: "/items/champsringlat-epic.png",
+  weight: 10,
+},
+{
     id: "mwfamas-common",
     slug: "mwfamas-common",
     name: "FAMAS MW2 Common",
@@ -236,6 +290,30 @@ const symbolPool: LocalSymbol[] = [
     name: "M8A7 Snake Rare",
     rarity: "Rare",
     image_path: "/items/m8a7-snake-rare.png",
+    weight: 25,
+  },
+  {
+    id: "zombieteddy-ultra",
+    slug: "zombieteddy-ultra",
+    name: "Zombie Teddy",
+    rarity: "Ultra",
+    image_path: "/items/zombieteddy-ultra.png",
+    weight: 2,
+  },
+  {
+    id: "scrap-rare",
+    slug: "scrap-rare",
+    name: "Scrap",
+    rarity: "Rare",
+    image_path: "/items/scrap-rare.png",
+    weight: 10,
+  },
+  {
+    id: "prestige9mw2-common",
+    slug: "prestige9mw2-common",
+    name: "Prestige 9 MW2",
+    rarity: "Common",
+    image_path: "/items/prestige9mw2-common.png",
     weight: 25,
   },
   {
@@ -266,7 +344,7 @@ const rarityStyles: Record<string, string> = {
   Legendary:
     "bg-gradient-to-br from-amber-950/80 to-zinc-950 border-amber-500/40 text-amber-200 shadow-[0_0_32px_rgba(245,158,11,0.26)]",
   Ultra:
-    "bg-gradient-to-br from-fuchsia-700/30 via-cyan-500/20 to-zinc-950 border-fuchsia-400 text-fuchsia-100 shadow-[0_0_40px_rgba(217,70,239,0.38)]",
+    "bg-gradient-to-br from-red-800/70 via-red-950 to-zinc-950 border-red-500 text-red-100 shadow-[0_0_45px_rgba(239,68,68,0.5)]",
 };
 
 const defaultData: LocalData = {
@@ -283,7 +361,7 @@ const defaultData: LocalData = {
     champs: {},
   },
   picks: {},
-  resolvedWeeks: [],
+  resolvedMatchIds: [],
   tokens: 0,
   inventory: [],
   spinHistory: [],
@@ -316,8 +394,24 @@ function getTodayInputValue() {
 
 function resolveItemImage(path?: string | null) {
   if (!path || typeof path !== "string") return "/items/fallback.png";
-  if (path.startsWith("/")) return path;
-  return `/items/${path}`;
+
+  let finalPath = path.trim();
+
+  if (!finalPath) return "/items/fallback.png";
+
+  if (!finalPath.startsWith("/items/")) {
+    if (finalPath.startsWith("/")) {
+      finalPath = `/items${finalPath}`;
+    } else {
+      finalPath = `/items/${finalPath}`;
+    }
+  }
+
+  if (!finalPath.toLowerCase().endsWith(".png")) {
+    finalPath = `${finalPath}.png`;
+  }
+
+  return finalPath;
 }
 
 function normalizeRarity(rarity?: string | null) {
@@ -330,6 +424,45 @@ function normalizeRarity(rarity?: string | null) {
   return "Common";
 }
 
+const slugMap: Record<string, string> = {
+  "zombieteddy-ultra": "/items/zombieteddy-ultra.png",
+  "scrap-rare": "/items/scrap-rare.png",
+  "prestige9mw2-common": "/items/prestige9mw2-common.png",
+  "torontoultra-rare": "/items/torontoultra-rare.png",
+  "mw2gamecover-rare": "/items/mw2gamecover-rare.png",
+  "magnum-common": "/items/magnum-common.png",
+  "bo3gamecover-legendary": "/items/bo3gamecover-legendary.png",
+  "goldak-super": "/items/goldak-super.png",
+  "intervention-fall-epic": "/items/intervention-fall-epic.png",
+  "mwfamas-common": "/items/mwfamas-common.png",
+  "m8a7-snake-rare": "/items/m8a7-snake-rare.png",
+  "scumpii-sign-super": "/items/scumpii-sign-super.png",
+  "mercules-bpcard97-ultra": "/items/mercules-bpcard97-ultra.png",
+  "champsringlat-epic": "/items/champsringlat-epic.png",
+};
+
+  if (slug && slugMap[slug]) return `${slugMap[slug]}?v=2`;
+
+  if (!imagePath || typeof imagePath !== "string") return "/items/fallback.png";
+
+  let finalPath = imagePath.trim();
+
+  if (!finalPath) return "/items/fallback.png";
+
+  if (!finalPath.startsWith("/items/")) {
+    if (finalPath.startsWith("/")) {
+      finalPath = `/items${finalPath}`;
+    } else {
+      finalPath = `/items/${finalPath}`;
+    }
+  }
+
+  if (!finalPath.toLowerCase().endsWith(".png")) {
+    finalPath = `${finalPath}.png`;
+  }
+
+  return `${finalPath}?v=2`;
+}
 function StatCard({
   icon: Icon,
   label,
@@ -390,10 +523,13 @@ function Reel({
       <div className="pointer-events-none absolute inset-y-3 right-0 w-px bg-white/15" />
       <div className="absolute inset-0 rounded-[28px] ring-1 ring-white/10" />
       <img
-        src={symbol.image_path}
-        alt={symbol.name}
-        className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,0.6)]"
-      />
+  src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
+  alt={symbol.name}
+  className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,0.6)]"
+  onError={(e) => {
+    e.currentTarget.src = "/items/fallback.png";
+  }}
+/>
     </motion.div>
   );
 }
@@ -481,11 +617,12 @@ function ItemCard({
   action,
 }: {
   item: {
-    name: string;
-    rarity: string;
-    image_path?: string | null;
-    category?: string | null;
-  };
+  name: string;
+  rarity: string;
+  image_path?: string | null;
+  slug?: string | null;
+  category?: string | null;
+};
   action?: React.ReactNode;
 }) {
   const normalizedRarity = normalizeRarity(item.rarity);
@@ -500,13 +637,13 @@ function ItemCard({
     <div className={`rounded-2xl border p-4 ${rarityClass}`}>
       <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
         <img
-          src={resolveItemImage(item.image_path)}
-          alt={item.name}
-          className="max-h-full max-w-full object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
-          onError={(e) => {
-            e.currentTarget.src = "/items/fallback.png";
-          }}
-        />
+  src={getSafeItemImagePath(item.slug, item.image_path)}
+  alt={item.name}
+  className="max-h-full max-w-full object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
+  onError={(e) => {
+    e.currentTarget.src = "/items/fallback.png";
+  }}
+/>
       </div>
       <div className="mt-3 font-bold leading-tight">{item.name}</div>
       <div className="text-sm opacity-80">{normalizedRarity}</div>
@@ -518,6 +655,37 @@ function ItemCard({
   );
 }
 
+function getMatchStartTime(value?: string | null) {
+  if (!value) return NaN;
+  return new Date(value).getTime();
+}
+
+function hasMatchResult(match: MatchType) {
+  return match.result === "A" || match.result === "B";
+}
+
+function isMatchLocked(match: MatchType) {
+  if (match.locked) return true;
+
+  const startTime = getMatchStartTime(match.startsAtIso);
+
+  if (Number.isNaN(startTime)) {
+    console.log("Ungültiges startsAtIso:", match.startsAtIso);
+    return false;
+  }
+
+  return Date.now() >= startTime;
+}
+
+function isMatchClaimable(match: MatchType, resolvedMatchIds: string[]) {
+  return (
+    isMatchLocked(match) &&
+    hasMatchResult(match) &&
+    !resolvedMatchIds.includes(String(match.id))
+  );
+}
+
+  
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
     {
@@ -548,10 +716,21 @@ export default function CallOfPicksPage() {
   const [lastWin, setLastWin] = useState<LocalSymbol | null>(null);
 
   const [message, setMessage] = useState("");
+  const [, setNowTick] = useState(0);
+  
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setNowTick(Date.now());
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, []);
 
   const [userId, setUserId] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [profileName, setProfileName] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [needsUsername, setNeedsUsername] = useState(false);
 
   const [myGroups, setMyGroups] = useState<GroupType[]>([]);
@@ -631,13 +810,25 @@ export default function CallOfPicksPage() {
     }));
   }
 };
+const autoLockExpiredMatches = async () => {
+  const nowIso = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("matches")
+    .update({ locked: true })
+    .eq("locked", false)
+    .lt("starts_at", nowIso);
+
+  if (error) {
+    setMessage(error.message);
+  }
+};
 
   
 const loadMatches = async () => {
   const { data: rows, error } = await supabase
     .from("matches")
     .select("*")
-    .order("week", { ascending: true })
     .order("starts_at", { ascending: true });
 
   if (error) {
@@ -645,28 +836,25 @@ const loadMatches = async () => {
     return;
   }
 
-  const allowedWeeksByMajor: Record<string, number[]> = {
-    major1: [1, 2, 3, 4, 5, 8],
-    major2: [1, 2, 3, 4, 5, 6, 8],
-    major3: [1, 2, 3, 8],
-    major4: [1, 2, 3, 8],
-    champs: [1],
-  };
-
   const grouped: Record<string, Record<number, MatchType[]>> = {
-    major1: { 1: [], 2: [], 3: [], 4: [], 5: [], 8: [] },
-    major2: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 8: [] },
-    major3: { 1: [], 2: [], 3: [], 8: [] },
-    major4: { 1: [], 2: [], 3: [], 8: [] },
-    champs: { 1: [] },
+    major1: {},
+    major2: {},
+    major3: {},
+    major4: {},
+    champs: {},
   };
 
   (rows || []).forEach((row: any) => {
-    const major = String(row.major || "major1");
-    const week = Number(row.week);
+    const major = String(row.major || "major1").trim().toLowerCase();
+    const week = Number(row.week || 1);
 
-    if (!allowedWeeksByMajor[major]) return;
-    if (!allowedWeeksByMajor[major].includes(week)) return;
+    if (!grouped[major]) {
+      grouped[major] = {};
+    }
+
+    if (!grouped[major][week]) {
+      grouped[major][week] = [];
+    }
 
     const date = new Date(row.starts_at);
     const formatted = date.toLocaleString("de-DE", {
@@ -678,13 +866,14 @@ const loadMatches = async () => {
     });
 
     grouped[major][week].push({
-      id: row.id,
+      id: String(row.id),
       week,
       teamA: row.team_a,
       teamB: row.team_b,
       startsAt: formatted.replace(",", " ·"),
-      locked: row.locked,
-      result: row.result,
+      startsAtIso: new Date(row.starts_at).toISOString(),
+      locked: !!row.locked,
+      result: row.result as MatchResult,
     });
   });
 
@@ -695,27 +884,33 @@ const loadMatches = async () => {
 };
 
   const loadRemoteUserGameState = async (uid: string) => {
-    const [{ data: profile, error: profileError }, { data: picksRows, error: picksError }, { data: resolutionRows, error: resolutionError }, { data: spinRows, error: spinError }, { data: invRows, error: invError }] =
-      await Promise.all([
-        supabase.from("profiles").select("username, tokens").eq("id", uid).maybeSingle(),
-        supabase.from("user_picks").select("match_id, pick_side").eq("user_id", uid),
-        supabase.from("week_resolutions").select("major, week").eq("user_id", uid),
-        supabase
-          .from("spin_history")
-          .select("created_at, reels, won")
-          .eq("user_id", uid)
-          .order("created_at", { ascending: false })
-          .limit(12),
-        supabase
-          .from("inventory_items")
-          .select("id, owner_id, items(id, slug, name, rarity, image_path, weight)")
-          .eq("owner_id", uid)
-          .eq("status", "owned"),
-      ]);
+    
+    const [
+  { data: profile, error: profileError },
+  { data: picksRows, error: picksError },
+  { data: rewardRows, error: rewardError },
+  { data: spinRows, error: spinError },
+  { data: invRows, error: invError },
+] = await Promise.all([
+  supabase.from("profiles").select("username, tokens").eq("id", uid).maybeSingle(),
+  supabase.from("user_picks").select("match_id, pick_side").eq("user_id", uid),
+  supabase.from("match_rewards").select("match_id").eq("user_id", uid),
+  supabase
+    .from("spin_history")
+    .select("created_at, reels, won")
+    .eq("user_id", uid)
+    .order("created_at", { ascending: false })
+    .limit(12),
+  supabase
+    .from("inventory_items")
+    .select("id, owner_id, items(id, slug, name, rarity, image_path, weight)")
+    .eq("owner_id", uid)
+    .eq("status", "owned"),
+]);
 
     if (profileError) setMessage(profileError.message);
     if (picksError) setMessage(picksError.message);
-    if (resolutionError) setMessage(resolutionError.message);
+    if (rewardError) setMessage(rewardError.message);
     if (spinError) setMessage(spinError.message);
     if (invError) setMessage(invError.message);
 
@@ -724,9 +919,7 @@ const loadMatches = async () => {
   picksMap[String(row.match_id)] = row.pick_side as PickSide;
 });
 
-const resolvedWeeks = (resolutionRows || []).map(
-  (r: any) => `${r.major}-${r.week}`
-);
+const resolvedMatchIds = (rewardRows || []).map((r: any) => String(r.match_id));
 
     const spinHistory =
       (spinRows || []).map((row: any) => ({
@@ -741,23 +934,24 @@ const resolvedWeeks = (resolutionRows || []).map(
       if (!item) return;
 
       inventory.push({
-        id: item.slug,
-        slug: item.slug,
-        name: item.name,
-        rarity: normalizeRarity(item.rarity) as LocalInventoryItem["rarity"],
-        image_path: resolveItemImage(item.image_path),
-        weight: item.weight ?? 1,
-      });
+  inventory_id: row.id,
+  id: item.slug,
+  slug: item.slug,
+  name: item.name,
+  rarity: normalizeRarity(item.rarity) as LocalInventoryItem["rarity"],
+  image_path: resolveItemImage(item.image_path),
+  weight: item.weight ?? 1,
+});
     });
 
     setData((prev) => ({
-      ...prev,
-      picks: picksMap,
-      resolvedWeeks,
-      tokens: profile?.tokens ?? 0,
-      inventory,
-      spinHistory,
-    }));
+  ...prev,
+  picks: picksMap,
+  resolvedMatchIds,
+  tokens: profile?.tokens ?? 0,
+  inventory,
+  spinHistory,
+}));
 
     if (profile?.username) {
       setProfileName(profile.username);
@@ -766,30 +960,46 @@ const resolvedWeeks = (resolutionRows || []).map(
   };
 
   const setPickOnline = async (matchId: string, side: PickSide) => {
-    if (!userId) {
-      setMessage("Bitte zuerst mit Google anmelden.");
-      return;
-    }
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
 
-    const { error } = await supabase.from("user_picks").upsert(
-      {
-        user_id: userId,
-        match_id: matchId,
-        pick_side: side,
-      },
-      { onConflict: "user_id,match_id" }
-    );
+  const allCurrentMatches = Object.values(data.weeks)
+    .flatMap((weekMap) => Object.values(weekMap).flat())
+    .filter(Boolean);
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+  const targetMatch = allCurrentMatches.find((m) => m.id === matchId);
 
-    updateData((prev) => ({
-      ...prev,
-      picks: { ...prev.picks, [matchId]: side },
-    }));
-  };
+  if (!targetMatch) {
+    setMessage("Match nicht gefunden.");
+    return;
+  }
+
+  if (isMatchLocked(targetMatch)) {
+    setMessage("Dieses Match ist bereits gesperrt.");
+    return;
+  }
+
+  const { error } = await supabase.from("user_picks").upsert(
+    {
+      user_id: userId,
+      match_id: matchId,
+      pick_side: side,
+    },
+    { onConflict: "user_id,match_id" }
+  );
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  updateData((prev) => ({
+    ...prev,
+    picks: { ...prev.picks, [matchId]: side },
+  }));
+};
 
   const currentWeek = data.currentWeek;
 
@@ -799,11 +1009,17 @@ const resolvedWeeks = (resolutionRows || []).map(
 
 const visibleWeeks = currentMajor.weeks;
 
-const matches = data.weeks[data.currentMajor]?.[currentWeek] || [];
+const matches =
+  data.weeks[data.currentMajor]?.[currentWeek] ||
+  Object.values(data.weeks[data.currentMajor] || {}).find((list) => list.length > 0) ||
+  [];
 const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
 
-const resolvedWeekKey = `${data.currentMajor}-${currentWeek}`;
-const resolvedCurrentWeek = data.resolvedWeeks.includes(resolvedWeekKey);
+const pendingRewardMatches = matches.filter((m) =>
+  isMatchClaimable(m, data.resolvedMatchIds)
+);
+
+const hasPendingRewards = pendingRewardMatches.length > 0;
 
   const memberNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -884,7 +1100,7 @@ const resolvedCurrentWeek = data.resolvedWeeks.includes(resolvedWeekKey);
     matches.filter(
       (m) =>
         data.picks[String(m.id)] &&
-        m.result &&
+        hasMatchResult(m) &&
         data.picks[String(m.id)] === m.result
     ).length,
   [matches, data.picks]
@@ -915,8 +1131,14 @@ const totalPicked = useMemo(
 
   const topItem = inventoryCounts[0];
 
-  const myOnlineInventory =
-    memberInventories.find((entry) => entry.user_id === userId)?.items || [];
+  const myOnlineInventory = data.inventory.map((item) => ({
+  inventory_id: item.inventory_id,
+  name: item.name,
+  rarity: item.rarity,
+  image_path: item.image_path,
+  slug: item.slug,
+  category: null,
+}));
 
   const groupRows = members.map((member) => ({
     ...member,
@@ -927,6 +1149,11 @@ const totalPicked = useMemo(
   }));
 
   const changeWeek = async (week: number) => {
+  if (!isAdmin) {
+    setMessage("Kein Admin-Zugriff.");
+    return;
+  }
+
   updateData((prev) => ({
     ...prev,
     currentWeek: week,
@@ -945,7 +1172,11 @@ const totalPicked = useMemo(
 };
 
   const changeMajor = async (majorId: string) => {
-  const major = majorStructure.find((entry) => entry.id === majorId);
+  if (!isAdmin) {
+  setMessage("Kein Admin-Zugriff.");
+  return;
+}
+const major = majorStructure.find((entry) => entry.id === majorId);
   const fallbackWeek = major?.weeks?.[0]?.id || 1;
 
   updateData((prev) => ({
@@ -972,115 +1203,150 @@ const totalPicked = useMemo(
 };
 
   const resolveWeek = async () => {
-    if (!userId) {
-      setMessage("Bitte zuerst mit Google anmelden.");
-      return;
-    }
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
 
-    if (resolvedCurrentWeek || !matches.length) return;
+  const claimableMatches = matches.filter((m) =>
+  isMatchClaimable(m, data.resolvedMatchIds)
+);
 
-    let earned = 0;
-    let allResolved = true;
+  if (!claimableMatches.length) {
+    setMessage("Keine gesperrten, noch nicht ausgewerteten Matches vorhanden.");
+    return;
+  }
 
-    matches.forEach((m) => {
-      if (!m.result) allResolved = false;
-      if (
-  data.picks[String(m.id)] &&
-  m.result &&
-  data.picks[String(m.id)] === m.result
-) {
-  earned += 5;
-}
-    });
+  let earned = 0;
 
-    if (!allResolved) {
-      alert("Setze im Admin-Bereich zuerst alle Ergebnisse dieser Woche.");
-      return;
-    }
+  const rewardRows = claimableMatches.map((match) => {
+    const pick = data.picks[String(match.id)];
+    const won = pick && match.result && pick === match.result;
+    const tokensForMatch = won ? 5 : 0;
 
-    const { error: insertResolutionError } = await supabase
-      .from("week_resolutions")
-      .insert({
-        user_id: userId,
-        week: currentWeek,
-        major: data.currentMajor,
-        earned_tokens: earned,
-      });
+    earned += tokensForMatch;
 
-    if (insertResolutionError) {
-      setMessage(insertResolutionError.message);
-      return;
-    }
+    return {
+      user_id: userId,
+      match_id: match.id,
+      rewarded_tokens: tokensForMatch,
+    };
+  });
 
-    const nextTokens = data.tokens + earned;
+  const { error: rewardInsertError } = await supabase
+    .from("match_rewards")
+    .insert(rewardRows);
 
-    const { error: profileUpdateError } = await supabase
-      .from("profiles")
-      .update({ tokens: nextTokens })
-      .eq("id", userId);
+  if (rewardInsertError) {
+    setMessage(rewardInsertError.message);
+    return;
+  }
 
-    if (profileUpdateError) {
-      setMessage(profileUpdateError.message);
-      return;
-    }
+  const nextTokens = data.tokens + earned;
 
-    updateData((prev) => ({
-      ...prev,
-      tokens: nextTokens,
-      resolvedWeeks: [...prev.resolvedWeeks, `${prev.currentMajor}-${prev.currentWeek}`],
-    }));
+  const { error: profileUpdateError } = await supabase
+    .from("profiles")
+    .update({ tokens: nextTokens })
+    .eq("id", userId);
 
-    setScreen("home");
-  };
+  if (profileUpdateError) {
+    setMessage(profileUpdateError.message);
+    return;
+  }
+
+  updateData((prev) => ({
+    ...prev,
+    tokens: nextTokens,
+    resolvedMatchIds: [
+      ...prev.resolvedMatchIds,
+      ...claimableMatches.map((m) => String(m.id)),
+    ],
+  }));
+
+  setMessage(
+    earned > 0
+      ? `${claimableMatches.length} Match(es) ausgewertet. +${earned} Tokens`
+      : `${claimableMatches.length} Match(es) ausgewertet. Keine Tokens erhalten.`
+  );
+};
 
   
 
   const addMatch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
+  setMessage("");
 
-    if (
-      !adminDraft.teamA.trim() ||
-      !adminDraft.teamB.trim() ||
-      !adminDraft.date.trim() ||
-      !adminDraft.startsAt.trim()
-    ) {
-      return;
-    }
+  if (!isAdmin) {
+  setMessage("Kein Admin-Zugriff.");
+  return;
+}
+if (!adminDraft.teamA.trim()) {
+    setMessage("Bitte Team A auswählen.");
+    return;
+  }
 
-    if (adminDraft.teamA === adminDraft.teamB) {
-      alert("Bitte zwei unterschiedliche Teams wählen.");
-      return;
-    }
+  if (!adminDraft.teamB.trim()) {
+    setMessage("Bitte Team B auswählen.");
+    return;
+  }
 
-    const isoDateTime = new Date(`${adminDraft.date}T${adminDraft.startsAt}:00`);
+  if (!adminDraft.date.trim()) {
+    setMessage("Bitte Datum auswählen.");
+    return;
+  }
 
-    const { error } = await supabase.from("matches").insert({
-      week: currentWeek,
-      major: data.currentMajor,
-      team_a: adminDraft.teamA.trim(),
-      team_b: adminDraft.teamB.trim(),
-      starts_at: isoDateTime.toISOString(),
-      locked: false,
-      result: null,
-    });
+  if (!adminDraft.startsAt.trim()) {
+    setMessage("Bitte Uhrzeit auswählen.");
+    return;
+  }
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+  if (adminDraft.teamA === adminDraft.teamB) {
+    setMessage("Bitte zwei unterschiedliche Teams wählen.");
+    return;
+  }
 
-    setAdminDraft({
-      teamA: "",
-      teamB: "",
-      startsAt: "20:00",
-      date: getTodayInputValue(),
-    });
+  const localDateTime = new Date(`${adminDraft.date}T${adminDraft.startsAt}:00`);
 
-    await loadMatches();
-  };
+if (Number.isNaN(localDateTime.getTime())) {
+  setMessage("Ungültiges Datum oder Uhrzeit.");
+  return;
+}
 
+const payload = {
+  week: currentWeek,
+  major: data.currentMajor,
+  team_a: adminDraft.teamA.trim(),
+  team_b: adminDraft.teamB.trim(),
+  starts_at: localDateTime.toISOString(),
+  locked: false,
+  result: null,
+};
+
+  const { error } = await supabase.from("matches").insert(payload);
+
+  if (error) {
+    console.error("MATCH INSERT ERROR:", error);
+    setMessage(`Match konnte nicht erstellt werden: ${error.message}`);
+    return;
+  }
+
+  setMessage("Match erfolgreich erstellt.");
+
+  setAdminDraft({
+    teamA: "",
+    teamB: "",
+    startsAt: "20:00",
+    date: getTodayInputValue(),
+  });
+
+  await loadMatches();
+};
   const deleteMatch = async (matchId: string) => {
-    await supabase.from("user_picks").delete().eq("match_id", matchId);
+    if (!isAdmin) {
+  setMessage("Kein Admin-Zugriff.");
+  return;
+}
+await supabase.from("user_picks").delete().eq("match_id", matchId);
 
     const { error } = await supabase.from("matches").delete().eq("id", matchId);
 
@@ -1097,34 +1363,43 @@ const totalPicked = useMemo(
   field: K,
   value: MatchType[K]
 ) => {
-    let updatePayload: Record<string, any> = {};
+  if (!isAdmin) {
+    setMessage("Kein Admin-Zugriff.");
+    return;
+  }
 
-    if (field === "teamA") updatePayload.team_a = value;
-    else if (field === "teamB") updatePayload.team_b = value;
-    else if (field === "locked") updatePayload.locked = value;
-    else if (field === "result") updatePayload.result = value;
-    else if (field === "startsAt") {
-      setMessage("startsAt bitte direkt in DB mit starts_at bearbeiten.");
-      return;
-    } else {
-      return;
-    }
+  let updatePayload: Record<string, any> = {};
 
-    const { error } = await supabase
-      .from("matches")
-      .update(updatePayload)
-      .eq("id", matchId);
+  if (field === "teamA") updatePayload.team_a = value;
+  else if (field === "teamB") updatePayload.team_b = value;
+  else if (field === "locked") updatePayload.locked = value;
+  else if (field === "result") updatePayload.result = value;
+  else if (field === "startsAt") {
+    setMessage("startsAt bitte direkt in DB mit starts_at bearbeiten.");
+    return;
+  } else {
+    return;
+  }
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+  const { error } = await supabase
+    .from("matches")
+    .update(updatePayload)
+    .eq("id", matchId);
 
-    await loadMatches();
-  };
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  await loadMatches();
+};
 
   const resetAll = async () => {
-    if (!userId) {
+    if (!isAdmin) {
+  setMessage("Kein Admin-Zugriff.");
+  return;
+}
+if (!userId) {
       setMessage("Bitte zuerst einloggen.");
       return;
     }
@@ -1134,6 +1409,7 @@ const totalPicked = useMemo(
     await Promise.all([
       supabase.from("user_picks").delete().eq("user_id", userId),
       supabase.from("week_resolutions").delete().eq("user_id", userId),
+      supabase.from("match_rewards").delete().eq("user_id", userId),
       supabase.from("spin_history").delete().eq("user_id", userId),
       supabase.from("inventory_items").delete().eq("owner_id", userId),
       supabase.from("profiles").update({ tokens: 0 }).eq("id", userId),
@@ -1142,7 +1418,7 @@ const totalPicked = useMemo(
     setData((prev) => ({
       ...prev,
       picks: {},
-      resolvedWeeks: [],
+      resolvedMatchIds: [],
       tokens: 0,
       inventory: [],
       spinHistory: [],
@@ -1326,7 +1602,7 @@ const totalPicked = useMemo(
 
     const { data: invRows, error: invError } = await supabase
       .from("inventory_items")
-      .select("id, owner_id, items(name, rarity, image_path, category)")
+      .select("id, owner_id, items(slug, name, rarity, image_path, category)")
       .in("owner_id", groupUserIds)
       .eq("status", "owned");
 
@@ -1357,12 +1633,13 @@ const totalPicked = useMemo(
       if (!item) return;
 
       entry.items.push({
-        inventory_id: row.id,
-        name: item.name,
-        rarity: normalizeRarity(item.rarity),
-        image_path: item.image_path,
-        category: item.category,
-      });
+  inventory_id: row.id,
+  name: item.name,
+  rarity: normalizeRarity(item.rarity),
+  image_path: item.image_path,
+  slug: item.slug,
+  category: item.category,
+});
     });
 
     setMemberInventories(Array.from(grouped.values()));
@@ -1489,10 +1766,33 @@ const totalPicked = useMemo(
   };
 
   useEffect(() => {
-    const init = async () => {
-  await loadAllItems();
-  await loadAppConfig();
-  await loadMatches();
+  const currentMatches = data.weeks[data.currentMajor]?.[data.currentWeek] || [];
+  if (currentMatches.length > 0) return;
+
+  for (const major of majorStructure) {
+    const weekMap = data.weeks[major.id];
+    if (!weekMap) continue;
+
+    const firstFilledWeek = Object.entries(weekMap).find(
+      ([, list]) => Array.isArray(list) && list.length > 0
+    );
+
+    if (firstFilledWeek) {
+      setData((prev) => ({
+        ...prev,
+        currentMajor: major.id,
+        currentWeek: Number(firstFilledWeek[0]),
+      }));
+      return;
+    }
+  }
+}, [data.weeks, data.currentMajor, data.currentWeek]);
+useEffect(() => {
+  const init = async () => {
+    await loadAllItems();
+    await loadAppConfig();
+    await autoLockExpiredMatches();
+    await loadMatches();
 
   const {
     data: { session },
@@ -1527,6 +1827,7 @@ const totalPicked = useMemo(
         setUserEmail("");
         setProfileName("");
         setNeedsUsername(false);
+        
         setMyGroups([]);
         setActiveGroupId("");
         setMembers([]);
@@ -1540,13 +1841,13 @@ const totalPicked = useMemo(
         setAllChallenges([]);
         setSelectedChallenge(null);
         setData((prev) => ({
-          ...prev,
-          picks: {},
-          resolvedWeeks: [],
-          tokens: 0,
-          inventory: [],
-          spinHistory: [],
-        }));
+  ...prev,
+  picks: {},
+  resolvedMatchIds: [],
+  tokens: 0,
+  inventory: [],
+  spinHistory: [],
+}));
       }
     });
 
@@ -1568,21 +1869,23 @@ const totalPicked = useMemo(
   },
   async () => {
     await loadAppConfig();
+    await autoLockExpiredMatches();
     await loadMatches();
   }
 )
 
     .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "matches",
-      },
-      async () => {
-        await loadMatches();
-      }
-    )
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "matches",
+  },
+  async () => {
+    await autoLockExpiredMatches();
+    await loadMatches();
+  }
+)
 
     .subscribe();
 
@@ -1611,6 +1914,11 @@ useEffect(() => {
   }, [activeGroupId, userId]);
 
   useEffect(() => {
+  if (!isAdmin && screen === "admin") {
+    setScreen("home");
+  }
+}, [isAdmin, screen]);
+useEffect(() => {
     if (!userId) return;
 
     const channel = supabase
@@ -1657,19 +1965,20 @@ useEffect(() => {
           await loadRemoteUserGameState(userId);
         }
       )
+      
       .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "week_resolutions",
-          filter: `user_id=eq.${userId}`,
-        },
-        async () => {
-          await loadRemoteUserGameState(userId);
-        }
-      )
-      .on(
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "match_rewards",
+    filter: `user_id=eq.${userId}`,
+  },
+  async () => {
+    await loadRemoteUserGameState(userId);
+  }
+)
+.on(
         "postgres_changes",
         {
           event: "*",
@@ -1713,6 +2022,7 @@ useEffect(() => {
     setUserEmail("");
     setProfileName("");
     setNeedsUsername(false);
+    
     setMyGroups([]);
     setActiveGroupId("");
     setMembers([]);
@@ -1749,105 +2059,119 @@ useEffect(() => {
   };
 
   const createGroup = async () => {
-    setMessage("");
-    if (!userId) return setMessage("Du musst eingeloggt sein.");
-    if (!groupName.trim()) return setMessage("Bitte gib einen Gruppennamen ein.");
+  console.log("USER ID:", userId);
+  setMessage("");
 
-    const inviteCode = generateInviteCode().toUpperCase();
+  if (!userId) {
+    setMessage("Du musst eingeloggt sein.");
+    return;
+  }
 
-    const { data: group, error: groupError } = await supabase
-      .from("groups")
-      .insert({
-        name: groupName.trim(),
-        invite_code: inviteCode,
-        owner_id: userId,
-      })
-      .select()
-      .single();
+  if (!groupName.trim()) {
+    setMessage("Bitte gib einen Gruppennamen ein.");
+    return;
+  }
 
-    if (groupError) return setMessage(groupError.message);
+  const inviteCode = generateInviteCode().toUpperCase();
 
-    const { error: memberError } = await supabase.from("group_members").insert({
+  const { data: group, error: groupError } = await supabase
+    .from("groups")
+    .insert({
+      name: groupName.trim(),
+      invite_code: inviteCode,
+      owner_id: userId,
+    })
+    .select()
+    .single();
+
+  if (groupError || !group) {
+    setMessage(`Gruppenfehler: ${groupError?.message || "Gruppe konnte nicht erstellt werden."}`);
+    return;
+  }
+
+  const { error: memberError } = await supabase
+    .from("group_members")
+    .insert({
       group_id: group.id,
       user_id: userId,
     });
 
-    if (memberError) return setMessage(memberError.message);
+  if (memberError) {
+    await supabase.from("groups").delete().eq("id", group.id);
+    setMessage(`Mitgliedsfehler: ${memberError.message}`);
+    return;
+  }
 
-    setGroupName("");
-    setMessage(`Gruppe erstellt. Code: ${inviteCode}`);
-    await loadMyGroups(userId);
-    setActiveGroupId(group.id);
-  };
+  setGroupName("");
+  setMessage(`Gruppe erstellt. Code: ${inviteCode}`);
+  await loadMyGroups(userId);
+  setActiveGroupId(group.id);
+};
 
   const joinGroup = async () => {
-    setMessage("");
+  setMessage("");
 
-    if (!userId) {
-      setMessage("Du musst eingeloggt sein.");
-      return;
-    }
+  if (!userId) {
+    setMessage("Du musst eingeloggt sein.");
+    return;
+  }
 
-    const cleanCode = joinCode.trim().toUpperCase();
+  const cleanCode = joinCode.trim().toUpperCase();
 
-    if (!cleanCode) {
-      setMessage("Bitte gib einen Code ein.");
-      return;
-    }
+  if (!cleanCode) {
+    setMessage("Bitte gib einen Code ein.");
+    return;
+  }
 
-    const { data: groups, error: groupError } = await supabase
-      .from("groups")
-      .select("*")
-      .eq("invite_code", cleanCode)
-      .limit(1);
+  
+  console.log("JOIN CODE:", cleanCode);
+  console.log("ITEMS FROM DB:", data);
+  console.log("USER ID:", userId);
 
-    if (groupError) {
-      setMessage(groupError.message);
-      return;
-    }
+  const { data: group, error: groupError } = await supabase
+    .from("groups")
+    .select("id, name, invite_code, owner_id")
+    .eq("invite_code", cleanCode)
+    .maybeSingle();
 
-    const group = groups?.[0];
+  console.log("GROUP RESULT:", group, groupError);
 
-    if (!group) {
-      setMessage("Gruppe nicht gefunden.");
-      return;
-    }
+  if (groupError) {
+    setMessage(`Gruppenfehler: ${groupError.message}`);
+    return;
+  }
 
-    const { data: existingMembership, error: existingError } = await supabase
-      .from("group_members")
-      .select("group_id")
-      .eq("group_id", group.id)
-      .eq("user_id", userId)
-      .maybeSingle();
+  if (!group) {
+    setMessage("Gruppe nicht gefunden.");
+    return;
+  }
 
-    if (existingError) {
-      setMessage(existingError.message);
-      return;
-    }
+  const { data: upsertData, error: memberError } = await supabase
+    .from("group_members")
+    .upsert(
+      {
+        group_id: group.id,
+        user_id: userId,
+      },
+      {
+        onConflict: "group_id,user_id",
+        ignoreDuplicates: true,
+      }
+    )
+    .select();
 
-    if (existingMembership) {
-      setMessage(`Du bist bereits in ${group.name}.`);
-      setJoinCode("");
-      setActiveGroupId(group.id);
-      await loadMyGroups(userId);
-      return;
-    }
+  console.log("MEMBER UPSERT:", upsertData, memberError);
 
-    const { error: memberError } = await supabase.from("group_members").insert({
-      group_id: group.id,
-      user_id: userId,
-    });
+  if (memberError) {
+    setMessage(`Beitrittsfehler: ${memberError.message}`);
+    return;
+  }
 
-    if (memberError) {
-      setMessage(memberError.message);
-      return;
-    }
-
-    setJoinCode("");
-    setMessage(`Du bist ${group.name} beigetreten.`);
-    await loadMyGroups(userId);
-    setActiveGroupId(group.id);
-  };
+  setJoinCode("");
+  setMessage(`Du bist ${group.name} beigetreten.`);
+  await loadMyGroups(userId);
+  setActiveGroupId(group.id);
+};
 
   const copyInviteCode = async () => {
     if (!activeGroup?.invite_code) return;
@@ -2298,7 +2622,7 @@ useEffect(() => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-40 pt-4">
           <AnimatePresence mode="wait">
             {screen === "home" && (
               <motion.div
@@ -2524,60 +2848,62 @@ useEffect(() => {
                 </div>
 
                 {matches.map((match) => {
-                  const selected = data.picks[String(match.id)];
-                  return (
-                    <div
-                      key={match.id}
-                      className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm text-zinc-400">{match.startsAt}</div>
-                        {match.locked ? (
-                          <div className="flex items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-xs text-red-200">
-                            <Lock className="h-3 w-3" />
-                            Gesperrt
-                          </div>
-                        ) : (
-                          <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-200">
-                            Offen
-                          </div>
-                        )}
-                      </div>
+  const selected = data.picks[String(match.id)];
+  const lockedNow = isMatchLocked(match);
 
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => !match.locked && setPick(match.id, "A")}
-                          className={`rounded-2xl border p-4 text-left transition ${
-                            selected === "A"
-                              ? "border-violet-400 bg-violet-500/20"
-                              : "border-white/10 bg-black/40"
-                          } ${match.locked ? "opacity-50" : "hover:border-violet-400/60"}`}
-                        >
-                          <div className="text-xs text-zinc-400">Team A</div>
-                          <div className="mt-1 flex items-center gap-2 text-lg font-bold">
-                            <TeamMini name={match.teamA} />
-                            <span>{match.teamA}</span>
-                          </div>
-                        </button>
+  return (
+    <div
+      key={match.id}
+      className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm text-zinc-400">{match.startsAt}</div>
+        {lockedNow ? (
+          <div className="flex items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-xs text-red-200">
+            <Lock className="h-3 w-3" />
+            Gesperrt
+          </div>
+        ) : (
+          <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-200">
+            Offen
+          </div>
+        )}
+      </div>
 
-                        <button
-                          onClick={() => !match.locked && setPick(match.id, "B")}
-                          className={`rounded-2xl border p-4 text-left transition ${
-                            selected === "B"
-                              ? "border-cyan-400 bg-cyan-500/20"
-                              : "border-white/10 bg-black/40"
-                          } ${match.locked ? "opacity-50" : "hover:border-cyan-400/60"}`}
-                        >
-                          <div className="text-xs text-zinc-400">Team B</div>
-                          <div className="mt-1 flex items-center gap-2 text-lg font-bold">
-                            <TeamMini name={match.teamB} />
-                            <span>{match.teamB}</span>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <button
+          onClick={() => !lockedNow && setPick(match.id, "A")}
+          className={`rounded-2xl border p-4 text-left transition ${
+            selected === "A"
+              ? "border-violet-400 bg-violet-500/20"
+              : "border-white/10 bg-black/40"
+          } ${lockedNow ? "opacity-50" : "hover:border-violet-400/60"}`}
+        >
+          <div className="text-xs text-zinc-400">Team A</div>
+          <div className="mt-1 flex items-center gap-2 text-lg font-bold">
+            <TeamMini name={match.teamA} />
+            <span>{match.teamA}</span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => !lockedNow && setPick(match.id, "B")}
+          className={`rounded-2xl border p-4 text-left transition ${
+            selected === "B"
+              ? "border-cyan-400 bg-cyan-500/20"
+              : "border-white/10 bg-black/40"
+          } ${lockedNow ? "opacity-50" : "hover:border-cyan-400/60"}`}
+        >
+          <div className="text-xs text-zinc-400">Team B</div>
+          <div className="mt-1 flex items-center gap-2 text-lg font-bold">
+            <TeamMini name={match.teamB} />
+            <span>{match.teamB}</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+})}
 
                 {!matches.length && (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-6 text-center text-zinc-400 shadow-xl">
@@ -2586,12 +2912,14 @@ useEffect(() => {
                 )}
 
                 <Button
-                  onClick={resolveWeek}
-                  disabled={resolvedCurrentWeek || totalPicked === 0 || !matches.length}
-                  className="w-full"
-                >
-                  {resolvedCurrentWeek ? "Woche bereits ausgewertet" : "Woche auswerten"}
-                </Button>
+  onClick={resolveWeek}
+  disabled={!hasPendingRewards}
+  className="w-full"
+>
+  {hasPendingRewards
+    ? `Gesperrte Matches auswerten (${pendingRewardMatches.length})`
+    : "Keine gesperrten Matches zur Auswertung"}
+</Button>
               </motion.div>
             )}
 
@@ -2694,10 +3022,13 @@ useEffect(() => {
                       <div className="relative z-10 flex items-center gap-3">
                         <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-black/20 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                           <img
-                            src={lastWin.image_path || "/items/fallback.png"}
-                            alt={lastWin.name}
-                            className="max-h-full max-w-full object-contain"
-                          />
+  src={getSafeItemImagePath(lastWin.slug, lastWin.image_path)}
+  alt={lastWin.name}
+  className="max-h-full max-w-full object-contain"
+  onError={(e) => {
+    e.currentTarget.src = "/items/fallback.png";
+  }}
+/>
                         </div>
 
                         <div>
@@ -2756,10 +3087,16 @@ useEffect(() => {
                   <div className="grid grid-cols-2 gap-3">
                     {inventoryCounts.map((item) => (
                       <ItemCard
-                        key={item.id}
-                        item={item}
-                        action={<div className="text-sm">x{item.quantity}</div>}
-                      />
+  key={item.id}
+  item={{
+    name: item.name,
+    rarity: item.rarity,
+    image_path: item.image_path,
+    slug: item.slug,
+    category: null,
+  }}
+  action={<div className="text-sm">x{item.quantity}</div>}
+/>
                     ))}
                   </div>
                 )}
@@ -2773,14 +3110,15 @@ useEffect(() => {
                         <div className="grid grid-cols-2 gap-3">
                           {myOnlineInventory.map((item) => (
                             <ItemCard
-                              key={item.inventory_id}
-                              item={{
-                                name: item.name,
-                                rarity: normalizeRarity(item.rarity),
-                                image_path: item.image_path,
-                                category: item.category,
-                              }}
-                            />
+  key={item.inventory_id}
+  item={{
+    name: item.name,
+    rarity: normalizeRarity(item.rarity),
+    image_path: item.image_path,
+    slug: item.slug,
+    category: item.category,
+  }}
+/>
                           ))}
                         </div>
                       ) : (
@@ -3178,14 +3516,14 @@ useEffect(() => {
               </motion.div>
             )}
 
-            {screen === "admin" && (
-              <motion.div
-                key="admin"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
-              >
+            {screen === "admin" && isAdmin && (
+  <motion.div
+    key="admin"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="mx-auto w-full max-w-md space-y-4 pb-24 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
+  >
                 <SectionTitle
                   eyebrow="Verwaltung"
                   title="Admin-Bereich"
@@ -3460,14 +3798,15 @@ useEffect(() => {
     <div className="grid grid-cols-2 gap-3">
       {allItemCatalog.map((item) => (
         <ItemCard
-          key={item.id}
-          item={{
-            name: item.name,
-            rarity: item.rarity,
-            image_path: item.image_path,
-            category: item.category,
-          }}
-        />
+  key={item.id}
+  item={{
+    name: item.name,
+    rarity: item.rarity,
+    image_path: item.image_path,
+    slug: item.slug,
+    category: item.category,
+  }}
+/>
       ))}
     </div>
   ) : (
@@ -3488,34 +3827,38 @@ useEffect(() => {
           ) : null}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
+        <div className="fixed bottom-0 left-0 right-0 z-40 mx-auto w-full max-w-md border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
           <div className="grid grid-cols-6 gap-2">
-            {[
-              { id: "home", label: "Home", icon: Trophy },
-              { id: "picks", label: "Picks", icon: Target },
-              { id: "slot", label: "Slot", icon: Zap },
-              { id: "inventory", label: "Inventar", icon: Package },
-              { id: "group", label: "Gruppe", icon: Users },
-              { id: "admin", label: "Admin", icon: Shield },
-            ].map((item) => {
-              const Icon = item.icon;
-              const active = screen === (item.id as typeof screen);
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setScreen(item.id as typeof screen)}
-                  className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[11px] transition ${
-                    active
-                      ? "bg-gradient-to-b from-violet-500 to-fuchsia-500 text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)]"
-                      : "text-zinc-400 hover:bg-white/5"
-                  }`}
-                >
-                  <Icon className="mb-1 h-4 w-4" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
+  {[
+    { id: "home", label: "Home", icon: Trophy },
+    { id: "picks", label: "Picks", icon: Target },
+    { id: "slot", label: "Slot", icon: Zap },
+    { id: "inventory", label: "Inventar", icon: Package },
+    { id: "group", label: "Gruppe", icon: Users },
+    ...(isAdmin ? [{ id: "admin", label: "Admin", icon: Shield }] : []),
+  ].map((item) => {
+    const Icon = item.icon;
+    const active = screen === (item.id as typeof screen);
+
+    return (
+      <button
+        key={item.id}
+        onClick={() => {
+          if (item.id === "admin" && !isAdmin) return;
+          setScreen(item.id as typeof screen);
+        }}
+        className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[11px] transition ${
+          active
+            ? "bg-gradient-to-b from-violet-500 to-fuchsia-500 text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)]"
+            : "text-zinc-400 hover:bg-white/5"
+        }`}
+      >
+        <Icon className="mb-1 h-4 w-4" />
+        {item.label}
+      </button>
+    );
+  })}
+</div>
         </div>
 
         <AnimatePresence>
