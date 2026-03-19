@@ -1787,6 +1787,8 @@ if (!userId) {
   };
 
   useEffect(() => {
+  if (isAdmin) return;
+
   const currentMatches = data.weeks[data.currentMajor]?.[data.currentWeek] || [];
   if (currentMatches.length > 0) return;
 
@@ -1807,7 +1809,7 @@ if (!userId) {
       return;
     }
   }
-}, [data.weeks, data.currentMajor, data.currentWeek]);
+}, [data.weeks, data.currentMajor, data.currentWeek, isAdmin]);
 useEffect(() => {
   const init = async () => {
     await loadAllItems();
