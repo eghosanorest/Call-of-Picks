@@ -1820,13 +1820,14 @@ useEffect(() => {
   } = await supabase.auth.getSession();
 
   if (session?.user) {
-    const user = session.user;
-    setUserId(user.id);
-    setUserEmail(user.email || "");
-    await ensureProfile(user.id, user.email || "");
-    await loadRemoteUserGameState(user.id);
-    await loadMyGroups(user.id);
-  }
+  const user = session.user;
+  setUserId(user.id);
+  setUserEmail(user.email || "");
+  setIsAdmin(ADMIN_USER_IDS.includes(user.id));
+  await ensureProfile(user.id, user.email || "");
+  await loadRemoteUserGameState(user.id);
+  await loadMyGroups(user.id);
+}
 
   setMounted(true);
 };
@@ -1837,18 +1838,19 @@ useEffect(() => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const user = session.user;
-        setUserId(user.id);
-        setUserEmail(user.email || "");
-        await ensureProfile(user.id, user.email || "");
-        await loadRemoteUserGameState(user.id);
-        await loadMyGroups(user.id);
-      } else {
+  const user = session.user;
+  setUserId(user.id);
+  setUserEmail(user.email || "");
+  setIsAdmin(ADMIN_USER_IDS.includes(user.id));
+  await ensureProfile(user.id, user.email || "");
+  await loadRemoteUserGameState(user.id);
+  await loadMyGroups(user.id);
+} else {
         setUserId("");
         setUserEmail("");
         setProfileName("");
         setNeedsUsername(false);
-        
+        setIsAdmin(false);
         setMyGroups([]);
         setActiveGroupId("");
         setMembers([]);
@@ -2043,7 +2045,7 @@ useEffect(() => {
     setUserEmail("");
     setProfileName("");
     setNeedsUsername(false);
-    
+    setIsAdmin(false);
     setMyGroups([]);
     setActiveGroupId("");
     setMembers([]);
