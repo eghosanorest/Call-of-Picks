@@ -3041,25 +3041,35 @@ const settleBetSlips = async (uid: string) => {
     .eq("id", uid)
     .single();
 
-  if (!profileError && profileRow) {
-    const currentTokens = Number(String(profileRow.tokens ?? 0).replace(",", "."));
-    const safeCurrentTokens = Number.isNaN(currentTokens) ? 0 : currentTokens;
-    const nextTokens = Number((safeCurrentTokens + payoutTotal).toFixed(2));
-
-    const { error: profileUpdateError } = await supabase
-      .from("profiles")
-      .update({ tokens: nextTokens })
-      .eq("id", uid);
-
-    if (profileUpdateError) {
-      console.error("Profile payout update error:", profileUpdateError);
-    } else {
-      updateData((prev) => ({
-        ...prev,
-        tokens: nextTokens,
-      }));
-    }
+  if (profileError || !profileRow) {
+    setBetSettleMessage(profileError?.message || "Profil konnte nicht geladen werden.");
+    return;
   }
+
+  const currentTokens = Number(profileRow.tokens ?? 0);
+  const safeCurrentTokens = Number.isNaN(currentTokens) ? 0 : currentTokens;
+
+  // Falls du nur ganze Tokens willst:
+  const payoutRounded = Math.round(payoutTotal);
+  const nextTokens = safeCurrentTokens + payoutRounded;
+
+  const { error: profileUpdateError } = await supabase
+    .from("profiles")
+    .update({ tokens: nextTokens })
+    .eq("id", uid);
+
+  if (profileUpdateError) {
+    console.error("Profile payout update error:", profileUpdateError);
+    setBetSettleMessage(`Auszahlung fehlgeschlagen: ${profileUpdateError.message}`);
+    return;
+  }
+
+  updateData((prev) => ({
+    ...prev,
+    tokens: nextTokens,
+  }));
+
+  setBetSettleMessage(`Auszahlung erhalten: +${payoutRounded} Tokens`);
 }
 
       await loadMyBetSlips(uid);
