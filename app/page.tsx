@@ -38,8 +38,8 @@ type MatchType = {
   startsAtIso: string;
   locked: boolean;
   result: MatchResult;
-  oddsTeamA: number | null;
-  oddsTeamB: number | null;
+   scoreA: number | null;
+  scoreB: number | null;
 };
 
 type LocalSymbol = {
@@ -144,37 +144,6 @@ type FirstshotUiState =
   | "saved"
   | "watch"
   | "finished";
-  type BetSlipSelection = {
-  matchId: string;
-  selectedSide: "A" | "B";
-  selectedTeam: string;
-  oddValue: number;
-  teamA: string;
-  teamB: string;
-};
-
-type BetSlipType = {
-  id: string;
-  user_id: string;
-  total_odds: number;
-  stake_tokens: number;
-  potential_win: number;
-  status: "open" | "won" | "lost" | "paid_out";
-  settled_at?: string | null;
-  paid_out_at?: string | null;
-  created_at: string;
-};
-
-type BetSlipLegType = {
-  id: string;
-  bet_slip_id: string;
-  match_id: string;
-  selected_side: "A" | "B";
-  selected_team: string;
-  odd_value: number;
-  result_status: "open" | "won" | "lost";
-  created_at: string;
-};
 
 const teamIcons: Record<string, string> = {
   "OpTic Texas": "/team-logos/optic-texas-logo.png",
@@ -726,7 +695,31 @@ function isMatchClaimable(match: MatchType, resolvedMatchIds: string[]) {
   );
 }
 
-  
+function hasSavedScore(match: MatchType) {
+  return typeof match.scoreA === "number" && typeof match.scoreB === "number";
+}
+
+function getResultFromScore(scoreA: number, scoreB: number): MatchResult {
+  if (scoreA === scoreB) return null;
+  return scoreA > scoreB ? "A" : "B";
+}
+
+function isValidMatchScore(scoreA: number, scoreB: number) {
+  if (
+    !Number.isInteger(scoreA) ||
+    !Number.isInteger(scoreB) ||
+    scoreA < 0 ||
+    scoreA > 9 ||
+    scoreB < 0 ||
+    scoreB > 9
+  ) {
+    return false;
+  }
+
+  if (scoreA === scoreB) return false;
+
+  return true;
+}  
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
     {
@@ -773,7 +766,7 @@ useEffect(() => {
   const [profileName, setProfileName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [needsUsername, setNeedsUsername] = useState(false);
-
+const [showCompletedHomeMatches, setShowCompletedHomeMatches] = useState(false);
   const [myGroups, setMyGroups] = useState<GroupType[]>([]);
   const [activeGroupId, setActiveGroupId] = useState("");
   const [members, setMembers] = useState<MemberType[]>([]);
@@ -783,7 +776,7 @@ useEffect(() => {
   const [joinCode, setJoinCode] = useState("");
 
   const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
-
+const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
     useState<MemberInventoryItem | null>(null);
   const [challengeTargetUser, setChallengeTargetUser] =
@@ -798,20 +791,9 @@ useEffect(() => {
   const [roundUi, setRoundUi] = useState<FirstshotUiState>("idle");
   const [roundFeedback, setRoundFeedback] = useState("");
   const [firstshotRound, setFirstshotRound] = useState<FirstshotRoundState | null>(null);
-const [showBetSlipModal, setShowBetSlipModal] = useState(false);
-const [showMyBetsModal, setShowMyBetsModal] = useState(false);
-const [betSettleMessage, setBetSettleMessage] = useState("");
-const [betSlipSelections, setBetSlipSelections] = useState<BetSlipSelection[]>([]);
-const [betStake, setBetStake] = useState("");
 
-const [myBetSlips, setMyBetSlips] = useState<BetSlipType[]>([]);
-const [myBetSlipLegs, setMyBetSlipLegs] = useState<Record<string, BetSlipLegType[]>>({});
-
-const [adminOddsA, setAdminOddsA] = useState("");
-const [adminOddsB, setAdminOddsB] = useState("");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-const settlingBetSlipsRef = useRef(false);
+
   const [adminDraft, setAdminDraft] = useState({
     teamA: "",
     teamB: "",
@@ -926,8 +908,8 @@ const loadMatches = async () => {
   startsAtIso: new Date(row.starts_at).toISOString(),
   locked: !!row.locked,
   result: row.result as MatchResult,
-  oddsTeamA: row.odds_team_a != null ? Number(row.odds_team_a) : null,
-  oddsTeamB: row.odds_team_b != null ? Number(row.odds_team_b) : null,
+  scoreA: typeof row.score_a === "number" ? row.score_a : null,
+  scoreB: typeof row.score_b === "number" ? row.score_b : null,
 });
   });
 
@@ -1067,11 +1049,8 @@ const matches =
   data.weeks[data.currentMajor]?.[currentWeek] ||
   Object.values(data.weeks[data.currentMajor] || {}).find((list) => list.length > 0) ||
   [];
-  const allLoadedMatches = useMemo(() => {
-  return Object.values(data.weeks)
-    .flatMap((weekMap) => Object.values(weekMap))
-    .flat();
-}, [data.weeks]);
+  const upcomingHomeMatches = matches.filter((match) => !hasSavedScore(match));
+const completedHomeMatches = matches.filter((match) => hasSavedScore(match));
 const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
 
 const pendingRewardMatches = matches.filter((m) =>
@@ -1172,29 +1151,7 @@ const totalPicked = useMemo(
 
   
 
-  const upcomingBetMatches = useMemo(() => {
-  return matches.filter(
-    (match) =>
-      !isMatchLocked(match) &&
-      match.oddsTeamA != null &&
-      match.oddsTeamB != null
-  );
-}, [matches]);
-
-const totalBetSlipOdds = useMemo(() => {
-  if (!betSlipSelections.length) return 0;
-  return Number(
-    betSlipSelections.reduce((acc, item) => acc * item.oddValue, 1).toFixed(2)
-  );
-}, [betSlipSelections]);
-
-const numericBetStake = Number(betStake || 0);
-
-const potentialBetWin = useMemo(() => {
-  if (!numericBetStake || !totalBetSlipOdds) return 0;
-  return Number((numericBetStake * totalBetSlipOdds).toFixed(2));
-}, [numericBetStake, totalBetSlipOdds]);
-const inventoryCounts = useMemo(() => {
+  const inventoryCounts = useMemo(() => {
     const map = new Map<string, LocalInventoryItem & { quantity: number }>();
 
     data.inventory.forEach((item) => {
@@ -1229,24 +1186,7 @@ const inventoryCounts = useMemo(() => {
     isMe: member.user_id === userId,
   }));
 
-  const selectWeekLocal = (week: number) => {
-  updateData((prev) => ({
-    ...prev,
-    currentWeek: week,
-  }));
-};
-
-const selectMajorLocal = (majorId: string) => {
-  const major = majorStructure.find((entry) => entry.id === majorId);
-  const fallbackWeek = major?.weeks?.[0]?.id || 1;
-
-  updateData((prev) => ({
-    ...prev,
-    currentMajor: majorId,
-    currentWeek: fallbackWeek,
-  }));
-};
-const changeWeek = async (week: number) => {
+  const changeWeek = async (week: number) => {
   if (!isAdmin) {
     setMessage("Kein Admin-Zugriff.");
     return;
@@ -1409,18 +1349,7 @@ if (Number.isNaN(localDateTime.getTime())) {
   setMessage("Ungültiges Datum oder Uhrzeit.");
   return;
 }
-const parsedOddsA = Number(adminOddsA);
-const parsedOddsB = Number(adminOddsB);
 
-if (!parsedOddsA || parsedOddsA <= 1) {
-  setMessage("Bitte eine gültige Quote für Team A eingeben.");
-  return;
-}
-
-if (!parsedOddsB || parsedOddsB <= 1) {
-  setMessage("Bitte eine gültige Quote für Team B eingeben.");
-  return;
-}
 const payload = {
   week: currentWeek,
   major: data.currentMajor,
@@ -1429,8 +1358,6 @@ const payload = {
   starts_at: localDateTime.toISOString(),
   locked: false,
   result: null,
-  odds_team_a: parsedOddsA,
-  odds_team_b: parsedOddsB,
 };
 
   const { error } = await supabase.from("matches").insert(payload);
@@ -1503,13 +1430,44 @@ await supabase.from("user_picks").delete().eq("match_id", matchId);
   }
 
   await loadMatches();
-
-  if (userId) {
-    await settleBetSlips(userId);
-  }
 };
 
-  const resetAll = async () => {
+  const saveMatchResult = async (matchId: string) => {
+  if (!isAdmin) {
+    setMessage("Kein Admin-Zugriff.");
+    return;
+  }
+
+  const draft = adminScores[matchId] || { scoreA: "", scoreB: "" };
+  const scoreA = Number(draft.scoreA);
+  const scoreB = Number(draft.scoreB);
+
+  if (!isValidMatchScore(scoreA, scoreB)) {
+    setMessage("Ungültiges Ergebnis. Erlaubt sind ganze Zahlen von 0 bis 9, kein Unentschieden.");
+    return;
+  }
+
+  const result = getResultFromScore(scoreA, scoreB);
+
+  const { error } = await supabase
+    .from("matches")
+    .update({
+      score_a: scoreA,
+      score_b: scoreB,
+      result,
+      locked: true,
+    })
+    .eq("id", matchId);
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  setMessage("Ergebnis gespeichert.");
+  await loadMatches();
+};
+const resetAll = async () => {
     if (!isAdmin) {
   setMessage("Kein Admin-Zugriff.");
   return;
@@ -1893,8 +1851,30 @@ if (!userId) {
     await loadGroupInventories(memberIds);
   };
 
-  
+  useEffect(() => {
+  if (isAdmin) return;
 
+  const currentMatches = data.weeks[data.currentMajor]?.[data.currentWeek] || [];
+  if (currentMatches.length > 0) return;
+
+  for (const major of majorStructure) {
+    const weekMap = data.weeks[major.id];
+    if (!weekMap) continue;
+
+    const firstFilledWeek = Object.entries(weekMap).find(
+      ([, list]) => Array.isArray(list) && list.length > 0
+    );
+
+    if (firstFilledWeek) {
+      setData((prev) => ({
+        ...prev,
+        currentMajor: major.id,
+        currentWeek: Number(firstFilledWeek[0]),
+      }));
+      return;
+    }
+  }
+}, [data.weeks, data.currentMajor, data.currentWeek, isAdmin]);
 useEffect(() => {
   const init = async () => {
     await loadAllItems();
@@ -1914,8 +1894,6 @@ useEffect(() => {
   await ensureProfile(user.id, user.email || "");
   await loadRemoteUserGameState(user.id);
   await loadMyGroups(user.id);
-  await loadMyBetSlips(user.id);
-  await settleBetSlips(user.id);
 }
 
   setMounted(true);
@@ -1934,9 +1912,6 @@ useEffect(() => {
   await ensureProfile(user.id, user.email || "");
   await loadRemoteUserGameState(user.id);
   await loadMyGroups(user.id);
-  await loadMyBetSlips(user.id);
-await settleBetSlips(user.id);
-
 } else {
         setUserId("");
         setUserEmail("");
@@ -1972,43 +1947,42 @@ await settleBetSlips(user.id);
   useEffect(() => {
   const channel = supabase
     .channel("cop-global-live")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "app_config",
-      },
-      async () => {
-        await loadAppConfig();
-        await autoLockExpiredMatches();
-        await loadMatches();
-      }
-    )
-        .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "matches",
-      },
-      async () => {
-        await autoLockExpiredMatches();
-        await loadMatches();
 
-        if (userId) {
-          await settleBetSlips(userId);
-          await loadMyBetSlips(userId);
-          await loadRemoteUserGameState(userId);
-        }
-      }
-    )
+    
+
+    .on(
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "app_config",
+  },
+  async () => {
+    await loadAppConfig();
+    await autoLockExpiredMatches();
+    await loadMatches();
+  }
+)
+
+    .on(
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "matches",
+  },
+  async () => {
+    await autoLockExpiredMatches();
+    await loadMatches();
+  }
+)
+
     .subscribe();
 
   return () => {
     supabase.removeChannel(channel);
   };
-}, [userId]);
+}, []);
 useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -2066,30 +2040,6 @@ useEffect(() => {
       )
       
       .on(
-  "postgres_changes",
-  {
-    event: "*",
-    schema: "public",
-    table: "bet_slips",
-    filter: `user_id=eq.${userId}`,
-  },
-  async () => {
-    await loadMyBetSlips(userId);
-    await loadRemoteUserGameState(userId);
-  }
-)
-.on(
-  "postgres_changes",
-  {
-    event: "*",
-    schema: "public",
-    table: "bet_slip_legs",
-  },
-  async () => {
-    await loadMyBetSlips(userId);
-  }
-)
-.on(
         "postgres_changes",
         {
           event: "*",
@@ -2711,374 +2661,7 @@ useEffect(() => {
     }
   };
 
-  const toggleBetSelection = (match: MatchType, side: "A" | "B") => {
-  const oddValue = side === "A" ? match.oddsTeamA : match.oddsTeamB;
-  const selectedTeam = side === "A" ? match.teamA : match.teamB;
-
-  if (!oddValue) {
-    setMessage("Für dieses Team ist keine Quote vorhanden.");
-    return;
-  }
-
-  setBetSlipSelections((prev) => {
-    const existingIndex = prev.findIndex((item) => item.matchId === match.id);
-
-    const newSelection: BetSlipSelection = {
-      matchId: match.id,
-      selectedSide: side,
-      selectedTeam,
-      oddValue: Number(oddValue),
-      teamA: match.teamA,
-      teamB: match.teamB,
-    };
-
-    if (existingIndex >= 0) {
-      const updated = [...prev];
-      updated[existingIndex] = newSelection;
-      return updated;
-    }
-
-    if (prev.length >= 20) {
-      setMessage("Maximal 20 Tipps pro Wettschein.");
-      return prev;
-    }
-
-    return [...prev, newSelection];
-  });
-};
-
-const removeBetSelection = (matchId: string) => {
-  setBetSlipSelections((prev) => prev.filter((item) => item.matchId !== matchId));
-};
-const loadMyBetSlips = async (uid: string) => {
-  const { data: slips, error: slipsError } = await supabase
-    .from("bet_slips")
-    .select("*")
-    .eq("user_id", uid)
-    .order("created_at", { ascending: false });
-
-  if (slipsError) {
-    setMessage(slipsError.message);
-    return;
-  }
-
-  const slipRows = (slips || []) as BetSlipType[];
-  setMyBetSlips(slipRows);
-
-  if (!slipRows.length) {
-    setMyBetSlipLegs({});
-    return;
-  }
-
-  const slipIds = slipRows.map((s) => s.id);
-
-  const { data: legs, error: legsError } = await supabase
-    .from("bet_slip_legs")
-    .select("*")
-    .in("bet_slip_id", slipIds)
-    .order("created_at", { ascending: true });
-
-  if (legsError) {
-    setMessage(legsError.message);
-    return;
-  }
-
-  const grouped: Record<string, BetSlipLegType[]> = {};
-  ((legs || []) as BetSlipLegType[]).forEach((leg) => {
-    if (!grouped[leg.bet_slip_id]) grouped[leg.bet_slip_id] = [];
-    grouped[leg.bet_slip_id].push(leg);
-  });
-
-  setMyBetSlipLegs(grouped);
-};
-const placeBetSlip = async () => {
-  setMessage("");
-
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
-
-  if (!betSlipSelections.length) {
-    setMessage("Bitte mindestens einen Tipp wählen.");
-    return;
-  }
-
-  if (betSlipSelections.length > 20) {
-    setMessage("Maximal 20 Tipps pro Wettschein.");
-    return;
-  }
-
-  if (!numericBetStake || numericBetStake <= 0) {
-    setMessage("Bitte einen gültigen Einsatz eingeben.");
-    return;
-  }
-
-  if (numericBetStake > data.tokens) {
-    setMessage("Du hast nicht genug Tokens.");
-    return;
-  }
-
-  const validMatchIds = new Set(upcomingBetMatches.map((match) => String(match.id)));
-  const allStillOpen = betSlipSelections.every((item) =>
-    validMatchIds.has(String(item.matchId))
-  );
-
-  if (!allStillOpen) {
-    setMessage("Mindestens ein gewähltes Match ist nicht mehr offen.");
-    return;
-  }
-
-  const nextTokens = data.tokens - numericBetStake;
-  const tokenUpdateOk = await updateTokensOnline(nextTokens);
-  if (!tokenUpdateOk) return;
-
-  const { data: slip, error: slipError } = await supabase
-    .from("bet_slips")
-    .insert({
-      user_id: userId,
-      total_odds: totalBetSlipOdds,
-      stake_tokens: numericBetStake,
-      potential_win: potentialBetWin,
-      status: "open",
-    })
-    .select()
-    .single();
-
-  if (slipError || !slip) {
-    await updateTokensOnline(data.tokens);
-    setMessage(slipError?.message || "Wettschein konnte nicht erstellt werden.");
-    return;
-  }
-
-  const legsPayload = betSlipSelections.map((item) => ({
-    bet_slip_id: slip.id,
-    match_id: item.matchId,
-    selected_side: item.selectedSide,
-    selected_team: item.selectedTeam,
-    odd_value: item.oddValue,
-    result_status: "open",
-  }));
-
-  const { error: legsError } = await supabase
-    .from("bet_slip_legs")
-    .insert(legsPayload);
-
-  if (legsError) {
-    await supabase.from("bet_slips").delete().eq("id", slip.id);
-    await updateTokensOnline(data.tokens);
-    setMessage(legsError.message);
-    return;
-  }
-
-  updateData((prev) => ({
-    ...prev,
-    tokens: nextTokens,
-  }));
-
-  setBetSlipSelections([]);
-  setBetStake("");
-  setShowBetSlipModal(false);
-  await loadMyBetSlips(userId);
-
-  setMessage("Wette erfolgreich platziert.");
-};
-const settleMyBetSlipsManual = async () => {
-  setBetSettleMessage("");
-
-  if (!userId) {
-    setBetSettleMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
-
-  if (settlingBetSlipsRef.current) {
-    setBetSettleMessage("Auswertung läuft bereits.");
-    return;
-  }
-
-  await settleBetSlips(userId);
-  await loadMyBetSlips(userId);
-  await loadRemoteUserGameState(userId);
-
-  setBetSettleMessage("Wettscheine wurden geprüft.");
-};
-
-const settleBetSlips = async (uid: string) => {
-
-  if (!uid) return;
-  if (settlingBetSlipsRef.current) return;
-
-  settlingBetSlipsRef.current = true;
-
-  try {
-  const { data: slips, error: slipsError } = await supabase
-    .from("bet_slips")
-    .select("*")
-    .eq("user_id", uid)
-    .eq("status", "open");
-
-  if (slipsError) {
-    console.error("Slips load error:", slipsError);
-    return;
-  }
-
-  if (!slips?.length) {
-    await loadMyBetSlips(uid);
-    await loadRemoteUserGameState(uid);
-    return;
-  }
-
-  let payoutTotal = 0;
-
-  for (const slip of slips as BetSlipType[]) {
-    const { data: legs, error: legsError } = await supabase
-      .from("bet_slip_legs")
-      .select("*")
-      .eq("bet_slip_id", slip.id);
-
-    if (legsError || !legs?.length) {
-      console.error("Leg load error:", legsError);
-      continue;
-    }
-
-    const matchIds = legs.map((leg) => leg.match_id);
-
-    const { data: matchRows, error: matchError } = await supabase
-      .from("matches")
-      .select("id, result")
-      .in("id", matchIds);
-
-    if (matchError || !matchRows?.length) {
-      console.error("Match load error:", matchError);
-      continue;
-    }
-
-    const matchMap = new Map(
-      matchRows.map((match: any) => [String(match.id), match.result as MatchResult])
-    );
-
-    let hasLost = false;
-    let allResolved = true;
-
-    for (const leg of legs as BetSlipLegType[]) {
-      const result = matchMap.get(String(leg.match_id));
-
-      if (result !== "A" && result !== "B") {
-        allResolved = false;
-        continue;
-      }
-
-      const won =
-        (leg.selected_side === "A" && result === "A") ||
-        (leg.selected_side === "B" && result === "B");
-
-      const desiredStatus: "won" | "lost" = won ? "won" : "lost";
-
-      if (leg.result_status !== desiredStatus) {
-        const { error: legUpdateError } = await supabase
-          .from("bet_slip_legs")
-          .update({ result_status: desiredStatus })
-          .eq("id", leg.id);
-
-        if (legUpdateError) {
-          console.error("Leg update error:", legUpdateError);
-        }
-      }
-
-      if (!won) {
-        hasLost = true;
-      }
-    }
-
-    if (hasLost) {
-      const { error: slipLostError } = await supabase
-        .from("bet_slips")
-        .update({
-          status: "lost",
-          settled_at: new Date().toISOString(),
-        })
-        .eq("id", slip.id)
-        .eq("user_id", uid)
-        .eq("status", "open");
-
-      if (slipLostError) {
-        console.error("Slip lost update error:", slipLostError);
-      }
-
-      continue;
-    }
-
-    if (allResolved) {
-  const { data: updatedSlip, error: slipPaidError } = await supabase
-    .from("bet_slips")
-    .update({
-      status: "paid_out",
-      settled_at: new Date().toISOString(),
-      paid_out_at: new Date().toISOString(),
-    })
-    .eq("id", slip.id)
-    .eq("user_id", uid)
-    .eq("status", "open")
-    .select("id, potential_win")
-    .maybeSingle();
-
-  if (slipPaidError) {
-    console.error("Slip payout update error:", slipPaidError);
-  } else if (updatedSlip) {
-    const slipWin = Number(String(updatedSlip.potential_win ?? 0).replace(",", "."));
-
-    if (!Number.isNaN(slipWin) && slipWin > 0) {
-      payoutTotal += slipWin;
-    }
-  }
-}
-  }
-
-  if (payoutTotal > 0) {
-  const { data: profileRow, error: profileError } = await supabase
-    .from("profiles")
-    .select("tokens")
-    .eq("id", uid)
-    .single();
-
-  if (profileError || !profileRow) {
-    setBetSettleMessage(profileError?.message || "Profil konnte nicht geladen werden.");
-    return;
-  }
-
-  const currentTokens = Number(profileRow.tokens ?? 0);
-  const safeCurrentTokens = Number.isNaN(currentTokens) ? 0 : currentTokens;
-
-  // Falls du nur ganze Tokens willst:
-  const payoutRounded = Math.round(payoutTotal);
-  const nextTokens = safeCurrentTokens + payoutRounded;
-
-  const { error: profileUpdateError } = await supabase
-    .from("profiles")
-    .update({ tokens: nextTokens })
-    .eq("id", uid);
-
-  if (profileUpdateError) {
-    console.error("Profile payout update error:", profileUpdateError);
-    setBetSettleMessage(`Auszahlung fehlgeschlagen: ${profileUpdateError.message}`);
-    return;
-  }
-
-  updateData((prev) => ({
-    ...prev,
-    tokens: nextTokens,
-  }));
-
-  setBetSettleMessage(`Auszahlung erhalten: +${payoutRounded} Tokens`);
-}
-
-      await loadMyBetSlips(uid);
-    await loadRemoteUserGameState(uid);
-  } finally {
-    settlingBetSlipsRef.current = false;
-  }
-};
-const getChallengeStatusLabel = (status: string) => {
+  const getChallengeStatusLabel = (status: string) => {
     if (status === "pending") return "Wartet auf Annahme";
     if (status === "accepted") return "Erster Spieler dran";
     if (status === "second_turn") return "Zweiter Spieler dran";
@@ -3220,7 +2803,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {majorStructure.map((major) => (
                         <button
                           key={major.id}
-                          onClick={() => (isAdmin ? changeMajor(major.id) : selectMajorLocal(major.id))}
+                          onClick={() => changeMajor(major.id)}
                           className={`rounded-xl px-3 py-2 text-sm font-semibold ${
                             major.id === data.currentMajor
                               ? "bg-violet-500 text-white"
@@ -3235,7 +2818,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {visibleWeeks.map((week) => (
   <button
     key={week.id}
-    onClick={() => (isAdmin ? changeWeek(week.id) : selectWeekLocal(week.id))}
+    onClick={() => changeWeek(week.id)}
     className={`rounded-xl px-3 py-2 text-sm font-semibold ${
       week.id === currentWeek
         ? "bg-violet-500 text-white"
@@ -3281,38 +2864,65 @@ const getChallengeStatusLabel = (status: string) => {
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-zinc-400">News</div>
-                      <div className="text-lg font-bold">Anstehende Matches</div>
-                    </div>
-                    <CalendarRange className="h-5 w-5 text-violet-300" />
-                  </div>
+  <div className="mb-4 flex items-center justify-between gap-3">
+    <div>
+      <div className="text-lg font-black">
+        {showCompletedHomeMatches ? "Beendete Matches" : "Anstehende Matches"}
+      </div>
+      <div className="text-sm text-zinc-400">
+        {currentMajor.label} · {getDisplayWeek(currentWeek)}
+      </div>
+    </div>
 
-                  <div className="mt-4 space-y-2">
-                    {matches.length ? (
-                      matches.slice(0, 5).map((match) => (
-                        <div
-                          key={match.id}
-                          className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3 text-sm"
-                        >
-                          <div className="flex items-center gap-2">
-                            <TeamMini name={match.teamA} />
-                            <span>{match.teamA}</span>
-                            <span className="text-zinc-500">vs</span>
-                            <TeamMini name={match.teamB} />
-                            <span>{match.teamB}</span>
-                          </div>
-                          <span className="text-zinc-400">{match.startsAt}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl bg-black/40 px-3 py-3 text-sm text-zinc-400">
-                        Keine anstehenden Matches in dieser Woche.
-                      </div>
-                    )}
-                  </div>
-                </div>
+    <button
+      type="button"
+      onClick={() => setShowCompletedHomeMatches((prev) => !prev)}
+      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+        showCompletedHomeMatches
+          ? "bg-emerald-500 text-black"
+          : "bg-white/5 text-zinc-300"
+      }`}
+    >
+      {showCompletedHomeMatches ? "Beendet" : "Anstehend"}
+    </button>
+  </div>
+
+  <div className="space-y-3">
+    {(showCompletedHomeMatches ? completedHomeMatches : upcomingHomeMatches).length > 0 ? (
+      (showCompletedHomeMatches ? completedHomeMatches : upcomingHomeMatches).map((match) => (
+        <div
+          key={match.id}
+          className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3"
+        >
+          <div className="flex items-center gap-3">
+            <TeamMini name={match.teamA} />
+            <span>{match.teamA}</span>
+            <span className="text-zinc-500">vs</span>
+            <TeamMini name={match.teamB} />
+            <span>{match.teamB}</span>
+          </div>
+
+          {hasSavedScore(match) ? (
+            <div className="text-right">
+              <div className="text-base font-black">
+                {match.scoreA} : {match.scoreB}
+              </div>
+              <div className="text-xs text-zinc-400">{match.startsAt}</div>
+            </div>
+          ) : (
+            <span className="text-zinc-400">{match.startsAt}</span>
+          )}
+        </div>
+      ))
+    ) : (
+      <div className="rounded-2xl bg-black/40 px-3 py-3 text-sm text-zinc-400">
+        {showCompletedHomeMatches
+          ? "Keine beendeten Matches in dieser Woche."
+          : "Keine anstehenden Matches in dieser Woche."}
+      </div>
+    )}
+  </div>
+</div>
               </motion.div>
             )}
 
@@ -3338,7 +2948,7 @@ const getChallengeStatusLabel = (status: string) => {
                   {visibleWeeks.map((week) => (
   <button
     key={week.id}
-    onClick={() => (isAdmin ? changeWeek(week.id) : selectWeekLocal(week.id))}
+    onClick={() => changeWeek(week.id)}
     className={`rounded-xl px-3 py-2 text-sm font-semibold ${
       week.id === currentWeek
         ? "bg-violet-500 text-white"
@@ -3422,13 +3032,6 @@ const getChallengeStatusLabel = (status: string) => {
   {hasPendingRewards
     ? `Gesperrte Matches auswerten (${pendingRewardMatches.length})`
     : "Keine gesperrten Matches zur Auswertung"}
-</Button>
-<Button
-  onClick={() => setShowBetSlipModal(true)}
-  variant="violet"
-  className="w-full"
->
-  Wett-Scheine
 </Button>
               </motion.div>
             )}
@@ -4087,7 +3690,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {majorStructure.map((major) => (
                         <button
                           key={major.id}
-                          onClick={() => (isAdmin ? changeMajor(major.id) : selectMajorLocal(major.id))}
+                          onClick={() => changeMajor(major.id)}
                           className={`rounded-xl px-3 py-2 text-sm font-semibold ${
                             major.id === data.currentMajor
                               ? "bg-violet-500 text-white"
@@ -4103,7 +3706,7 @@ const getChallengeStatusLabel = (status: string) => {
                       {visibleWeeks.map((week) => (
   <button
     key={week.id}
-    onClick={() => (isAdmin ? changeWeek(week.id) : selectWeekLocal(week.id))}
+    onClick={() => changeWeek(week.id)}
     className={`rounded-xl px-3 py-2 text-sm font-semibold ${
       week.id === currentWeek
         ? "bg-violet-500 text-white"
@@ -4191,33 +3794,6 @@ const getChallengeStatusLabel = (status: string) => {
                     </div>
                     <div>
                       <div className="mb-2 text-sm text-zinc-400">Uhrzeit</div>
-                      <div className="grid grid-cols-2 gap-3">
-  <div>
-    <div className="mb-2 text-sm text-zinc-400">Quote Team A</div>
-    <input
-      type="number"
-      step="0.01"
-      min="1.01"
-      value={adminOddsA}
-      onChange={(e) => setAdminOddsA(e.target.value)}
-      placeholder="z. B. 1.89"
-      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-    />
-  </div>
-
-  <div>
-    <div className="mb-2 text-sm text-zinc-400">Quote Team B</div>
-    <input
-      type="number"
-      step="0.01"
-      min="1.01"
-      value={adminOddsB}
-      onChange={(e) => setAdminOddsB(e.target.value)}
-      placeholder="z. B. 2.10"
-      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-    />
-  </div>
-</div>
                       <input
                         type="time"
                         value={adminDraft.startsAt}
@@ -4261,73 +3837,72 @@ const getChallengeStatusLabel = (status: string) => {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
+<Button
+  onClick={() => updateMatch(match.id, "locked", !match.locked)}
+  variant="ghost"
+  className="w-full"
+>
+  {match.locked ? "Entsperren" : "Sperren"}
+</Button>
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+  <div className="mb-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
+    Ergebnis
+  </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          value={match.teamA}
-                          onChange={(e) =>
-                            updateMatch(match.id, "teamA", e.target.value)
-                          }
-                          className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-                        />
-                        <input
-                          value={match.teamB}
-                          onChange={(e) =>
-                            updateMatch(match.id, "teamB", e.target.value)
-                          }
-                          className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-                        />
-                      </div>
+  <div className="flex flex-wrap items-center gap-2">
+    <input
+      type="number"
+      min={0}
+      max={9}
+      value={adminScores[match.id]?.scoreA ?? (match.scoreA ?? "")}
+      onChange={(e) =>
+        setAdminScores((prev) => ({
+          ...prev,
+          [match.id]: {
+            scoreA: e.target.value,
+            scoreB: prev[match.id]?.scoreB ?? String(match.scoreB ?? ""),
+          },
+        }))
+      }
+      className="w-20 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-center text-white outline-none"
+      placeholder="A"
+    />
 
-                      <div className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-300">
-  {match.startsAt}
+    <span className="text-zinc-400">:</span>
+
+    <input
+      type="number"
+      min={0}
+      max={9}
+      value={adminScores[match.id]?.scoreB ?? (match.scoreB ?? "")}
+      onChange={(e) =>
+        setAdminScores((prev) => ({
+          ...prev,
+          [match.id]: {
+            scoreA: prev[match.id]?.scoreA ?? String(match.scoreA ?? ""),
+            scoreB: e.target.value,
+          },
+        }))
+      }
+      className="w-20 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-center text-white outline-none"
+      placeholder="B"
+    />
+
+    <Button
+      onClick={() => saveMatchResult(match.id)}
+      variant="violet"
+      className="ml-2"
+    >
+      Ergebnis eintragen
+    </Button>
+  </div>
+
+  {hasSavedScore(match) ? (
+    <div className="mt-2 text-sm text-emerald-300">
+      Gespeichert: {match.scoreA}:{match.scoreB}
+    </div>
+  ) : null}
 </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button
-                          onClick={() => updateMatch(match.id, "locked", !match.locked)}
-                          variant="ghost"
-                          className="w-full"
-                        >
-                          {match.locked ? "Entsperren" : "Sperren"}
-                        </Button>
-
-                        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-black/40 p-1">
-                          <button
-                            type="button"
-                            onClick={() => updateMatch(match.id, "result", null)}
-                            className={`rounded-xl py-2 text-sm ${
-                              match.result === null
-                                ? "bg-white text-black"
-                                : "text-zinc-300"
-                            }`}
-                          >
-                            -
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateMatch(match.id, "result", "A")}
-                            className={`rounded-xl py-2 text-sm ${
-                              match.result === "A"
-                                ? "bg-violet-500 text-white"
-                                : "text-zinc-300"
-                            }`}
-                          >
-                            A
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateMatch(match.id, "result", "B")}
-                            className={`rounded-xl py-2 text-sm ${
-                              match.result === "B"
-                                ? "bg-cyan-500 text-white"
-                                : "text-zinc-300"
-                            }`}
-                          >
-                            B
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -4591,326 +4166,7 @@ const getChallengeStatusLabel = (status: string) => {
             </motion.div>
           )}
         </AnimatePresence>
-        <AnimatePresence>
-          {showBetSlipModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.96, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.96, opacity: 0 }}
-                className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-zinc-400">Wetten</div>
-                    <div className="text-2xl font-black">Wettschein erstellen</div>
-                  </div>
-                  <button
-                    onClick={() => setShowBetSlipModal(false)}
-                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
 
-                <div className="flex-1 overflow-y-auto pr-1 space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                    <div className="text-sm font-semibold text-zinc-300">
-                      Verfügbare Matches
-                    </div>
-
-                    <div className="mt-3 space-y-3">
-                      {upcomingBetMatches.length ? (
-                        upcomingBetMatches.map((match) => {
-                          const activeSelection = betSlipSelections.find(
-                            (item) => item.matchId === match.id
-                          );
-
-                          return (
-                            <div
-                              key={match.id}
-                              className="rounded-2xl border border-white/10 bg-black/40 p-4"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div>
-                                  <div className="text-sm text-zinc-400">
-                                    {match.startsAt}
-                                  </div>
-                                  <div className="mt-1 font-bold">
-                                    {match.teamA} vs {match.teamB}
-                                  </div>
-                                </div>
-                                {activeSelection ? (
-                                  <button
-                                    onClick={() => removeBetSelection(match.id)}
-                                    className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200"
-                                  >
-                                    Entfernen
-                                  </button>
-                                ) : null}
-                              </div>
-
-                              <div className="mt-3 grid grid-cols-2 gap-3">
-                                <button
-                                  onClick={() => toggleBetSelection(match, "A")}
-                                  className={`rounded-2xl border p-4 text-left transition ${
-                                    activeSelection?.selectedSide === "A"
-                                      ? "border-violet-400 bg-violet-500/20"
-                                      : "border-white/10 bg-black/40"
-                                  }`}
-                                >
-                                  <div className="text-xs text-zinc-400">Team A</div>
-                                  <div className="mt-1 font-bold">{match.teamA}</div>
-                                  <div className="mt-2 text-sm text-amber-200">
-                                    Quote: {match.oddsTeamA?.toFixed(2)}
-                                  </div>
-                                </button>
-
-                                <button
-                                  onClick={() => toggleBetSelection(match, "B")}
-                                  className={`rounded-2xl border p-4 text-left transition ${
-                                    activeSelection?.selectedSide === "B"
-                                      ? "border-cyan-400 bg-cyan-500/20"
-                                      : "border-white/10 bg-black/40"
-                                  }`}
-                                >
-                                  <div className="text-xs text-zinc-400">Team B</div>
-                                  <div className="mt-1 font-bold">{match.teamB}</div>
-                                  <div className="mt-2 text-sm text-amber-200">
-                                    Quote: {match.oddsTeamB?.toFixed(2)}
-                                  </div>
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
-                          Keine offenen Matches mit Quoten verfügbar.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                    <div className="text-sm font-semibold text-zinc-300">
-                      Dein Wettschein
-                    </div>
-
-                    <div className="mt-3 space-y-2">
-                      {betSlipSelections.length ? (
-                        betSlipSelections.map((item) => (
-                          <div
-                            key={item.matchId}
-                            className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3 text-sm"
-                          >
-                            <div>
-                              <div className="font-semibold">
-                                {item.teamA} vs {item.teamB}
-                              </div>
-                              <div className="text-zinc-400">
-                                Tipp: {item.selectedTeam}
-                              </div>
-                            </div>
-                            <div className="text-amber-200 font-bold">
-                              {item.oddValue.toFixed(2)}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="rounded-2xl bg-black/40 px-3 py-3 text-sm text-zinc-500">
-                          Noch keine Tipps im Wettschein.
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="rounded-2xl bg-black/40 px-4 py-3">
-                        <div className="text-xs text-zinc-400">Gesamtquote</div>
-                        <div className="mt-1 text-xl font-black text-amber-200">
-                          {totalBetSlipOdds ? totalBetSlipOdds.toFixed(2) : "-"}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl bg-black/40 px-4 py-3">
-                        <div className="text-xs text-zinc-400">Einsatz</div>
-                        <input
-                          type="number"
-                          min="1"
-                          value={betStake}
-                          onChange={(e) => setBetStake(e.target.value)}
-                          placeholder="z. B. 10"
-                          className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
-                        />
-                      </div>
-
-                      <div className="rounded-2xl bg-black/40 px-4 py-3">
-                        <div className="text-xs text-zinc-400">Möglicher Gewinn</div>
-                        <div className="mt-1 text-xl font-black text-emerald-300">
-                          {potentialBetWin ? potentialBetWin.toFixed(2) : "-"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      <Button
-                        onClick={placeBetSlip}
-                        variant="violet"
-                        className="w-full"
-                      >
-                        Wettschein platzieren
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setShowBetSlipModal(false);
-                          setShowMyBetsModal(true);
-                        }}
-                        variant="ghost"
-                        className="w-full"
-                      >
-                        Meine Wetten
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showMyBetsModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[81] flex items-center justify-center bg-black/80 p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.96, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.96, opacity: 0 }}
-                className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-  <div>
-    <div className="text-sm text-zinc-400">Wetten</div>
-    <div className="text-2xl font-black">Meine Wettscheine</div>
-  </div>
-  <button
-    onClick={() => setShowMyBetsModal(false)}
-    className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
-  >
-    <X className="h-4 w-4" />
-  </button>
-</div>
-
-<div className="mb-4 grid grid-cols-2 gap-3">
-  <Button
-    onClick={settleMyBetSlipsManual}
-    variant="violet"
-    className="w-full"
-  >
-    Wettscheine auswerten
-  </Button>
-
-  <Button
-    onClick={() => userId && loadMyBetSlips(userId)}
-    variant="ghost"
-    className="w-full"
-  >
-    Aktualisieren
-  </Button>
-</div>
-
-{betSettleMessage ? (
-  <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm text-zinc-300">
-    {betSettleMessage}
-  </div>
-) : null}
-<div className="flex-1 overflow-y-auto pr-1 space-y-3">
-                  {myBetSlips.length ? (
-                    myBetSlips.map((slip) => {
-                      const legs = myBetSlipLegs[slip.id] || [];
-
-                      return (
-                        <div
-                          key={slip.id}
-                          className="rounded-3xl border border-white/10 bg-black/30 p-4"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <div className="text-sm text-zinc-400">
-                                {new Date(slip.created_at).toLocaleString("de-DE")}
-                              </div>
-                              <div className="mt-1 text-lg font-bold">
-                                Status: {slip.status}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              <div className="rounded-xl bg-black/40 px-3 py-2">
-                                <div className="text-zinc-400">Quote</div>
-                                <div className="font-bold text-amber-200">
-                                  {Number(slip.total_odds).toFixed(2)}
-                                </div>
-                              </div>
-                              <div className="rounded-xl bg-black/40 px-3 py-2">
-                                <div className="text-zinc-400">Einsatz</div>
-                                <div className="font-bold">
-                                  {Number(slip.stake_tokens).toFixed(2)}
-                                </div>
-                              </div>
-                              <div className="rounded-xl bg-black/40 px-3 py-2">
-                                <div className="text-zinc-400">Gewinn</div>
-                                <div className="font-bold text-emerald-300">
-                                  {Number(slip.potential_win).toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 space-y-2">
-                            {legs.map((leg) => (
-                              <div
-                                key={leg.id}
-                                className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3 text-sm"
-                              >
-                                <div>
-                                  <div className="font-semibold">{leg.selected_team}</div>
-                                  <div className="text-zinc-400">
-                                    Seite {leg.selected_side} · Match #{leg.match_id}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="font-bold text-amber-200">
-                                    {Number(leg.odd_value).toFixed(2)}
-                                  </div>
-                                  <div className="text-xs text-zinc-400">
-                                    {leg.result_status}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
-                      Du hast noch keine Wettscheine.
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
                 <AnimatePresence>
           {selectedChallengeFresh && (
             <motion.div
@@ -5397,7 +4653,6 @@ const getChallengeStatusLabel = (status: string) => {
             </motion.div>
           )}
         </AnimatePresence>
-                
       </div>
     </div>
   );
