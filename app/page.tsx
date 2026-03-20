@@ -3420,6 +3420,33 @@ useEffect(() => {
     ? `Gesperrte Matches auswerten (${pendingRewardMatches.length})`
     : "Keine gesperrten Matches zur Auswertung"}
 </Button>
+<div className="grid grid-cols-2 gap-3">
+  <Button
+    onClick={() => setShowBetBuilder(true)}
+    variant="violet"
+    className="w-full"
+  >
+    Wettschein
+  </Button>
+
+  <Button
+    onClick={() => setShowMyBets(true)}
+    variant="ghost"
+    className="w-full"
+  >
+    Meine Wetten
+  </Button>
+</div>
+
+<Button
+  onClick={resolveWeek}
+  disabled={!hasPendingRewards}
+  className="w-full"
+>
+  {hasPendingRewards
+    ? `Gesperrte Matches auswerten (${pendingRewardMatches.length})`
+    : "Keine gesperrten Matches zur Auswertung"}
+</Button>
               </motion.div>
             )}
 
