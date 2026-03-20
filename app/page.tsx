@@ -2902,18 +2902,9 @@ const settleMyBetSlipsManual = async () => {
 
   setBetSettleMessage("Wettscheine wurden geprüft.");
 };
-  setMessage("");
-
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
-
-  await settleBetSlips(userId);
-  setMessage("Wettscheine wurden geprüft.");
-};
 
 const settleBetSlips = async (uid: string) => {
+
   if (!uid) return;
   if (settlingBetSlipsRef.current) return;
 
