@@ -38,10 +38,32 @@ type MatchType = {
   startsAtIso: string;
   locked: boolean;
   result: MatchResult;
-   scoreA: number | null;
+  scoreA: number | null;
   scoreB: number | null;
+  oddA: number | null;
+  oddB: number | null;
+};
+type BetStatus = "open" | "lost" | "won" | "paid";
+
+type BetLegType = {
+  id: string;
+  bet_id: string;
+  match_id: string;
+  pick_side: PickSide;
+  odd: number;
 };
 
+type BetType = {
+  id: string;
+  user_id: string;
+  stake: number;
+  total_odds: number;
+  potential_payout: number;
+  status: BetStatus;
+  paid_out: boolean;
+  created_at: string;
+  legs: BetLegType[];
+};
 type LocalSymbol = {
   id: string;
   slug: string;
@@ -50,7 +72,21 @@ type LocalSymbol = {
   image_path: string;
   weight: number;
 };
-
+type LocalData = {
+  lastDailyClaim?: string | null;
+  currentWeek: number;
+  currentMajor: string;
+  stageLabel: string;
+  sourceLabel: string;
+  lastSyncLabel: string;
+  weeks: Record<string, Record<number, MatchType[]>>;
+  picks: Record<string, PickSide>;
+  resolvedMatchIds: string[];
+  tokens: number;
+  inventory: LocalInventoryItem[];
+  spinHistory: { at: number; reels: string[]; won: boolean }[];
+  
+};
 type LocalInventoryItem = {
   inventory_id: string;
   id: string;
@@ -367,6 +403,7 @@ const defaultData: LocalData = {
   tokens: 0,
   inventory: [],
   spinHistory: [],
+  bets: [],
 };
 
 function weightedRandom(list: LocalSymbol[]) {
@@ -704,6 +741,14 @@ function getResultFromScore(scoreA: number, scoreB: number): MatchResult {
   return scoreA > scoreB ? "A" : "B";
 }
 
+function formatOdd(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  return value.toFixed(2);
+}
+
+function ceilPayout(value: number) {
+  return Math.ceil(value);
+}
 function isValidMatchScore(scoreA: number, scoreB: number) {
   if (
     !Number.isInteger(scoreA) ||
@@ -760,7 +805,101 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, []);
+const placeBet = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
 
+  if (selectedBetMatches.length === 0) {
+    setMessage("Bitte mindestens ein Match auswählen.");
+    return;
+  }
+
+  if (selectedBetMatches.length > 20) {
+    setMessage("Maximal 20 Tipps pro Wettschein.");
+    return;
+  }
+
+  if (!Number.isInteger(parsedStake) || parsedStake <= 0) {
+    setMessage("Bitte einen gültigen Einsatz eingeben.");
+    return;
+  }
+
+  if (parsedStake > data.tokens) {
+    setMessage("Nicht genug Tokens.");
+    return;
+  }
+
+  for (const match of selectedBetMatches) {
+    const side = betSelections[match.id];
+    const odd = side === "A" ? match.oddA : match.oddB;
+
+    if (!odd || odd <= 1) {
+      setMessage("Mindestens ein ausgewähltes Match hat keine gültige Quote.");
+      return;
+    }
+  }
+
+  const roundedTotalOdds = Number(totalBetOdds.toFixed(2));
+  const payout = ceilPayout(parsedStake * roundedTotalOdds);
+
+  const { data: betRow, error: betError } = await supabase
+    .from("bets")
+    .insert({
+      user_id: userId,
+      stake: parsedStake,
+      total_odds: roundedTotalOdds,
+      potential_payout: payout,
+      status: "open",
+      paid_out: false,
+    })
+    .select()
+    .single();
+
+  if (betError || !betRow) {
+    setMessage(betError?.message || "Wettschein konnte nicht erstellt werden.");
+    return;
+  }
+
+  const legsPayload = selectedBetMatches.map((match) => {
+    const side = betSelections[match.id];
+    const odd = side === "A" ? match.oddA : match.oddB;
+
+    return {
+      bet_id: betRow.id,
+      match_id: match.id,
+      pick_side: side,
+      odd,
+    };
+  });
+
+  const { error: legsError } = await supabase.from("bet_legs").insert(legsPayload);
+
+  if (legsError) {
+    setMessage(legsError.message);
+    return;
+  }
+
+  const nextTokens = data.tokens - parsedStake;
+
+  const { error: tokenError } = await supabase
+    .from("profiles")
+    .update({ tokens: nextTokens })
+    .eq("id", userId);
+
+  if (tokenError) {
+    setMessage(tokenError.message);
+    return;
+  }
+
+  setData((prev) => ({ ...prev, tokens: nextTokens }));
+  setBetSelections({});
+  setBetStake("1");
+  setShowBetBuilder(false);
+  setMessage("Wette gesetzt.");
+  await loadUserBets(userId);
+};
   const [userId, setUserId] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [profileName, setProfileName] = useState("");
@@ -771,10 +910,92 @@ const [showCompletedHomeMatches, setShowCompletedHomeMatches] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState("");
   const [members, setMembers] = useState<MemberType[]>([]);
   const [memberInventories, setMemberInventories] = useState<MemberInventory[]>([]);
-
+const [showBetBuilder, setShowBetBuilder] = useState(false);
+const [showMyBets, setShowMyBets] = useState(false);
+const [betStake, setBetStake] = useState("1");
+const [betSelections, setBetSelections] = useState<Record<string, PickSide>>({});
   const [groupName, setGroupName] = useState("");
   const [joinCode, setJoinCode] = useState("");
+const allOpenMatches = useMemo(() => {
+  return Object.values(data.weeks)
+    .flatMap((weekMap) => Object.values(weekMap).flat())
+    .filter((match) => !hasSavedScore(match) && !isMatchLocked(match));
+}, [data.weeks]);
+const toggleBetSelection = (matchId: string, side: PickSide) => {
+  setBetSelections((prev) => {
+    const current = prev[matchId];
+    if (current === side) {
+      const next = { ...prev };
+      delete next[matchId];
+      return next;
+    }
+    return { ...prev, [matchId]: side };
+  });
+};
+const selectedBetMatches = allOpenMatches.filter((match) => betSelections[match.id]);
+const evaluateUserBets = async (uid: string) => {
+  const { data: betRows, error: betError } = await supabase
+    .from("bets")
+    .select("*")
+    .eq("user_id", uid)
+    .eq("status", "open");
 
+  if (betError || !betRows?.length) return;
+
+  const betIds = betRows.map((b: any) => b.id);
+
+  const { data: legRows, error: legError } = await supabase
+    .from("bet_legs")
+    .select("*")
+    .in("bet_id", betIds);
+
+  if (legError || !legRows) return;
+
+  const allMatches = Object.values(data.weeks).flatMap((weekMap) =>
+    Object.values(weekMap).flat()
+  );
+  const matchMap = new Map(allMatches.map((m) => [m.id, m]));
+
+  for (const bet of betRows) {
+    const legs = legRows.filter((leg: any) => leg.bet_id === bet.id);
+
+    let lost = false;
+    let allResolved = true;
+
+    for (const leg of legs) {
+      const match = matchMap.get(String(leg.match_id));
+
+      if (!match || !hasSavedScore(match) || !match.result) {
+        allResolved = false;
+        continue;
+      }
+
+      if (match.result !== leg.pick_side) {
+        lost = true;
+        break;
+      }
+    }
+
+    if (lost) {
+      await supabase.from("bets").update({ status: "lost" }).eq("id", bet.id);
+    } else if (allResolved) {
+      await supabase.from("bets").update({ status: "won" }).eq("id", bet.id);
+    }
+  }
+
+  await loadUserBets(uid);
+};
+const totalBetOdds = selectedBetMatches.reduce((acc, match) => {
+  const side = betSelections[match.id];
+  const odd = side === "A" ? match.oddA : match.oddB;
+  return acc * (odd || 1);
+}, 1);
+
+const parsedStake = Number(betStake) || 0;
+const potentialBetWin =
+  parsedStake > 0 && selectedBetMatches.length > 0
+    ? ceilPayout(parsedStake * totalBetOdds)
+    : 0;
   const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
@@ -795,11 +1016,13 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [adminDraft, setAdminDraft] = useState({
-    teamA: "",
-    teamB: "",
-    startsAt: "20:00",
-    date: getTodayInputValue(),
-  });
+  teamA: "",
+  teamB: "",
+  startsAt: "20:00",
+  date: getTodayInputValue(),
+  oddA: "1.67",
+  oddB: "2.10",
+});
 
 
   const updateData = (updater: LocalData | ((prev: LocalData) => LocalData)) => {
@@ -910,6 +1133,8 @@ const loadMatches = async () => {
   result: row.result as MatchResult,
   scoreA: typeof row.score_a === "number" ? row.score_a : null,
   scoreB: typeof row.score_b === "number" ? row.score_b : null,
+  oddA: row.odd_a != null ? Number(row.odd_a) : null,
+  oddB: row.odd_b != null ? Number(row.odd_b) : null,
 });
   });
 
@@ -1350,6 +1575,18 @@ if (Number.isNaN(localDateTime.getTime())) {
   return;
 }
 
+const oddA = Number(adminDraft.oddA);
+const oddB = Number(adminDraft.oddB);
+
+if (!Number.isFinite(oddA) || oddA <= 1) {
+  setMessage("Bitte eine gültige Quote für Team A eingeben.");
+  return;
+}
+
+if (!Number.isFinite(oddB) || oddB <= 1) {
+  setMessage("Bitte eine gültige Quote für Team B eingeben.");
+  return;
+}
 const payload = {
   week: currentWeek,
   major: data.currentMajor,
@@ -1358,6 +1595,8 @@ const payload = {
   starts_at: localDateTime.toISOString(),
   locked: false,
   result: null,
+  odd_a: oddA,
+  odd_b: oddB,
 };
 
   const { error } = await supabase.from("matches").insert(payload);
@@ -1371,15 +1610,74 @@ const payload = {
   setMessage("Match erfolgreich erstellt.");
 
   setAdminDraft({
-    teamA: "",
-    teamB: "",
-    startsAt: "20:00",
-    date: getTodayInputValue(),
-  });
+  teamA: "",
+  teamB: "",
+  startsAt: "20:00",
+  date: getTodayInputValue(),
+  oddA: "1.67",
+  oddB: "2.10",
+});
 
   await loadMatches();
 };
-  const deleteMatch = async (matchId: string) => {
+  const loadUserBets = async (uid: string) => {
+  const { data: betRows, error: betError } = await supabase
+    .from("bets")
+    .select("*")
+    .eq("user_id", uid)
+    .order("created_at", { ascending: false });
+
+  if (betError) {
+    setMessage(betError.message);
+    return;
+  }
+
+  const betIds = (betRows || []).map((row: any) => row.id);
+
+  if (!betIds.length) {
+    setData((prev) => ({ ...prev, bets: [] }));
+    return;
+  }
+
+  const { data: legRows, error: legError } = await supabase
+    .from("bet_legs")
+    .select("*")
+    .in("bet_id", betIds);
+
+  if (legError) {
+    setMessage(legError.message);
+    return;
+  }
+
+  const legsByBet = new Map<string, BetLegType[]>();
+
+  (legRows || []).forEach((row: any) => {
+    const list = legsByBet.get(row.bet_id) || [];
+    list.push({
+      id: row.id,
+      bet_id: row.bet_id,
+      match_id: String(row.match_id),
+      pick_side: row.pick_side as PickSide,
+      odd: Number(row.odd),
+    });
+    legsByBet.set(row.bet_id, list);
+  });
+
+  const bets: BetType[] = (betRows || []).map((row: any) => ({
+    id: row.id,
+    user_id: row.user_id,
+    stake: row.stake,
+    total_odds: Number(row.total_odds),
+    potential_payout: row.potential_payout,
+    status: row.status as BetStatus,
+    paid_out: !!row.paid_out,
+    created_at: row.created_at,
+    legs: legsByBet.get(row.id) || [],
+  }));
+
+  setData((prev) => ({ ...prev, bets }));
+};
+const deleteMatch = async (matchId: string) => {
     if (!isAdmin) {
   setMessage("Kein Admin-Zugriff.");
   return;
@@ -1406,12 +1704,14 @@ await supabase.from("user_picks").delete().eq("match_id", matchId);
     return;
   }
 
-  let updatePayload: Record<string, any> = {};
+  const updatePayload: Record<string, any> = {};
 
   if (field === "teamA") updatePayload.team_a = value;
   else if (field === "teamB") updatePayload.team_b = value;
   else if (field === "locked") updatePayload.locked = value;
   else if (field === "result") updatePayload.result = value;
+  else if (field === "oddA") updatePayload.odd_a = value;
+  else if (field === "oddB") updatePayload.odd_b = value;
   else if (field === "startsAt") {
     setMessage("startsAt bitte direkt in DB mit starts_at bearbeiten.");
     return;
@@ -1464,8 +1764,13 @@ await supabase.from("user_picks").delete().eq("match_id", matchId);
     return;
   }
 
-  setMessage("Ergebnis gespeichert.");
   await loadMatches();
+
+  if (userId) {
+    await evaluateUserBets(userId);
+  }
+
+  setMessage("Ergebnis gespeichert.");
 };
 const resetAll = async () => {
     if (!isAdmin) {
@@ -1893,6 +2198,7 @@ useEffect(() => {
   setIsAdmin(ADMIN_USER_IDS.includes(user.id));
   await ensureProfile(user.id, user.email || "");
   await loadRemoteUserGameState(user.id);
+  await loadUserBets(user.id);
   await loadMyGroups(user.id);
 }
 
@@ -1911,6 +2217,7 @@ useEffect(() => {
   setIsAdmin(ADMIN_USER_IDS.includes(user.id));
   await ensureProfile(user.id, user.email || "");
   await loadRemoteUserGameState(user.id);
+  await loadUserBets(user.id);
   await loadMyGroups(user.id);
 } else {
         setUserId("");
@@ -1937,6 +2244,7 @@ useEffect(() => {
   tokens: 0,
   inventory: [],
   spinHistory: [],
+  bets: [],
 }));
       }
     });
@@ -2652,6 +2960,7 @@ useEffect(() => {
         setRoundUi("finished");
       }
 
+      await loadUserBets(userId);
       await loadChallenges(userId);
       if (activeGroupId) await loadGroupDetails(activeGroupId);
     } catch (error: any) {
@@ -3778,6 +4087,39 @@ useEffect(() => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
+  <div>
+    <div className="mb-2 text-sm text-zinc-400">Quote Team A</div>
+    <input
+      type="number"
+      step="0.01"
+      min="1.01"
+      value={adminDraft.oddA}
+      onChange={(e) =>
+        setAdminDraft((prev) => ({
+          ...prev,
+          oddA: e.target.value,
+        }))
+      }
+      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+    />
+  </div>
+  <div>
+    <div className="mb-2 text-sm text-zinc-400">Quote Team B</div>
+    <input
+      type="number"
+      step="0.01"
+      min="1.01"
+      value={adminDraft.oddB}
+      onChange={(e) =>
+        setAdminDraft((prev) => ({
+          ...prev,
+          oddB: e.target.value,
+        }))
+      }
+      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+    />
+  </div>
+</div><div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="mb-2 text-sm text-zinc-400">Datum</div>
                       <input
@@ -4168,6 +4510,229 @@ useEffect(() => {
         </AnimatePresence>
 
                 <AnimatePresence>
+  {showBetBuilder && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-sm text-zinc-400">Wettschein</div>
+            <div className="text-2xl font-black">Offene Matches</div>
+          </div>
+          <button
+            onClick={() => setShowBetBuilder(false)}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto">
+          {allOpenMatches.map((match) => (
+            <div
+              key={match.id}
+              className="rounded-2xl border border-white/10 bg-black/30 p-4"
+            >
+              <div className="mb-2 text-sm text-zinc-400">{match.startsAt}</div>
+              <div className="mb-3 font-bold">
+                {match.teamA} vs {match.teamB}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleBetSelection(match.id, "A")}
+                  className={`rounded-2xl border p-3 text-left ${
+                    betSelections[match.id] === "A"
+                      ? "border-violet-400 bg-violet-500/20"
+                      : "border-white/10 bg-black/40"
+                  }`}
+                >
+                  <div className="font-semibold">{match.teamA}</div>
+                  <div className="text-sm text-zinc-400">{formatOdd(match.oddA)}</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleBetSelection(match.id, "B")}
+                  className={`rounded-2xl border p-3 text-left ${
+                    betSelections[match.id] === "B"
+                      ? "border-cyan-400 bg-cyan-500/20"
+                      : "border-white/10 bg-black/40"
+                  }`}
+                >
+                  <div className="font-semibold">{match.teamB}</div>
+                  <div className="text-sm text-zinc-400">{formatOdd(match.oddB)}</div>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-sm text-zinc-400">Gesamtquote</div>
+              <div className="text-xl font-black">{totalBetOdds.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-sm text-zinc-400">Möglicher Gewinn</div>
+              <div className="text-xl font-black text-emerald-300">
+                {potentialBetWin}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <div className="mb-2 text-sm text-zinc-400">Einsatz</div>
+            <input
+              type="number"
+              min={1}
+              value={betStake}
+              onChange={(e) => setBetStake(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+            />
+          </div>
+
+          <Button onClick={placeBet} variant="violet" className="mt-4 w-full">
+            Wette setzen
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+<AnimatePresence>
+  {showMyBets && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[81] flex items-center justify-center bg-black/80 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-sm text-zinc-400">Historie</div>
+            <div className="text-2xl font-black">Meine Wetten</div>
+          </div>
+          <button
+            onClick={() => setShowMyBets(false)}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto">
+          {data.bets.map((bet) => {
+            const cardClass =
+              bet.status === "open"
+                ? "border-zinc-500/20 bg-zinc-500/10"
+                : bet.status === "lost"
+                  ? "border-red-500/20 bg-red-500/10"
+                  : bet.status === "won"
+                    ? "border-emerald-500/20 bg-emerald-500/10"
+                    : "border-amber-500/20 bg-amber-500/10";
+
+            return (
+              <div key={bet.id} className={`rounded-3xl border p-4 ${cardClass}`}>
+                <div className="flex items-center justify-between">
+                  <div className="font-bold uppercase">{bet.status}</div>
+                  <div className="text-sm text-zinc-400">
+                    {new Date(bet.created_at).toLocaleString("de-DE")}
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {bet.legs.map((leg) => {
+                    const match = Object.values(data.weeks)
+                      .flatMap((weekMap) => Object.values(weekMap).flat())
+                      .find((m) => m.id === leg.match_id);
+
+                    const wonLeg = match?.result && match.result === leg.pick_side;
+                    const lostLeg = match?.result && match.result !== leg.pick_side;
+
+                    return (
+                      <div
+                        key={leg.id}
+                        className="rounded-2xl border border-white/10 bg-black/30 p-3"
+                      >
+                        <div className="font-semibold">
+                          {match?.teamA} vs {match?.teamB}
+                        </div>
+                        <div className="text-sm text-zinc-300">
+                          Tipp: {leg.pick_side === "A" ? match?.teamA : match?.teamB}
+                        </div>
+                        <div className="text-sm text-zinc-400">Quote: {leg.odd.toFixed(2)}</div>
+
+                        {hasSavedScore(match as MatchType) ? (
+                          <div
+                            className={`mt-1 text-sm ${
+                              wonLeg ? "text-emerald-300" : lostLeg ? "text-red-300" : "text-zinc-400"
+                            }`}
+                          >
+                            Ergebnis: {match?.scoreA}:{match?.scoreB}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <div className="text-zinc-400">Einsatz</div>
+                    <div className="font-bold">{bet.stake}</div>
+                  </div>
+                  <div>
+                    <div className="text-zinc-400">Gesamtquote</div>
+                    <div className="font-bold">{bet.total_odds.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-zinc-400">Möglicher Gewinn</div>
+                    <div className="font-bold">{bet.potential_payout}</div>
+                  </div>
+                </div>
+
+                {bet.status === "won" && !bet.paid_out ? (
+                  <Button
+                    onClick={() => payoutBet(bet)}
+                    className="mt-3"
+                    variant="ghost"
+                  >
+                    Gewinn auszahlen
+                  </Button>
+                ) : null}
+              </div>
+            );
+          })}
+
+          {!data.bets.length && (
+            <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
+              Noch keine Wetten gesetzt.
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+<AnimatePresence>
           {selectedChallengeFresh && (
             <motion.div
               initial={{ opacity: 0 }}
