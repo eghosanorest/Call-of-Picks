@@ -85,6 +85,7 @@ type LocalData = {
   tokens: number;
   inventory: LocalInventoryItem[];
   spinHistory: { at: number; reels: string[]; won: boolean }[];
+  bets: BetType[];
   
 };
 type LocalInventoryItem = {
@@ -150,20 +151,7 @@ type ChallengeType = {
   created_at: string;
 };
 
-type LocalData = {
-  lastDailyClaim?: string | null;
-  currentWeek: number;
-  currentMajor: string;
-  stageLabel: string;
-  sourceLabel: string;
-  lastSyncLabel: string;
-  weeks: Record<string, Record<number, MatchType[]>>;
-  picks: Record<string, PickSide>;
-  resolvedMatchIds: string[];
-  tokens: number;
-  inventory: LocalInventoryItem[];
-  spinHistory: { at: number; reels: string[]; won: boolean }[];
-};
+
 
 type FirstshotRoundState = {
   challengeId: string;
