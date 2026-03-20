@@ -810,7 +810,8 @@ const [myBetSlipLegs, setMyBetSlipLegs] = useState<Record<string, BetSlipLegType
 const [adminOddsA, setAdminOddsA] = useState("");
 const [adminOddsB, setAdminOddsB] = useState("");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  
+const settlingBetSlipsRef = useRef(false);
   const [adminDraft, setAdminDraft] = useState({
     teamA: "",
     teamB: "",
@@ -1984,7 +1985,7 @@ await settleBetSlips(user.id);
         await loadMatches();
       }
     )
-    .on(
+        .on(
       "postgres_changes",
       {
         event: "*",
@@ -1995,7 +1996,11 @@ await settleBetSlips(user.id);
         await autoLockExpiredMatches();
         await loadMatches();
 
-        
+        if (userId) {
+          await settleBetSlips(userId);
+          await loadMyBetSlips(userId);
+          await loadRemoteUserGameState(userId);
+        }
       }
     )
     .subscribe();
@@ -2886,14 +2891,19 @@ const settleMyBetSlipsManual = async () => {
     return;
   }
 
-  await settleBetSlips(userId);
   await loadMyBetSlips(userId);
   await loadRemoteUserGameState(userId);
 
-  setMessage("Wettscheine wurden geprüft.");
+  setMessage("Wettscheine aktualisiert.");
 };
 
 const settleBetSlips = async (uid: string) => {
+  if (!uid) return;
+  if (settlingBetSlipsRef.current) return;
+
+  settlingBetSlipsRef.current = true;
+
+  try {
   const { data: slips, error: slipsError } = await supabase
     .from("bet_slips")
     .select("*")
@@ -2992,7 +3002,7 @@ const settleBetSlips = async (uid: string) => {
     }
 
     if (allResolved) {
-  const { error: slipPaidError } = await supabase
+  const { data: updatedSlip, error: slipPaidError } = await supabase
     .from("bet_slips")
     .update({
       status: "paid_out",
@@ -3001,44 +3011,55 @@ const settleBetSlips = async (uid: string) => {
     })
     .eq("id", slip.id)
     .eq("user_id", uid)
-    .eq("status", "open");
+    .eq("status", "open")
+    .select("id, potential_win")
+    .maybeSingle();
 
   if (slipPaidError) {
     console.error("Slip payout update error:", slipPaidError);
-  } else {
-    payoutTotal += Number(slip.potential_win || 0);
+  } else if (updatedSlip) {
+    const slipWin = Number(String(updatedSlip.potential_win ?? 0).replace(",", "."));
+
+    if (!Number.isNaN(slipWin) && slipWin > 0) {
+      payoutTotal += slipWin;
+    }
   }
 }
   }
 
   if (payoutTotal > 0) {
-    const { data: profileRow, error: profileError } = await supabase
+  const { data: profileRow, error: profileError } = await supabase
+    .from("profiles")
+    .select("tokens")
+    .eq("id", uid)
+    .single();
+
+  if (!profileError && profileRow) {
+    const currentTokens = Number(String(profileRow.tokens ?? 0).replace(",", "."));
+    const safeCurrentTokens = Number.isNaN(currentTokens) ? 0 : currentTokens;
+    const nextTokens = Number((safeCurrentTokens + payoutTotal).toFixed(2));
+
+    const { error: profileUpdateError } = await supabase
       .from("profiles")
-      .select("tokens")
-      .eq("id", uid)
-      .single();
+      .update({ tokens: nextTokens })
+      .eq("id", uid);
 
-    if (!profileError && profileRow) {
-      const nextTokens = Number(profileRow.tokens || 0) + payoutTotal;
-
-      const { error: profileUpdateError } = await supabase
-        .from("profiles")
-        .update({ tokens: nextTokens })
-        .eq("id", uid);
-
-      if (profileUpdateError) {
-        console.error("Profile payout update error:", profileUpdateError);
-      } else {
-        updateData((prev) => ({
-          ...prev,
-          tokens: nextTokens,
-        }));
-      }
+    if (profileUpdateError) {
+      console.error("Profile payout update error:", profileUpdateError);
+    } else {
+      updateData((prev) => ({
+        ...prev,
+        tokens: nextTokens,
+      }));
     }
   }
+}
 
-  await loadMyBetSlips(uid);
-  await loadRemoteUserGameState(uid);
+      await loadMyBetSlips(uid);
+    await loadRemoteUserGameState(uid);
+  } finally {
+    settlingBetSlipsRef.current = false;
+  }
 };
 const getChallengeStatusLabel = (status: string) => {
     if (status === "pending") return "Wartet auf Annahme";
@@ -4778,7 +4799,7 @@ const getChallengeStatusLabel = (status: string) => {
     variant="violet"
     className="w-full"
   >
-    Wettscheine auswerten
+    Wettscheine aktualisieren
   </Button>
 
   <Button
