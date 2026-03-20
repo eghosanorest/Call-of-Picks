@@ -800,7 +800,7 @@ useEffect(() => {
   const [firstshotRound, setFirstshotRound] = useState<FirstshotRoundState | null>(null);
 const [showBetSlipModal, setShowBetSlipModal] = useState(false);
 const [showMyBetsModal, setShowMyBetsModal] = useState(false);
-
+const [betSettleMessage, setBetSettleMessage] = useState("");
 const [betSlipSelections, setBetSlipSelections] = useState<BetSlipSelection[]>([]);
 const [betStake, setBetStake] = useState("");
 
@@ -2884,6 +2884,24 @@ const placeBetSlip = async () => {
   setMessage("Wette erfolgreich platziert.");
 };
 const settleMyBetSlipsManual = async () => {
+  setBetSettleMessage("");
+
+  if (!userId) {
+    setBetSettleMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (settlingBetSlipsRef.current) {
+    setBetSettleMessage("Auswertung läuft bereits.");
+    return;
+  }
+
+  await settleBetSlips(userId);
+  await loadMyBetSlips(userId);
+  await loadRemoteUserGameState(userId);
+
+  setBetSettleMessage("Wettscheine wurden geprüft.");
+};
   setMessage("");
 
   if (!userId) {
@@ -4809,6 +4827,11 @@ const getChallengeStatusLabel = (status: string) => {
   </Button>
 </div>
 
+{betSettleMessage ? (
+  <div className="mb-4 rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm text-zinc-300">
+    {betSettleMessage}
+  </div>
+) : null}
 <div className="flex-1 overflow-y-auto pr-1 space-y-3">
                   {myBetSlips.length ? (
                     myBetSlips.map((slip) => {
