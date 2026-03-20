@@ -1608,6 +1608,51 @@ const payload = {
 
   await loadMatches();
 };
+const payoutBet = async (bet: BetType) => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (bet.status !== "won" || bet.paid_out) {
+    return;
+  }
+
+  const nextTokens = data.tokens + bet.potential_payout;
+
+  const { error: tokenError } = await supabase
+    .from("profiles")
+    .update({ tokens: nextTokens })
+    .eq("id", userId);
+
+  if (tokenError) {
+    setMessage(tokenError.message);
+    return;
+  }
+
+  const { error: betError } = await supabase
+    .from("bets")
+    .update({
+      status: "paid",
+      paid_out: true,
+    })
+    .eq("id", bet.id);
+
+  if (betError) {
+    setMessage(betError.message);
+    return;
+  }
+
+  setData((prev) => ({
+    ...prev,
+    tokens: nextTokens,
+    bets: prev.bets.map((b) =>
+      b.id === bet.id ? { ...b, status: "paid", paid_out: true } : b
+    ),
+  }));
+
+  setMessage(`Gewinn ausgezahlt: +${bet.potential_payout} Tokens`);
+};
   const loadUserBets = async (uid: string) => {
   const payoutBet = async (bet: BetType) => {
   if (!userId) {
@@ -1647,10 +1692,12 @@ const payload = {
   setData((prev) => ({
     ...prev,
     tokens: nextTokens,
+    bets: prev.bets.map((b) =>
+      b.id === bet.id ? { ...b, status: "paid", paid_out: true } : b
+    ),
   }));
 
   setMessage(`Gewinn ausgezahlt: +${bet.potential_payout} Tokens`);
-  await loadUserBets(userId);
 };
 const { data: betRows, error: betError } = await supabase
     .from("bets")
