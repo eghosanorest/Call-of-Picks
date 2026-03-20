@@ -2891,10 +2891,8 @@ const settleMyBetSlipsManual = async () => {
     return;
   }
 
-  await loadMyBetSlips(userId);
-  await loadRemoteUserGameState(userId);
-
-  setMessage("Wettscheine aktualisiert.");
+  await settleBetSlips(userId);
+  setMessage("Wettscheine wurden geprüft.");
 };
 
 const settleBetSlips = async (uid: string) => {
@@ -4799,7 +4797,7 @@ const getChallengeStatusLabel = (status: string) => {
     variant="violet"
     className="w-full"
   >
-    Wettscheine aktualisieren
+    Wettscheine auswerten
   </Button>
 
   <Button
