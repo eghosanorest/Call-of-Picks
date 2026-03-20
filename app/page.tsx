@@ -1609,7 +1609,50 @@ const payload = {
   await loadMatches();
 };
   const loadUserBets = async (uid: string) => {
-  const { data: betRows, error: betError } = await supabase
+  const payoutBet = async (bet: BetType) => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (bet.status !== "won" || bet.paid_out) {
+    return;
+  }
+
+  const nextTokens = data.tokens + bet.potential_payout;
+
+  const { error: tokenError } = await supabase
+    .from("profiles")
+    .update({ tokens: nextTokens })
+    .eq("id", userId);
+
+  if (tokenError) {
+    setMessage(tokenError.message);
+    return;
+  }
+
+  const { error: betError } = await supabase
+    .from("bets")
+    .update({
+      status: "paid",
+      paid_out: true,
+    })
+    .eq("id", bet.id);
+
+  if (betError) {
+    setMessage(betError.message);
+    return;
+  }
+
+  setData((prev) => ({
+    ...prev,
+    tokens: nextTokens,
+  }));
+
+  setMessage(`Gewinn ausgezahlt: +${bet.potential_payout} Tokens`);
+  await loadUserBets(userId);
+};
+const { data: betRows, error: betError } = await supabase
     .from("bets")
     .select("*")
     .eq("user_id", uid)
