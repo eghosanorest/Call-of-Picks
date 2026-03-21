@@ -819,10 +819,7 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, []);
-useEffect(() => {
-  if (!userId) return;
-  evaluateUserBets(userId);
-}, [data.weeks, userId]);
+
 const placeBet = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -923,6 +920,10 @@ const placeBet = async () => {
   const [profileName, setProfileName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [needsUsername, setNeedsUsername] = useState(false);
+  useEffect(() => {
+  if (!userId) return;
+  evaluateUserBets(userId);
+}, [data.weeks, userId]);
 const [showCompletedHomeMatches, setShowCompletedHomeMatches] = useState(false);
   const [myGroups, setMyGroups] = useState<GroupType[]>([]);
   const [activeGroupId, setActiveGroupId] = useState("");
