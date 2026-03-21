@@ -1396,9 +1396,19 @@ const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   return arr;
 };
 
+const RISK_VISIBLE_COUNT = 7;
+const RISK_VISIBLE_CENTER_INDEX = Math.floor(RISK_VISIBLE_COUNT / 2);
+
 const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => createRiskStrip());
 const [riskOffset, setRiskOffset] = useState(0);
 const [riskTransitionMs, setRiskTransitionMs] = useState(0);
+
+const visibleRiskStrip = useMemo(() => {
+  const start = Math.max(0, RISK_TARGET_INDEX - RISK_VISIBLE_CENTER_INDEX);
+  const end = start + RISK_VISIBLE_COUNT;
+
+  return riskStrip.slice(start, end);
+}, [riskStrip]);
 const [riskStreak, setRiskStreak] = useState(0);
 const [riskPot, setRiskPot] = useState(0);
 const [riskTier, setRiskTier] = useState<RiskTier>("None");
@@ -4572,41 +4582,40 @@ useEffect(() => {
   <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-black via-black/70 to-transparent" />
 
   <div className="overflow-hidden">
-    <div
-  className="flex will-change-transform"
-  style={{
-    gap: `${RISK_GAP}px`,
-    transform: `translateX(calc(${RISK_BASE_TRANSLATE} + ${riskOffset}px))`,
-    transition:
-      riskTransitionMs > 0 ? `transform ${riskTransitionMs}ms ease-out` : "none",
-  }}
->
-      {riskStrip.map((symbol, idx) => {
-        const isCenter = idx === RISK_TARGET_INDEX;
+  <div
+    className="flex will-change-transform"
+    style={{
+      gap: `${RISK_GAP}px`,
+      transform: `translateX(${riskOffset}px)`,
+      transition: riskTransitionMs > 0 ? `transform ${riskTransitionMs}ms ease-out` : "none",
+    }}
+  >
+    {visibleRiskStrip.map((symbol, idx) => {
+      const isCenter = idx === RISK_VISIBLE_CENTER_INDEX;
 
-        return (
-          <div
-            key={`${symbol.slug}-${idx}-${riskStreak}-${riskStarted ? "run" : "idle"}`}
-            className={`shrink-0 transition ${
-              isCenter ? "scale-110" : "scale-90 opacity-70"
-            }`}
-            style={{ width: `${RISK_ITEM_WIDTH}px` }}
-          >
-            <div className="flex h-24 w-full items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32">
-              <img
-                src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
-                alt={symbol.name}
-                className="max-h-full max-w-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.src = "/items/fallback.png";
-                }}
-              />
-            </div>
+      return (
+        <div
+          key={`${symbol.slug}-${idx}-${riskStreak}-${riskStarted ? "run" : "idle"}`}
+          className={`shrink-0 transition ${
+            isCenter ? "scale-110" : "scale-90 opacity-70"
+          }`}
+          style={{ width: `${RISK_ITEM_WIDTH}px` }}
+        >
+          <div className="flex h-24 w-full items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32">
+            <img
+              src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
+              alt={symbol.name}
+              className="max-h-full max-w-full object-contain"
+              onError={(e) => {
+                e.currentTarget.src = "/items/fallback.png";
+              }}
+            />
           </div>
-        );
-      })}
-    </div>
+        </div>
+      );
+    })}
   </div>
+</div>
 </div>
 
     {riskLastItem ? (
