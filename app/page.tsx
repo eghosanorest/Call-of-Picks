@@ -2582,12 +2582,36 @@ const playRiskGame = async () => {
     riskLoopRef.current = null;
   }
 
-  riskLoopRef.current = setInterval(() => {
-    setRiskStrip((prev) => {
-      const next = [...prev.slice(1), riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]];
-      return next;
-    });
-  }, 90);
+  const speeds = [60, 80, 100, 130, 170, 220];
+let step = 0;
+
+const runStep = () => {
+  setRiskStrip((prev) => {
+    const next = [...prev.slice(1)];
+
+    // 🔥 nur im letzten Schritt kommt das finalItem rein
+    if (step === speeds.length - 1) {
+      next.push(finalItem);
+    } else {
+      next.push(
+        riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
+      );
+    }
+
+    return next;
+  });
+
+  if (step < speeds.length - 1) {
+    step++;
+    riskLoopRef.current = setTimeout(runStep, speeds[step]);
+  } else {
+    // ✅ Ende ohne extra Sprung!
+    setRiskLastItem(finalItem);
+    setRiskRunning(false);
+  }
+};
+
+runStep();
 
   const willLose = Math.random() < getRiskBombChance(riskStreak);
   const finalItem = willLose
