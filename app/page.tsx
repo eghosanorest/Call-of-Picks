@@ -1206,6 +1206,13 @@ const [autoSpinMode, setAutoSpinMode] = useState<"slot" | "multiline-slot" | nul
 const autoSpinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const stopAutoSpin = () => {
   setAutoSpinEnabled(false);
+  setAutoSpinMode(null);
+
+  if (autoSpinTimeoutRef.current) {
+    clearTimeout(autoSpinTimeoutRef.current);
+    autoSpinTimeoutRef.current = null;
+  }
+};
 const [reels, setReels] = useState<LocalSymbol[]>([
   symbolPool[0],
   symbolPool[1],
