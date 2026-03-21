@@ -4010,7 +4010,59 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <Button
+                  {slotViewMode === "multiline" && (
+  <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-4">
+    <div className="text-center">
+      <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
+        Multi-Line Auszahlung
+      </div>
+      <div className="mt-1 text-sm text-zinc-400">
+        8 mögliche Linien · Gewinn = Einsatz × Multiplikator
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+      {[
+        { hits: 1, multi: "0.4x" },
+        { hits: 2, multi: "2x" },
+        { hits: 3, multi: "10x" },
+        { hits: 4, multi: "50x" },
+        { hits: 5, multi: "200x" },
+        { hits: 6, multi: "1000x" },
+        { hits: 8, multi: "20000x" },
+      ].map((row) => (
+        <div
+          key={row.hits}
+          className="rounded-2xl border border-white/10 bg-black/40 px-3 py-3 text-center"
+        >
+          <div className="font-black text-white">{row.hits} Treffer</div>
+          <div className="text-zinc-400">{row.multi}</div>
+        </div>
+      ))}
+    </div>
+
+    <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-center">
+      <div className="text-xs uppercase tracking-[0.2em] text-amber-200/80">
+        Aktueller Einsatz
+      </div>
+      <div className="mt-1 text-lg font-black text-amber-200">
+        {multiLineStake} Tokens
+      </div>
+    </div>
+
+    {lastMultiLineHitCount > 0 && (
+      <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-center">
+        <div className="text-sm font-bold text-emerald-200">
+          Letzter Gewinn
+        </div>
+        <div className="mt-1 text-lg font-black text-white">
+          {lastMultiLineHitCount} Treffer · +{lastMultiLinePayout} Tokens
+        </div>
+      </div>
+    )}
+  </div>
+)}
+<Button
   onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
   variant="violet"
   disabled={
