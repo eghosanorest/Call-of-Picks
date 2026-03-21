@@ -1364,10 +1364,15 @@ const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
 
 const RISK_VISIBLE_CELLS = 5;
-const RISK_STRIP_CENTER_INDEX = 2;
+const RISK_TARGET_INDEX = 2;
 const RISK_ITEM_WIDTH = 72;
 const RISK_GAP = 12;
 const RISK_STEP = RISK_ITEM_WIDTH + RISK_GAP;
+
+// sorgt dafür, dass Index 2 wirklich unter der Mitte / roten Linie liegt
+const RISK_BASE_TRANSLATE = `calc(50% - ${
+  RISK_TARGET_INDEX * RISK_STEP + RISK_ITEM_WIDTH / 2
+}px)`;
 
 const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   const total = 18;
@@ -1377,7 +1382,7 @@ const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   );
 
   if (forcedCenter) {
-    arr[RISK_STRIP_CENTER_INDEX] = forcedCenter;
+    arr[RISK_TARGET_INDEX] = forcedCenter;
   }
 
   return arr;
@@ -2684,17 +2689,17 @@ const playRiskGame = async () => {
     const finalSequence = buildFinalRiskSequence(finalItem);
 
     for (let i = 0; i < finalSequence.length; i++) {
-      const isLast = i === finalSequence.length - 1;
-      await shiftRiskStripOnce(finalSequence[i], isLast ? 180 : 120);
-    }
+  const isLast = i === finalSequence.length - 1;
+  await shiftRiskStripOnce(finalSequence[i], isLast ? 180 : 120);
+}
 
-    setRiskStrip((prev) => {
-      const locked = [...prev];
-      locked[RISK_STRIP_CENTER_INDEX] = finalItem;
-      return locked;
-    });
+setRiskStrip((prev) => {
+  const locked = [...prev];
+  locked[RISK_TARGET_INDEX] = finalItem;
+  return locked;
+});
 
-    setRiskLastItem(finalItem);
+setRiskLastItem(finalItem);
 
     if (lose) {
       setRiskGameOver(true);
@@ -4563,15 +4568,16 @@ useEffect(() => {
 
   <div className="overflow-hidden">
     <div
-      className="flex will-change-transform"
-      style={{
-        gap: `${RISK_GAP}px`,
-        transform: `translateX(${riskOffset}px)`,
-        transition: riskTransitionMs > 0 ? `transform ${riskTransitionMs}ms ease-out` : "none",
-      }}
-    >
+  className="flex will-change-transform"
+  style={{
+    gap: `${RISK_GAP}px`,
+    transform: `translateX(calc(${RISK_BASE_TRANSLATE} + ${riskOffset}px))`,
+    transition:
+      riskTransitionMs > 0 ? `transform ${riskTransitionMs}ms ease-out` : "none",
+  }}
+>
       {riskStrip.map((symbol, idx) => {
-        const isCenter = idx === RISK_STRIP_CENTER_INDEX;
+        const isCenter = idx === RISK_TARGET_INDEX;
 
         return (
           <div
