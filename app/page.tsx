@@ -2616,19 +2616,19 @@ const runStep = () => {
     riskLoopRef.current = setTimeout(runStep, speeds[speedIndex]);
   } else {
     riskLoopRef.current = setTimeout(() => {
-      setRiskStrip((prev) => {
-        const next = [...prev];
+  setRiskStrip((prev) => {
+    const next = [...prev];
 
-        next[next.length - 3] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-        next[next.length - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-        next[next.length - 1] = finalItem;
+    next[RISK_CENTER_INDEX - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+    next[RISK_CENTER_INDEX - 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+    next[RISK_CENTER_INDEX] = finalItem;
 
-        return next;
-      });
+    return next;
+  });
 
-      setRiskLastItem(finalItem);
-      setRiskRunning(false);
-    }, 260);
+  setRiskLastItem(finalItem);
+  setRiskRunning(false);
+}, 260);
   }
 };
 
