@@ -1371,16 +1371,14 @@ const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
 const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
 
-const RISK_VISIBLE_CELLS = 5;
-const RISK_TARGET_INDEX = 2;
+
+const RISK_VISIBLE_COUNT = 7;
+const RISK_VISIBLE_CENTER_INDEX = Math.floor(RISK_VISIBLE_COUNT / 2); // = 3
+const RISK_TARGET_INDEX = RISK_VISIBLE_CENTER_INDEX;
+
 const RISK_ITEM_WIDTH = 72;
 const RISK_GAP = 12;
 const RISK_STEP = RISK_ITEM_WIDTH + RISK_GAP;
-
-// sorgt dafür, dass Index 2 wirklich unter der Mitte / roten Linie liegt
-const RISK_BASE_TRANSLATE = `calc(50% - ${
-  RISK_TARGET_INDEX * RISK_STEP + RISK_ITEM_WIDTH / 2
-}px)`;
 
 const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   const total = 30;
@@ -1396,18 +1394,12 @@ const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   return arr;
 };
 
-const RISK_VISIBLE_COUNT = 7;
-const RISK_VISIBLE_CENTER_INDEX = Math.floor(RISK_VISIBLE_COUNT / 2);
-
 const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => createRiskStrip());
 const [riskOffset, setRiskOffset] = useState(0);
 const [riskTransitionMs, setRiskTransitionMs] = useState(0);
 
 const visibleRiskStrip = useMemo(() => {
-  const start = Math.max(0, RISK_TARGET_INDEX - RISK_VISIBLE_CENTER_INDEX);
-  const end = start + RISK_VISIBLE_COUNT;
-
-  return riskStrip.slice(start, end);
+  return riskStrip.slice(0, RISK_VISIBLE_COUNT);
 }, [riskStrip]);
 const [riskStreak, setRiskStreak] = useState(0);
 const [riskPot, setRiskPot] = useState(0);
