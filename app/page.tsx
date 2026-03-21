@@ -750,6 +750,148 @@ function isMatchClaimable(match: MatchType, resolvedMatchIds: string[]) {
   );
 }
 
+function getGridLines(grid: LocalSymbol[][]) {
+  return [
+    [grid[0][0], grid[0][1], grid[0][2]], // row 1
+    [grid[1][0], grid[1][1], grid[1][2]], // row 2
+    [grid[2][0], grid[2][1], grid[2][2]], // row 3
+    [grid[0][0], grid[1][0], grid[2][0]], // col 1
+    [grid[0][1], grid[1][1], grid[2][1]], // col 2
+    [grid[0][2], grid[1][2], grid[2][2]], // col 3
+    [grid[0][0], grid[1][1], grid[2][2]], // diag
+    [grid[0][2], grid[1][1], grid[2][0]], // diag
+  ];
+}
+
+const MULTILINE_PAYOUTS: Record<number, number> = {
+  1: 0.4,
+  2: 2,
+  3: 10,
+  4: 50,
+  5: 200,
+  6: 1000,
+  8: 20000,
+};
+function getMultiLineMultiplier(hitCount: number) {
+  if (hitCount >= 8) return 20000;
+  if (hitCount >= 6) return 1000;
+  if (hitCount === 5) return 200;
+  if (hitCount === 4) return 50;
+  if (hitCount === 3) return 10;
+  if (hitCount === 2) return 2;
+  if (hitCount === 1) return 0.4;
+  return 0;
+}
+const spinMultiLine = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (multilineSymbols.length !== 6) {
+    setMessage("Für Multi-Line Slots müssen genau 6 Symbole freigegeben sein.");
+    return;
+  }
+
+  if (data.tokens < multiLineStake || spinning) return;
+
+  const nextTokensBeforePayout = data.tokens - multiLineStake;
+  const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
+  if (!tokenSaved) return;
+
+  updateData((prev) => ({ ...prev, tokens: nextTokensBeforePayout }));
+  setSpinning(true);
+  setLastMultiLineHitCount(0);
+  setLastMultiLinePayout(0);
+
+  const randomFromMultiLine = () =>
+    multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
+
+  const rolling = setInterval(() => {
+    setMultiLineGrid([
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+    ]);
+  }, 100);
+
+  setTimeout(async () => {
+    clearInterval(rolling);
+
+    const finalGrid = [
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+    ];
+
+    setMultiLineGrid(finalGrid);
+
+    const hitCount = countWinningLines(finalGrid);
+    const multiplier = getMultiLineMultiplier(hitCount);
+    const payout = Math.floor(multiLineStake * multiplier);
+    const finalTokens = nextTokensBeforePayout + payout;
+
+    if (payout > 0) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ tokens: finalTokens })
+        .eq("id", userId);
+
+      if (error) {
+        setMessage(error.message);
+        setSpinning(false);
+        return;
+      }
+    }
+
+    setData((prev) => ({ ...prev, tokens: finalTokens }));
+    setLastMultiLineHitCount(hitCount);
+    setLastMultiLinePayout(payout);
+
+    setMessage(
+      hitCount > 0
+        ? `${hitCount} Treffer! +${payout} Tokens`
+        : "Kein Treffer."
+    );
+
+    setSpinning(false);
+  }, 1800);
+};
+const stopAutoSpin = () => {
+  setAutoSpinEnabled(false);
+  setAutoSpinMode(null);
+
+  if (autoSpinTimeoutRef.current) {
+    clearTimeout(autoSpinTimeoutRef.current);
+    autoSpinTimeoutRef.current = null;
+  }
+};
+
+const startAutoSpin = (mode: "slot" | "multiline-slot") => {
+  setAutoSpinEnabled(true);
+  setAutoSpinMode(mode);
+};
+useEffect(() => {
+  if (!autoSpinEnabled || spinning) return;
+
+  autoSpinTimeoutRef.current = setTimeout(() => {
+    if (autoSpinMode === "slot") {
+      spin();
+    } else if (autoSpinMode === "multiline-slot") {
+      spinMultiLine();
+    }
+  }, 1000);
+
+  return () => {
+    if (autoSpinTimeoutRef.current) {
+      clearTimeout(autoSpinTimeoutRef.current);
+      autoSpinTimeoutRef.current = null;
+    }
+  };
+}, [autoSpinEnabled, autoSpinMode, spinning, data.tokens, slotStake, multiLineStake, multiSlotMode]);
+function countWinningLines(grid: LocalSymbol[][]) {
+  return getGridLines(grid).filter((line) => isWinningRow(line)).length;
+}
 function hasSavedScore(match: MatchType) {
   return typeof match.scoreA === "number" && typeof match.scoreB === "number";
 }
@@ -786,18 +928,46 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
     {
-      id: string;
-      slug: string;
-      name: string;
-      rarity: string;
-      image_path: string | null;
-      category: string | null;
-      weight: number | null;
-      is_active: boolean | null;
-    }[]
+  id: string;
+  slug: string;
+  name: string;
+  rarity: string;
+  image_path: string | null;
+  category: string | null;
+  weight: number | null;
+  is_active: boolean | null;
+  slot_enabled?: boolean | null;
+  multiline_enabled?: boolean | null;
+}[]
   >([]);
 
-  const [mounted, setMounted] = useState(false);
+  const slotEnabledSymbols = useMemo(() => {
+  return allItemCatalog
+    .filter((item) => item.slot_enabled !== false)
+    .map((item) => ({
+      id: item.slug,
+      slug: item.slug,
+      name: item.name,
+      rarity: normalizeRarity(item.rarity) as LocalSymbol["rarity"],
+      image_path: resolveItemImage(item.image_path),
+      weight: item.weight ?? 1,
+    }));
+}, [allItemCatalog]);
+
+const multilineSymbols = useMemo(() => {
+  return allItemCatalog
+    .filter((item) => item.slot_enabled !== false && item.multiline_enabled === true)
+    .slice(0, 6)
+    .map((item) => ({
+      id: item.slug,
+      slug: item.slug,
+      name: item.name,
+      rarity: normalizeRarity(item.rarity) as LocalSymbol["rarity"],
+      image_path: resolveItemImage(item.image_path),
+      weight: item.weight ?? 1,
+    }));
+}, [allItemCatalog]);
+const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
     "home" | "picks" | "slot" | "inventory" | "group" | "admin"
   >("home");
@@ -1020,8 +1190,21 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
   100: 0.5,
 };
 
-const [slotStake, setSlotStake] = useState<number>(1);
+
+const parsedStake = Number(betStake) || 0;
+const potentialBetWin =
+  parsedStake > 0 && selectedBetMatches.length > 0
+    ? ceilPayout(parsedStake * totalBetOdds)
+    : 0;
+    
+  const [slotStake, setSlotStake] = useState<number>(1);
 const [multiSlotMode, setMultiSlotMode] = useState(false);
+
+const [multiLineStake, setMultiLineStake] = useState<number>(1);
+
+const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
+const [autoSpinMode, setAutoSpinMode] = useState<"slot" | "multiline-slot" | null>(null);
+const autoSpinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 const [reels, setReels] = useState<LocalSymbol[]>([
   symbolPool[0],
@@ -1035,14 +1218,17 @@ const [multiReels, setMultiReels] = useState<LocalSymbol[][]>([
   [symbolPool[6], symbolPool[7], symbolPool[8]],
 ]);
 
+const [multiLineGrid, setMultiLineGrid] = useState<LocalSymbol[][]>([
+  [symbolPool[0], symbolPool[1], symbolPool[2]],
+  [symbolPool[3], symbolPool[4], symbolPool[5]],
+  [symbolPool[6], symbolPool[7], symbolPool[8]],
+]);
+
 const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
-const parsedStake = Number(betStake) || 0;
-const potentialBetWin =
-  parsedStake > 0 && selectedBetMatches.length > 0
-    ? ceilPayout(parsedStake * totalBetOdds)
-    : 0;
-    
-  const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
+const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
+const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
+
+const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
     useState<MemberInventoryItem | null>(null);
@@ -1079,7 +1265,7 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const loadAllItems = async () => {
     const { data, error } = await supabase
       .from("items")
-      .select("id, slug, name, rarity, image_path, category, weight, is_active")
+      .select("id, slug, name, rarity, image_path, category, weight, is_active, slot_enabled, multiline_enabled")
       .order("name", { ascending: true });
 
     if (error) {
@@ -1459,15 +1645,12 @@ const totalPicked = useMemo(
   }));
 
   const changeWeek = async (week: number) => {
-  if (!isAdmin) {
-    setMessage("Kein Admin-Zugriff.");
-    return;
-  }
-
   updateData((prev) => ({
     ...prev,
     currentWeek: week,
   }));
+
+  if (!isAdmin) return;
 
   const { error } = await supabase
     .from("app_config")
@@ -1482,11 +1665,7 @@ const totalPicked = useMemo(
 };
 
   const changeMajor = async (majorId: string) => {
-  if (!isAdmin) {
-  setMessage("Kein Admin-Zugriff.");
-  return;
-}
-const major = majorStructure.find((entry) => entry.id === majorId);
+  const major = majorStructure.find((entry) => entry.id === majorId);
   const fallbackWeek = major?.weeks?.[0]?.id || 1;
 
   updateData((prev) => ({
@@ -1494,6 +1673,8 @@ const major = majorStructure.find((entry) => entry.id === majorId);
     currentMajor: majorId,
     currentWeek: fallbackWeek,
   }));
+
+  if (!isAdmin) return;
 
   const { error } = await supabase
     .from("app_config")
@@ -1967,12 +2148,12 @@ if (!userId) {
     return;
   }
 
-  if (data.tokens < slotStake || spinning) return;
+  if (data.tokens < effectiveSlotCost || spinning) return;
 
   setLastWin(null);
   setLastWins([]);
 
-  const nextTokens = data.tokens - slotStake;
+  const nextTokens = data.tokens - effectiveSlotCost;
   const tokenSaved = await updateTokensOnline(nextTokens);
   if (!tokenSaved) return;
 
@@ -3658,13 +3839,13 @@ useEffect(() => {
                   </div>
 
                   <Button
-                    onClick={spin}
-                    variant="violet"
-                    disabled={data.tokens < slotStake || spinning}
-                    className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
-                  >
-                    {spinning ? "Dreht..." : `${slotStake} Token einsetzen`}
-                  </Button>
+  onClick={spin}
+  variant="violet"
+  disabled={data.tokens < effectiveSlotCost || spinning}
+  className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
+>
+  {spinning ? "Dreht..." : `${effectiveSlotCost} Token einsetzen`}
+</Button>
                 </div>
 
                 <AnimatePresence>
@@ -4017,7 +4198,8 @@ useEffect(() => {
                                     {meta.fromName} fordert dich heraus
                                   </div>
 
-                                  <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                  
+<div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                                     <ItemCard
                                       item={{
                                         name: meta.offeredName,
@@ -4202,17 +4384,65 @@ useEffect(() => {
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         {allItemCatalog.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={{
-              name: item.name,
-              rarity: item.rarity,
-              image_path: item.image_path,
-              slug: item.slug,
-              category: item.category,
-            }}
-          />
-        ))}
+  <div
+    key={item.id}
+    className="rounded-2xl border border-white/10 bg-black/30 p-3"
+  >
+    <ItemCard
+      item={{
+        name: item.name,
+        rarity: item.rarity,
+        image_path: item.image_path,
+        slug: item.slug,
+        category: item.category,
+      }}
+    />
+
+    <div className="mt-3 space-y-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={item.slot_enabled !== false}
+          onChange={async (e) => {
+            const { error } = await supabase
+              .from("items")
+              .update({ slot_enabled: e.target.checked })
+              .eq("id", item.id);
+
+            if (error) {
+              setMessage(error.message);
+              return;
+            }
+
+            await loadAllItems();
+          }}
+        />
+        Für Slots aktiv
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={item.multiline_enabled === true}
+          onChange={async (e) => {
+            const { error } = await supabase
+              .from("items")
+              .update({ multiline_enabled: e.target.checked })
+              .eq("id", item.id);
+
+            if (error) {
+              setMessage(error.message);
+              return;
+            }
+
+            await loadAllItems();
+          }}
+        />
+        Für Multi-Line Slots aktiv
+      </label>
+    </div>
+  </div>
+))}
       </div>
     </div>
   </>
