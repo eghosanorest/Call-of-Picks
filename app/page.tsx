@@ -2840,7 +2840,7 @@ const ensureProfile = async (uid: string, email: string) => {
       setIncomingChallenges([]);
       setOutgoingChallenges([]);
       setAllChallenges([]);
-      return;
+      return; 
     }
 
     const { data: rows, error } = await supabase
