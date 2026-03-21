@@ -834,7 +834,7 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 type RiskTier = "None" | "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
 
 const RISK_ENTRY_COST = 1;
-
+const RISK_STRIP_CENTER_INDEX = 2;
 
 const RISK_REWARD_BY_STREAK: Record<number, number> = {
   1: 2,
@@ -909,7 +909,7 @@ function catalogItemToLocalSymbol(item: {
 function buildRiskStripFromPool(pool: LocalSymbol[], finalItem?: LocalSymbol) {
   const strip = Array.from({ length: 15 }).map(() => weightedRandom(pool));
   if (finalItem) {
-    strip[RISK_CENTER_INDEX] = finalItem;
+    strip[RISK_STRIP_CENTER_INDEX] = finalItem;
   }
   return strip;
 }
@@ -1364,7 +1364,6 @@ const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
 
 const RISK_VISIBLE_CELLS = 5;
-const RISK_CENTER_INDEX = 2;
 const RISK_ITEM_WIDTH = 72;
 const RISK_GAP = 12;
 const RISK_STEP = RISK_ITEM_WIDTH + RISK_GAP;
@@ -1376,7 +1375,7 @@ const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   );
 
   if (forcedCenter) {
-    arr[RISK_CENTER_INDEX] = forcedCenter;
+    arr[RISK_STRIP_CENTER_INDEX] = forcedCenter;
   }
 
   return arr;
@@ -4566,7 +4565,7 @@ useEffect(() => {
       }}
     >
       {riskStrip.map((symbol, idx) => {
-        const isCenter = idx === RISK_CENTER_INDEX;
+        const isCenter = idx === RISK_STRIP_CENTER_INDEX;
 
         return (
           <div
