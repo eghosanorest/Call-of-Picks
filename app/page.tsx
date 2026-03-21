@@ -2617,14 +2617,18 @@ const runStep = () => {
   } else {
     riskLoopRef.current = setTimeout(() => {
   setRiskStrip((prev) => {
-    const next = [...prev];
+  const next = [...prev];
 
-    next[RISK_CENTER_INDEX - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-    next[RISK_CENTER_INDEX - 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-    next[RISK_CENTER_INDEX] = finalItem;
+  const center = RISK_CENTER_INDEX;
 
-    return next;
-  });
+  next[center - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  next[center - 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  next[center] = finalItem;
+  next[center + 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  next[center + 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+
+  return next;
+});
 
   setRiskLastItem(finalItem);
   setRiskRunning(false);
