@@ -828,10 +828,7 @@ const placeBet = async () => {
       return;
     }
   }
-useEffect(() => {
-  if (!userId) return;
-  evaluateUserBets(userId);
-}, [data.weeks, userId]);
+
   const roundedTotalOdds = Number(totalBetOdds.toFixed(2));
   const payout = ceilPayout(parsedStake * roundedTotalOdds);
 
@@ -987,6 +984,10 @@ const potentialBetWin =
   parsedStake > 0 && selectedBetMatches.length > 0
     ? ceilPayout(parsedStake * totalBetOdds)
     : 0;
+    useEffect(() => {
+  if (!userId) return;
+  evaluateUserBets(userId);
+}, [data.weeks, userId]);
   const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
@@ -1657,51 +1658,7 @@ const payoutBet = async (bet: BetType) => {
   setMessage(`Gewinn ausgezahlt: +${bet.potential_payout} Tokens`);
 };
   const loadUserBets = async (uid: string) => {
-  const payoutBet = async (bet: BetType) => {
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
-
-  if (bet.status !== "won" || bet.paid_out) {
-    return;
-  }
-
-  const nextTokens = data.tokens + bet.potential_payout;
-
-  const { error: tokenError } = await supabase
-    .from("profiles")
-    .update({ tokens: nextTokens })
-    .eq("id", userId);
-
-  if (tokenError) {
-    setMessage(tokenError.message);
-    return;
-  }
-
-  const { error: betError } = await supabase
-    .from("bets")
-    .update({
-      status: "paid",
-      paid_out: true,
-    })
-    .eq("id", bet.id);
-
-  if (betError) {
-    setMessage(betError.message);
-    return;
-  }
-
-  setData((prev) => ({
-    ...prev,
-    tokens: nextTokens,
-    bets: prev.bets.map((b) =>
-      b.id === bet.id ? { ...b, status: "paid", paid_out: true } : b
-    ),
-  }));
-
-  setMessage(`Gewinn ausgezahlt: +${bet.potential_payout} Tokens`);
-};
+  
 const { data: betRows, error: betError } = await supabase
     .from("bets")
     .select("*")
@@ -3423,6 +3380,7 @@ useEffect(() => {
     ? `Gesperrte Matches auswerten (${pendingRewardMatches.length})`
     : "Keine gesperrten Matches zur Auswertung"}
 </Button>
+
 <div className="grid grid-cols-2 gap-3">
   <Button
     onClick={() => setShowBetBuilder(true)}
@@ -3440,16 +3398,6 @@ useEffect(() => {
     Meine Wetten
   </Button>
 </div>
-
-<Button
-  onClick={resolveWeek}
-  disabled={!hasPendingRewards}
-  className="w-full"
->
-  {hasPendingRewards
-    ? `Gesperrte Matches auswerten (${pendingRewardMatches.length})`
-    : "Keine gesperrten Matches zur Auswertung"}
-</Button>
               </motion.div>
             )}
 
