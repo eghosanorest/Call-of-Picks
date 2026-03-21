@@ -793,6 +793,11 @@ function getMultiLineMultiplier(hitCount: number) {
 function countWinningLines(grid: LocalSymbol[][]) {
   return getGridLines(grid).filter((line) => isWinningRow(line)).length;
 }
+function getWinningLineIndexes(grid: LocalSymbol[][]) {
+  return getGridLines(grid)
+    .map((line, index) => (isWinningRow(line) ? index : -1))
+    .filter((index) => index !== -1);
+}
 function hasSavedScore(match: MatchType) {
   return typeof match.scoreA === "number" && typeof match.scoreB === "number";
 }
@@ -888,8 +893,9 @@ const spinMultiLine = async () => {
 
   updateData((prev) => ({ ...prev, tokens: nextTokensBeforePayout }));
   setSpinning(true);
-  setLastMultiLineHitCount(0);
-  setLastMultiLinePayout(0);
+setLastMultiLineHitCount(0);
+setLastMultiLinePayout(0);
+setLastMultiLineWinningIndexes([]);
 
   const randomFromMultiLine = () =>
     multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
@@ -913,10 +919,11 @@ const spinMultiLine = async () => {
 
     setMultiLineGrid(finalGrid);
 
-    const hitCount = countWinningLines(finalGrid);
-    const multiplier = getMultiLineMultiplier(hitCount);
-    const payout = Math.floor(multiLineStake * multiplier);
-    const finalTokens = nextTokensBeforePayout + payout;
+    const winningIndexes = getWinningLineIndexes(finalGrid);
+const hitCount = winningIndexes.length;
+const multiplier = getMultiLineMultiplier(hitCount);
+const payout = Math.floor(multiLineStake * multiplier);
+const finalTokens = nextTokensBeforePayout + payout;
 
     if (payout > 0) {
       const { error } = await supabase
@@ -932,8 +939,9 @@ const spinMultiLine = async () => {
     }
 
     setData((prev) => ({ ...prev, tokens: finalTokens }));
-    setLastMultiLineHitCount(hitCount);
-    setLastMultiLinePayout(payout);
+setLastMultiLineHitCount(hitCount);
+setLastMultiLinePayout(payout);
+setLastMultiLineWinningIndexes(winningIndexes);
 
     setMessage(
       hitCount > 0
@@ -1238,6 +1246,7 @@ const [multiLineGrid, setMultiLineGrid] = useState<LocalSymbol[][]>([
 const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
 const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
+const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
 
 const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
@@ -3743,7 +3752,10 @@ useEffect(() => {
                 <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
                 <div className="grid grid-cols-2 gap-3">
   <Button
-    onClick={() => setSlotViewMode("classic")}
+  onClick={() => {
+    setSlotViewMode("classic");
+    setLastMultiLineWinningIndexes([]);
+  }}
     variant={slotViewMode === "classic" ? "violet" : "ghost"}
     className="w-full"
   >
@@ -3751,7 +3763,10 @@ useEffect(() => {
   </Button>
 
   <Button
-    onClick={() => setSlotViewMode("multiline")}
+  onClick={() => {
+    setSlotViewMode("multiline");
+    setLastMultiLineWinningIndexes([]);
+  }}
     variant={slotViewMode === "multiline" ? "violet" : "ghost"}
     className="w-full"
   >
@@ -3875,26 +3890,83 @@ useEffect(() => {
                       ))}
                     </div>
 
-                    <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
+                    {slotViewMode !== "multiline" && (
+  <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
+)}
 
                     <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
                       {slotViewMode === "multiline" ? (
-  <div className="grid gap-3">
-    {multiLineGrid.map((row, rowIndex) => (
-      <div
-        key={rowIndex}
-        className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20"
-      >
-        {row.map((symbol, idx) => (
-          <Reel
-            key={`multiline-${rowIndex}-${idx}`}
-            symbol={symbol}
-            spinning={spinning}
-            delay={(rowIndex * 3 + idx) * 0.05}
+  <div className="relative mx-auto w-fit">
+    <div className="grid gap-3">
+      {multiLineGrid.map((row, rowIndex) => (
+        <div
+          key={rowIndex}
+          className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20"
+        >
+          {row.map((symbol, idx) => (
+            <Reel
+              key={`multiline-${rowIndex}-${idx}`}
+              symbol={symbol}
+              spinning={spinning}
+              delay={(rowIndex * 3 + idx) * 0.05}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+
+    <div className="pointer-events-none absolute inset-0 z-30">
+      {[0, 1, 2].map((row) => {
+        const active = lastMultiLineWinningIndexes.includes(row);
+        const top = row === 0 ? "16.66%" : row === 1 ? "50%" : "83.33%";
+
+        return (
+          <div
+            key={`row-line-${row}`}
+            className={`absolute left-[4%] right-[4%] h-[2px] -translate-y-1/2 rounded-full transition-all duration-300 ${
+              active
+                ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
+                : "bg-white/10"
+            }`}
+            style={{ top }}
           />
-        ))}
-      </div>
-    ))}
+        );
+      })}
+
+      {[0, 1, 2].map((col) => {
+        const lineIndex = 3 + col;
+        const active = lastMultiLineWinningIndexes.includes(lineIndex);
+        const left = col === 0 ? "16.66%" : col === 1 ? "50%" : "83.33%";
+
+        return (
+          <div
+            key={`col-line-${col}`}
+            className={`absolute top-[4%] bottom-[4%] w-[2px] -translate-x-1/2 rounded-full transition-all duration-300 ${
+              active
+                ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
+                : "bg-white/10"
+            }`}
+            style={{ left }}
+          />
+        );
+      })}
+
+      <div
+        className={`absolute left-[8%] top-1/2 h-[2px] w-[84%] -translate-y-1/2 rotate-[35deg] rounded-full transition-all duration-300 ${
+          lastMultiLineWinningIndexes.includes(6)
+            ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
+            : "bg-white/10"
+        }`}
+      />
+
+      <div
+        className={`absolute left-[8%] top-1/2 h-[2px] w-[84%] -translate-y-1/2 -rotate-[35deg] rounded-full transition-all duration-300 ${
+          lastMultiLineWinningIndexes.includes(7)
+            ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
+            : "bg-white/10"
+        }`}
+      />
+    </div>
   </div>
 ) : multiSlotMode ? (
   <div className="grid gap-3">
