@@ -783,8 +783,7 @@ function getMultiLineMultiplier(hitCount: number) {
   return 0;
 }
 
-const stopAutoSpin = () => {
-  setAutoSpinEnabled(false);
+
   setAutoSpinMode(null);
 
   if (autoSpinTimeoutRef.current) {
@@ -1205,7 +1204,8 @@ const [multiLineStake, setMultiLineStake] = useState<number>(1);
 const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
 const [autoSpinMode, setAutoSpinMode] = useState<"slot" | "multiline-slot" | null>(null);
 const autoSpinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+const stopAutoSpin = () => {
+  setAutoSpinEnabled(false);
 const [reels, setReels] = useState<LocalSymbol[]>([
   symbolPool[0],
   symbolPool[1],
