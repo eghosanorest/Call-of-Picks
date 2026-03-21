@@ -2600,8 +2600,27 @@ const playRiskGame = async () => {
       riskLoopRef.current = null;
     }
 
-    setRiskStrip(buildRiskStripFromPool(riskVisualPool, finalItem));
-    setRiskLastItem(finalItem);
+    setRiskRunning(true);
+
+const speeds = [90, 110, 140, 180, 240];
+let speedIndex = 0;
+
+const runStep = () => {
+  setRiskStrip(buildRiskStripFromPool(riskVisualPool));
+
+  if (speedIndex < speeds.length - 1) {
+    speedIndex += 1;
+    riskLoopRef.current = setTimeout(runStep, speeds[speedIndex]);
+  } else {
+    riskLoopRef.current = setTimeout(() => {
+      setRiskStrip(buildRiskStripFromPool(riskVisualPool, finalItem));
+      setRiskLastItem(finalItem);
+      setRiskRunning(false);
+    }, 260);
+  }
+};
+
+riskLoopRef.current = setTimeout(runStep, speeds[0]);
 
     const lost = finalItem.slug === "zombieteddy-ultra";
 
