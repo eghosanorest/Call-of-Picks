@@ -799,10 +799,10 @@ const placeBet = async () => {
     return;
   }
 
-  if (selectedBetMatches.length === 0) {
-    setMessage("Bitte mindestens ein Match auswählen.");
-    return;
-  }
+  if (selectedBetMatches.length < 2) {
+  setMessage("Bitte mindestens 2 Matches auswählen.");
+  return;
+}
 
   if (selectedBetMatches.length > 20) {
     setMessage("Maximal 20 Tipps pro Wettschein.");
@@ -828,7 +828,10 @@ const placeBet = async () => {
       return;
     }
   }
-
+useEffect(() => {
+  if (!userId) return;
+  evaluateUserBets(userId);
+}, [data.weeks, userId]);
   const roundedTotalOdds = Number(totalBetOdds.toFixed(2));
   const payout = ceilPayout(parsedStake * roundedTotalOdds);
 
