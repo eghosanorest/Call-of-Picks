@@ -2616,18 +2616,21 @@ const runStep = () => {
     riskLoopRef.current = setTimeout(runStep, speeds[speedIndex]);
   } else {
     riskLoopRef.current = setTimeout(() => {
+
+
   setRiskStrip((prev) => {
   const next = [...prev];
 
-  const center = RISK_CENTER_INDEX;
-  const OFFSET = 4;
+  setRiskStrip((prev) => {
+  let next = [...prev];
 
-  next[center + OFFSET - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-  next[center + OFFSET - 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-  next[center + OFFSET] = finalItem;
-  next[center + OFFSET + 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-  next[center + OFFSET + 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  // 🔥 smooth reinlaufen lassen (kein teleport)
+  for (let i = 0; i < 5; i++) {
+    next = [...next.slice(1), i === 4 ? finalItem : riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]];
+  }
 
+  return next;
+});
   return next;
 });
 
