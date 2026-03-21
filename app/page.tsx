@@ -907,10 +907,18 @@ function catalogItemToLocalSymbol(item: {
 }
 
 function buildRiskStripFromPool(pool: LocalSymbol[], finalItem?: LocalSymbol) {
-  const strip = Array.from({ length: 15 }).map(() => weightedRandom(pool));
+  const STRIP_LENGTH = 30;
+
+  const strip = Array.from({ length: STRIP_LENGTH }).map(() =>
+    weightedRandom(pool)
+  );
+
+  const targetIndex = STRIP_LENGTH - 3; // 🔥 wichtig!
+
   if (finalItem) {
-    strip[RISK_STRIP_CENTER_INDEX] = finalItem;
+    strip[targetIndex] = finalItem;
   }
+
   return strip;
 }
 export default function CallOfPicksPage() {
@@ -1377,15 +1385,15 @@ const RISK_BASE_TRANSLATE = `calc(50% - ${
 const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   const total = 18;
 
-  const arr = Array.from({ length: total }).map(
-    () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
-  );
+const arr = Array.from({ length: total }).map(
+  () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
+);
 
-  if (forcedCenter) {
-    arr[RISK_TARGET_INDEX] = forcedCenter;
-  }
+if (forcedCenter) {
+  arr[RISK_TARGET_INDEX] = forcedCenter;
+}
 
-  return arr;
+return arr;
 };
 
 const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => createRiskStrip());
@@ -1403,6 +1411,7 @@ const [riskGiftPreview, setRiskGiftPreview] = useState<LocalSymbol | null>(null)
 
 const riskLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const riskSnapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 const clearRiskTimers = () => {
   if (riskLoopRef.current) {
     clearTimeout(riskLoopRef.current);
@@ -1428,11 +1437,7 @@ const shiftRiskStripOnce = (
     setRiskOffset(-RISK_STEP);
 
     riskSnapRef.current = setTimeout(() => {
-      setRiskStrip((prev) => {
-        const shifted = [...prev.slice(1), nextSymbol];
-        return shifted;
-      });
-
+      setRiskStrip((prev) => [...prev.slice(1), nextSymbol]);
       setRiskTransitionMs(0);
       setRiskOffset(0);
 
@@ -2699,6 +2704,8 @@ setRiskStrip((prev) => {
   return locked;
 });
 
+setRiskOffset(0);
+setRiskTransitionMs(0);
 setRiskLastItem(finalItem);
 
     if (lose) {
