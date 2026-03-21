@@ -1354,6 +1354,8 @@ const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
 const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(
   Array.from({ length: 15 }).map(() => symbolPool[Math.floor(Math.random() * symbolPool.length)])
 );
+const [riskOffset, setRiskOffset] = useState(0);
+const [riskTransitionMs, setRiskTransitionMs] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
 const [riskPot, setRiskPot] = useState(0);
 const [riskTier, setRiskTier] = useState<RiskTier>("None");
@@ -2476,6 +2478,8 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
   setRiskJustLost(false);
   setRiskGiftPreview(null);
   setRiskStrip(buildRiskStripFromPool(riskVisualPool));
+  setRiskOffset(0);
+  setRiskTransitionMs(0);
 };
 
 const getGiftCandidatesForTier = (tier: RiskTier) => {
@@ -2618,89 +2622,57 @@ runStep();
     ? zombieTeddySymbol
     : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
 
-  setTimeout(async () => {
-    if (riskLoopRef.current) {
-      clearInterval(riskLoopRef.current);
-      riskLoopRef.current = null;
+  setTimeout(() => {
+  const lost = finalItem.slug === "zombieteddy-ultra";
+
+  setRiskStrip((prev) => {
+    let next = [...prev];
+
+    for (let i = 0; i < 5; i++) {
+      next = [
+        ...next.slice(1),
+        i === 4
+          ? finalItem
+          : riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
+      ];
     }
 
-    setRiskRunning(true);
-
-const speeds = [90, 110, 140, 180, 240];
-let speedIndex = 0;
-
-const runStep = () => {
-  setRiskStrip((prev) => {
-    const next = [...prev.slice(1), riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]];
     return next;
   });
 
-  if (speedIndex < speeds.length - 1) {
-    speedIndex += 1;
-    riskLoopRef.current = setTimeout(runStep, speeds[speedIndex]);
-  } else {
-    riskLoopRef.current = setTimeout(() => {
-
-
-  setRiskStrip((prev) => {
-  const next = [...prev];
-
-  setRiskStrip((prev) => {
-  let next = [...prev];
-
-  // 🔥 smooth reinlaufen lassen (kein teleport)
-  for (let i = 0; i < 5; i++) {
-    next = [...next.slice(1), i === 4 ? finalItem : riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]];
-  }
-
-  return next;
-});
-  return next;
-});
-
   setRiskLastItem(finalItem);
   setRiskRunning(false);
-}, 260);
+
+  if (lost) {
+    setRiskGameOver(true);
+    setRiskJustLost(true);
+    setMessage("Zombie Teddy! Alles verloren.");
+    setRiskStreak(0);
+    setRiskPot(0);
+    setRiskTier("None");
+    setRiskStarted(false);
+    return;
   }
-};
 
-riskLoopRef.current = setTimeout(runStep, speeds[0]);
+  const nextStreak = riskStreak + 1;
+  const reward = getRiskRewardForStreak(nextStreak);
+  const nextPot = riskPot + reward;
+  const nextTier = getRiskTierForStreak(nextStreak);
 
-    const lost = finalItem.slug === "zombieteddy-ultra";
+  setRiskStreak(nextStreak);
+  setRiskPot(nextPot);
+  setRiskTier(nextTier);
+  setRiskGameOver(false);
+  setRiskJustLost(false);
 
-    if (lost) {
-      setRiskRunning(false);
-      setRiskGameOver(true);
-      setRiskJustLost(true);
-      setMessage("Zombie Teddy! Alles verloren.");
-      setRiskStreak(0);
-      setRiskPot(0);
-      setRiskTier("None");
-      setRiskStarted(false);
-      return;
-    }
-
-    const nextStreak = riskStreak + 1;
-    const reward = getRiskRewardForStreak(nextStreak);
-    const nextPot = riskPot + reward;
-    const nextTier = getRiskTierForStreak(nextStreak);
-
-    setRiskStreak(nextStreak);
-    setRiskPot(nextPot);
-    setRiskTier(nextTier);
-    setRiskRunning(false);
-    setRiskGameOver(false);
-    setRiskJustLost(false);
-
-    setMessage(
-      `Safe! ${finalItem.name} · +${reward} Pot · Gesamt: ${nextPot}`
-    );
-  }, 1900);
+  setMessage(`Safe! ${finalItem.name} · +${reward} Pot · Gesamt: ${nextPot}`);
+}, 1900);
 };
 
 useEffect(() => {
   return () => {
     if (riskLoopRef.current) {
+      clearTimeout(riskLoopRef.current as any);
       clearInterval(riskLoopRef.current);
       riskLoopRef.current = null;
     }
