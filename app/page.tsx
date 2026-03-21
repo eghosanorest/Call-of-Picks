@@ -834,7 +834,7 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 type RiskTier = "None" | "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
 
 const RISK_ENTRY_COST = 1;
-const RISK_CENTER_INDEX = 3;
+
 
 const RISK_REWARD_BY_STREAK: Record<number, number> = {
   1: 2,
@@ -977,7 +977,18 @@ const riskVisualPool = useMemo(() => {
   if (!riskSafePool.length) return [zombieTeddySymbol];
   return [...riskSafePool, zombieTeddySymbol];
 }, [riskSafePool, zombieTeddySymbol]);
+const getSlotPool = () => {
+  return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
+};
 
+const buildRandomSlotRow = (): LocalSymbol[] => {
+  const pool = getSlotPool();
+  return [
+    weightedRandom(pool),
+    weightedRandom(pool),
+    weightedRandom(pool),
+  ];
+};
 
 const spinMultiLine = async () => {
   if (!userId) {
@@ -1351,9 +1362,27 @@ const [multiLineGrid, setMultiLineGrid] = useState<LocalSymbol[][]>([
 const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
 const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
-const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(
-  Array.from({ length: 15 }).map(() => symbolPool[Math.floor(Math.random() * symbolPool.length)])
-);
+
+const RISK_VISIBLE_CELLS = 5;
+const RISK_CENTER_INDEX = 2;
+const RISK_ITEM_WIDTH = 72;
+const RISK_GAP = 12;
+const RISK_STEP = RISK_ITEM_WIDTH + RISK_GAP;
+
+const createRiskStrip = (forcedCenter?: LocalSymbol) => {
+  const total = 18;
+  const arr = Array.from({ length: total }).map(
+    () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
+  );
+
+  if (forcedCenter) {
+    arr[RISK_CENTER_INDEX] = forcedCenter;
+  }
+
+  return arr;
+};
+
+const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => createRiskStrip());
 const [riskOffset, setRiskOffset] = useState(0);
 const [riskTransitionMs, setRiskTransitionMs] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
@@ -1366,10 +1395,64 @@ const [riskGameOver, setRiskGameOver] = useState(false);
 const [riskJustLost, setRiskJustLost] = useState(false);
 const [riskGiftPreview, setRiskGiftPreview] = useState<LocalSymbol | null>(null);
 
-const riskLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
+const riskLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const riskSnapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const clearRiskTimers = () => {
+  if (riskLoopRef.current) {
+    clearTimeout(riskLoopRef.current);
+    riskLoopRef.current = null;
+  }
+
+  if (riskSnapRef.current) {
+    clearTimeout(riskSnapRef.current);
+    riskSnapRef.current = null;
+  }
+};
+
+const shiftRiskStripOnce = (
+  nextSymbol?: LocalSymbol,
+  duration = 120
+): Promise<void> => {
+  return new Promise((resolve) => {
+    setRiskTransitionMs(duration);
+    setRiskOffset(-RISK_STEP);
+
+    riskSnapRef.current = setTimeout(() => {
+      setRiskTransitionMs(0);
+
+      setRiskStrip((prev) => {
+        const incoming =
+          nextSymbol ??
+          riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+
+        return [...prev.slice(1), incoming];
+      });
+
+      setRiskOffset(0);
+
+      riskSnapRef.current = setTimeout(() => {
+        resolve();
+      }, 20);
+    }, duration);
+  });
+};
+
+const buildFinalRiskSequence = (finalItem: LocalSymbol) => {
+  const fillerCount = 7;
+
+  const filler = Array.from({ length: fillerCount }).map(
+    () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
+  );
+
+  return [...filler, finalItem];
+};
 const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
 const riskNextTier = useMemo(() => getRiskNextTier(riskStreak), [riskStreak]);
 const riskBombChance = useMemo(() => getRiskBombChance(riskStreak), [riskStreak]);
+
+
+
+
 const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
@@ -2210,13 +2293,14 @@ if (!userId) {
     ]);
 
     setData((prev) => ({
-      ...prev,
-      picks: {},
-      resolvedMatchIds: [],
-      tokens: 0,
-      inventory: [],
-      spinHistory: [],
-    }));
+  ...prev,
+  picks: {},
+  resolvedMatchIds: [],
+  tokens: 0,
+  inventory: [],
+  spinHistory: [],
+  bets: [],
+}));
 
     setLastWin(null);
     setScreen("home");
@@ -2334,12 +2418,12 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
   const rolling = setInterval(() => {
     if (multiSlotMode) {
       setMultiReels([
-        buildRandomRow(),
-        buildRandomRow(),
-        buildRandomRow(),
-      ]);
+  buildRandomSlotRow(),
+  buildRandomSlotRow(),
+  buildRandomSlotRow(),
+]);
     } else {
-      setReels(buildRandomRow());
+      setReels(buildRandomSlotRow());
     }
   }, 100);
 
@@ -2348,10 +2432,10 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
 
     if (multiSlotMode) {
   let finalGrid = [
-    buildRandomRow(),
-    buildRandomRow(),
-    buildRandomRow(),
-  ];
+  buildRandomSlotRow(),
+  buildRandomSlotRow(),
+  buildRandomSlotRow(),
+];
 
   finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
 
@@ -2424,7 +2508,7 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
   return;
 }
 
-    let finalReels = buildRandomRow();
+    let finalReels = buildRandomSlotRow();
     finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
 
     setReels(finalReels);
@@ -2469,17 +2553,19 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
 };
 
   const resetRiskGame = () => {
+  clearRiskTimers();
+  setRiskRunning(false);
   setRiskStarted(false);
+  setRiskGameOver(false);
+  setRiskJustLost(false);
+  setRiskLastItem(null);
+  setRiskGiftPreview(null);
   setRiskStreak(0);
   setRiskPot(0);
   setRiskTier("None");
-  setRiskLastItem(null);
-  setRiskGameOver(false);
-  setRiskJustLost(false);
-  setRiskGiftPreview(null);
-  setRiskStrip(buildRiskStripFromPool(riskVisualPool));
-  setRiskOffset(0);
   setRiskTransitionMs(0);
+  setRiskOffset(0);
+  setRiskStrip(createRiskStrip());
 };
 
 const getGiftCandidatesForTier = (tier: RiskTier) => {
@@ -2512,8 +2598,7 @@ const cashOutRiskGame = async () => {
 
   const payoutTokens = riskPot;
   const reachedTier = riskTier;
-
-  let nextTokens = data.tokens + payoutTokens;
+  const nextTokens = data.tokens + payoutTokens;
 
   const tokenSaved = await updateTokensOnline(nextTokens);
   if (!tokenSaved) return;
@@ -2524,8 +2609,10 @@ const cashOutRiskGame = async () => {
   }));
 
   let giftedName = "";
+
   if (reachedTier !== "None") {
     const candidates = getGiftCandidatesForTier(reachedTier);
+
     if (candidates.length) {
       const randomGift =
         candidates[Math.floor(Math.random() * candidates.length)];
@@ -2551,15 +2638,11 @@ const playRiskGame = async () => {
     return;
   }
 
-  if (riskRunning) return;
-  if (!riskSafePool.length) {
-    setMessage("Keine Items für das Spiel verfügbar.");
-    return;
-  }
+  if (riskRunning || spinning) return;
 
   if (!riskStarted) {
     if (data.tokens < RISK_ENTRY_COST) {
-      setMessage("Nicht genug Tokens.");
+      setMessage("Nicht genug Token für Alles Spitze.");
       return;
     }
 
@@ -2573,109 +2656,78 @@ const playRiskGame = async () => {
     }));
 
     setRiskStarted(true);
+    setRiskPot(RISK_ENTRY_COST);
+    setRiskStreak(0);
+    setRiskTier("None");
     setRiskGameOver(false);
     setRiskJustLost(false);
     setRiskGiftPreview(null);
   }
 
+  clearRiskTimers();
   setRiskRunning(true);
+  setRiskJustLost(false);
   setRiskLastItem(null);
 
-  if (riskLoopRef.current) {
-    clearInterval(riskLoopRef.current);
-    riskLoopRef.current = null;
-  }
-
-  const speeds = [60, 80, 100, 130, 170, 220];
-let step = 0;
-
-const runStep = () => {
-  setRiskStrip((prev) => {
-    const next = [...prev.slice(1)];
-
-    // 🔥 nur im letzten Schritt kommt das finalItem rein
-    if (step === speeds.length - 1) {
-      next.push(finalItem);
-    } else {
-      next.push(
-        riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
-      );
-    }
-
-    return next;
-  });
-
-  if (step < speeds.length - 1) {
-    step++;
-    riskLoopRef.current = setTimeout(runStep, speeds[step]);
-  } else {
-    // ✅ Ende ohne extra Sprung!
-    setRiskLastItem(finalItem);
-    setRiskRunning(false);
-  }
-};
-
-runStep();
-
-  const willLose = Math.random() < getRiskBombChance(riskStreak);
-  const finalItem = willLose
+  const lose = Math.random() < riskBombChance;
+  const finalItem = lose
     ? zombieTeddySymbol
     : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
 
-  setTimeout(() => {
-  const lost = finalItem.slug === "zombieteddy-ultra";
+  const introSteps = 10;
+  const introDurations = [90, 90, 85, 80, 75, 70, 80, 95, 115, 140];
 
-  setRiskStrip((prev) => {
-    let next = [...prev];
-
-    for (let i = 0; i < 5; i++) {
-      next = [
-        ...next.slice(1),
-        i === 4
-          ? finalItem
-          : riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
-      ];
+  try {
+    for (let i = 0; i < introSteps; i++) {
+      await shiftRiskStripOnce(undefined, introDurations[i] ?? 100);
     }
 
-    return next;
-  });
+    const finalSequence = buildFinalRiskSequence(finalItem);
 
-  setRiskLastItem(finalItem);
-  setRiskRunning(false);
+    for (let i = 0; i < finalSequence.length; i++) {
+      const isLast = i === finalSequence.length - 1;
+      await shiftRiskStripOnce(finalSequence[i], isLast ? 180 : 120);
+    }
 
-  if (lost) {
-    setRiskGameOver(true);
-    setRiskJustLost(true);
-    setMessage("Zombie Teddy! Alles verloren.");
-    setRiskStreak(0);
-    setRiskPot(0);
-    setRiskTier("None");
-    setRiskStarted(false);
-    return;
+    setRiskLastItem(finalItem);
+
+    if (lose) {
+      setRiskGameOver(true);
+      setRiskJustLost(true);
+      setRiskStarted(false);
+      setRiskStreak(0);
+      setRiskPot(0);
+      setRiskTier("None");
+      setRiskGiftPreview(null);
+      setMessage("Zombie Teddy getroffen. Alles verloren.");
+    } else {
+      const nextStreak = riskStreak + 1;
+      const nextTier = getRiskTierForStreak(nextStreak);
+
+      let nextPot = riskPot;
+      if (nextPot <= 0) nextPot = RISK_ENTRY_COST;
+
+      nextPot += getRiskRewardForStreak(nextStreak);
+
+      setRiskStreak(nextStreak);
+      setRiskPot(nextPot);
+      setRiskTier(nextTier);
+      setRiskGiftPreview(finalItem);
+      setMessage(`Safe! Streak ${nextStreak} · Pot ${nextPot}`);
+    }
+  } catch (error) {
+    console.error("Risk animation error:", error);
+    setMessage("Risk-Animation fehlgeschlagen.");
+  } finally {
+    setRiskRunning(false);
+    setRiskTransitionMs(0);
+    setRiskOffset(0);
   }
-
-  const nextStreak = riskStreak + 1;
-  const reward = getRiskRewardForStreak(nextStreak);
-  const nextPot = riskPot + reward;
-  const nextTier = getRiskTierForStreak(nextStreak);
-
-  setRiskStreak(nextStreak);
-  setRiskPot(nextPot);
-  setRiskTier(nextTier);
-  setRiskGameOver(false);
-  setRiskJustLost(false);
-
-  setMessage(`Safe! ${finalItem.name} · +${reward} Pot · Gesamt: ${nextPot}`);
-}, 1900);
 };
 
 useEffect(() => {
   return () => {
-    if (riskLoopRef.current) {
-      clearTimeout(riskLoopRef.current as any);
-      clearInterval(riskLoopRef.current);
-      riskLoopRef.current = null;
-    }
+    clearRiskTimers();
   };
 }, []);
 const ensureProfile = async (uid: string, email: string) => {
@@ -4496,18 +4548,35 @@ useEffect(() => {
       </div>
     </div>
 
-    <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] px-3 py-6">
-      <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-[3px] -translate-x-1/2 bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.8)]" />
+    <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] px-3 py-5">
+  <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 -translate-x-1/2">
+    <div className="h-full w-[3px] rounded-full bg-red-400 shadow-[0_0_20px_rgba(248,113,113,0.9)]" />
+  </div>
 
-      <div className="flex items-center justify-center">
-        {riskStrip.map((symbol, idx) => (
+  <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-black via-black/70 to-transparent" />
+  <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-black via-black/70 to-transparent" />
+
+  <div className="overflow-hidden">
+    <div
+      className="flex will-change-transform"
+      style={{
+        gap: `${RISK_GAP}px`,
+        transform: `translateX(${riskOffset}px)`,
+        transition: riskTransitionMs > 0 ? `transform ${riskTransitionMs}ms ease-out` : "none",
+      }}
+    >
+      {riskStrip.map((symbol, idx) => {
+        const isCenter = idx === RISK_CENTER_INDEX;
+
+        return (
           <div
-            key={`${symbol.slug}-${idx}-${symbol.name}`}
+            key={`${symbol.slug}-${idx}-${riskStreak}-${riskStarted ? "run" : "idle"}`}
             className={`shrink-0 transition ${
-              idx === RISK_CENTER_INDEX ? "scale-110" : "scale-90 opacity-70"
+              isCenter ? "scale-110" : "scale-90 opacity-70"
             }`}
+            style={{ width: `${RISK_ITEM_WIDTH}px` }}
           >
-            <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32 md:w-24">
+            <div className="flex h-24 w-full items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32">
               <img
                 src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
                 alt={symbol.name}
@@ -4518,9 +4587,11 @@ useEffect(() => {
               />
             </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
+  </div>
+</div>
 
     {riskLastItem ? (
       <div
