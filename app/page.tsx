@@ -784,6 +784,8 @@ function getMultiLineMultiplier(hitCount: number) {
 }
 
 
+  const stopAutoSpin = () => {
+  setAutoSpinEnabled(false);
   setAutoSpinMode(null);
 
   if (autoSpinTimeoutRef.current) {
