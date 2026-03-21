@@ -2620,12 +2620,13 @@ const runStep = () => {
   const next = [...prev];
 
   const center = RISK_CENTER_INDEX;
+  const OFFSET = 5;
 
-  next[center - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-  next[center - 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-  next[center] = finalItem;
-  next[center + 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-  next[center + 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  next[center + OFFSET - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  next[center + OFFSET - 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  next[center + OFFSET] = finalItem;
+  next[center + OFFSET + 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  next[center + OFFSET + 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
 
   return next;
 });
