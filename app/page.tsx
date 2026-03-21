@@ -786,34 +786,10 @@ function getMultiLineMultiplier(hitCount: number) {
 
   
 
-  if (autoSpinTimeoutRef.current) {
-    clearTimeout(autoSpinTimeoutRef.current);
-    autoSpinTimeoutRef.current = null;
-  }
-};
+ 
 
-const startAutoSpin = (mode: "slot" | "multiline-slot") => {
-  setAutoSpinEnabled(true);
-  setAutoSpinMode(mode);
-};
-useEffect(() => {
-  if (!autoSpinEnabled || spinning) return;
 
-  autoSpinTimeoutRef.current = setTimeout(() => {
-    if (autoSpinMode === "slot") {
-      spin();
-    } else if (autoSpinMode === "multiline-slot") {
-      spinMultiLine();
-    }
-  }, 1000);
 
-  return () => {
-    if (autoSpinTimeoutRef.current) {
-      clearTimeout(autoSpinTimeoutRef.current);
-      autoSpinTimeoutRef.current = null;
-    }
-  };
-}, [autoSpinEnabled, autoSpinMode, spinning, data.tokens, slotStake, multiLineStake, multiSlotMode]);
 function countWinningLines(grid: LocalSymbol[][]) {
   return getGridLines(grid).filter((line) => isWinningRow(line)).length;
 }
@@ -850,6 +826,7 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 
   return true;
 }  
+
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
     {
@@ -966,7 +943,9 @@ const spinMultiLine = async () => {
 
     setSpinning(false);
   }, 1800);
-};const [mounted, setMounted] = useState(false);
+};
+
+const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
     "home" | "picks" | "slot" | "inventory" | "group" | "admin"
   >("home");
@@ -1213,6 +1192,29 @@ const stopAutoSpin = () => {
     autoSpinTimeoutRef.current = null;
   }
 };
+
+const startAutoSpin = (mode: "slot" | "multiline-slot") => {
+  setAutoSpinEnabled(true);
+  setAutoSpinMode(mode);
+};
+useEffect(() => {
+  if (!autoSpinEnabled || spinning) return;
+
+  autoSpinTimeoutRef.current = setTimeout(() => {
+    if (autoSpinMode === "slot") {
+      spin();
+    } else if (autoSpinMode === "multiline-slot") {
+      spinMultiLine();
+    }
+  }, 1000);
+
+  return () => {
+    if (autoSpinTimeoutRef.current) {
+      clearTimeout(autoSpinTimeoutRef.current);
+      autoSpinTimeoutRef.current = null;
+    }
+  };
+}, [autoSpinEnabled, autoSpinMode, spinning, data.tokens, slotStake, multiLineStake, multiSlotMode]);
 const [reels, setReels] = useState<LocalSymbol[]>([
   symbolPool[0],
   symbolPool[1],
