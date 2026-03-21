@@ -782,81 +782,7 @@ function getMultiLineMultiplier(hitCount: number) {
   if (hitCount === 1) return 0.4;
   return 0;
 }
-const spinMultiLine = async () => {
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
 
-  if (multilineSymbols.length !== 6) {
-    setMessage("Für Multi-Line Slots müssen genau 6 Symbole freigegeben sein.");
-    return;
-  }
-
-  if (data.tokens < multiLineStake || spinning) return;
-
-  const nextTokensBeforePayout = data.tokens - multiLineStake;
-  const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
-  if (!tokenSaved) return;
-
-  updateData((prev) => ({ ...prev, tokens: nextTokensBeforePayout }));
-  setSpinning(true);
-  setLastMultiLineHitCount(0);
-  setLastMultiLinePayout(0);
-
-  const randomFromMultiLine = () =>
-    multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
-
-  const rolling = setInterval(() => {
-    setMultiLineGrid([
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-    ]);
-  }, 100);
-
-  setTimeout(async () => {
-    clearInterval(rolling);
-
-    const finalGrid = [
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-    ];
-
-    setMultiLineGrid(finalGrid);
-
-    const hitCount = countWinningLines(finalGrid);
-    const multiplier = getMultiLineMultiplier(hitCount);
-    const payout = Math.floor(multiLineStake * multiplier);
-    const finalTokens = nextTokensBeforePayout + payout;
-
-    if (payout > 0) {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ tokens: finalTokens })
-        .eq("id", userId);
-
-      if (error) {
-        setMessage(error.message);
-        setSpinning(false);
-        return;
-      }
-    }
-
-    setData((prev) => ({ ...prev, tokens: finalTokens }));
-    setLastMultiLineHitCount(hitCount);
-    setLastMultiLinePayout(payout);
-
-    setMessage(
-      hitCount > 0
-        ? `${hitCount} Treffer! +${payout} Tokens`
-        : "Kein Treffer."
-    );
-
-    setSpinning(false);
-  }, 1800);
-};
 const stopAutoSpin = () => {
   setAutoSpinEnabled(false);
   setAutoSpinMode(null);
@@ -967,7 +893,81 @@ const multilineSymbols = useMemo(() => {
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
-const [mounted, setMounted] = useState(false);
+const spinMultiLine = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (multilineSymbols.length !== 6) {
+    setMessage("Für Multi-Line Slots müssen genau 6 Symbole freigegeben sein.");
+    return;
+  }
+
+  if (data.tokens < multiLineStake || spinning) return;
+
+  const nextTokensBeforePayout = data.tokens - multiLineStake;
+  const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
+  if (!tokenSaved) return;
+
+  updateData((prev) => ({ ...prev, tokens: nextTokensBeforePayout }));
+  setSpinning(true);
+  setLastMultiLineHitCount(0);
+  setLastMultiLinePayout(0);
+
+  const randomFromMultiLine = () =>
+    multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
+
+  const rolling = setInterval(() => {
+    setMultiLineGrid([
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+    ]);
+  }, 100);
+
+  setTimeout(async () => {
+    clearInterval(rolling);
+
+    const finalGrid = [
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+    ];
+
+    setMultiLineGrid(finalGrid);
+
+    const hitCount = countWinningLines(finalGrid);
+    const multiplier = getMultiLineMultiplier(hitCount);
+    const payout = Math.floor(multiLineStake * multiplier);
+    const finalTokens = nextTokensBeforePayout + payout;
+
+    if (payout > 0) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ tokens: finalTokens })
+        .eq("id", userId);
+
+      if (error) {
+        setMessage(error.message);
+        setSpinning(false);
+        return;
+      }
+    }
+
+    setData((prev) => ({ ...prev, tokens: finalTokens }));
+    setLastMultiLineHitCount(hitCount);
+    setLastMultiLinePayout(payout);
+
+    setMessage(
+      hitCount > 0
+        ? `${hitCount} Treffer! +${payout} Tokens`
+        : "Kein Treffer."
+    );
+
+    setSpinning(false);
+  }, 1800);
+};const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
     "home" | "picks" | "slot" | "inventory" | "group" | "admin"
   >("home");
