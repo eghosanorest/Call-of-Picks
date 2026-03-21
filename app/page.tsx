@@ -4420,11 +4420,12 @@ useEffect(() => {
                 </div>
                 )}
 
-<div className="rounded-3xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-  <div className="flex items-start justify-between gap-3">
-    <div>
-      <div className="text-sm text-zinc-400">Risk Game</div>
-      <div className="text-2xl font-black">Alles Spitze</div>
+{slotViewMode === "risk" && (
+  <div className="rounded-3xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <div className="text-sm text-zinc-400">Risk Game</div>
+        <div className="text-2xl font-black">Alles Spitze</div>
       <div className="mt-1 text-sm text-zinc-400">
         Drück weiter auf Play für mehr Pot und bessere Rarity. Trifft Zombie Teddy die Mitte, verlierst du alles.
       </div>
@@ -4601,6 +4602,7 @@ useEffect(() => {
     )}
   </div>
 </div>
+)}
                 <AnimatePresence>
                   {lastWin && (
                     <motion.div
