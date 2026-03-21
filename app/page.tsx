@@ -1364,12 +1364,14 @@ const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
 
 const RISK_VISIBLE_CELLS = 5;
+const RISK_STRIP_CENTER_INDEX = 2;
 const RISK_ITEM_WIDTH = 72;
 const RISK_GAP = 12;
 const RISK_STEP = RISK_ITEM_WIDTH + RISK_GAP;
 
 const createRiskStrip = (forcedCenter?: LocalSymbol) => {
   const total = 18;
+
   const arr = Array.from({ length: total }).map(
     () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
   );
@@ -1409,24 +1411,24 @@ const clearRiskTimers = () => {
 };
 
 const shiftRiskStripOnce = (
-  nextSymbol?: LocalSymbol,
+  forcedNext?: LocalSymbol,
   duration = 120
-): Promise<void> => {
-  return new Promise((resolve) => {
+) => {
+  return new Promise<void>((resolve) => {
+    const nextSymbol =
+      forcedNext ??
+      riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+
     setRiskTransitionMs(duration);
     setRiskOffset(-RISK_STEP);
 
     riskSnapRef.current = setTimeout(() => {
-      setRiskTransitionMs(0);
-
       setRiskStrip((prev) => {
-        const incoming =
-          nextSymbol ??
-          riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-
-        return [...prev.slice(1), incoming];
+        const shifted = [...prev.slice(1), nextSymbol];
+        return shifted;
       });
 
+      setRiskTransitionMs(0);
       setRiskOffset(0);
 
       riskSnapRef.current = setTimeout(() => {
@@ -1437,13 +1439,11 @@ const shiftRiskStripOnce = (
 };
 
 const buildFinalRiskSequence = (finalItem: LocalSymbol) => {
-  const fillerCount = 7;
-
-  const filler = Array.from({ length: fillerCount }).map(
-    () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
-  );
-
-  return [...filler, finalItem];
+  return [
+    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
+    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
+    finalItem,
+  ];
 };
 const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
 const riskNextTier = useMemo(() => getRiskNextTier(riskStreak), [riskStreak]);
@@ -2673,7 +2673,7 @@ const playRiskGame = async () => {
     ? zombieTeddySymbol
     : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
 
-  const introSteps = 10;
+    const introSteps = 10;
   const introDurations = [90, 90, 85, 80, 75, 70, 80, 95, 115, 140];
 
   try {
@@ -2687,6 +2687,12 @@ const playRiskGame = async () => {
       const isLast = i === finalSequence.length - 1;
       await shiftRiskStripOnce(finalSequence[i], isLast ? 180 : 120);
     }
+
+    setRiskStrip((prev) => {
+      const locked = [...prev];
+      locked[RISK_STRIP_CENTER_INDEX] = finalItem;
+      return locked;
+    });
 
     setRiskLastItem(finalItem);
 
