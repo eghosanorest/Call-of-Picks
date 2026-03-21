@@ -4495,7 +4495,7 @@ useEffect(() => {
     <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] px-3 py-6">
       <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-[3px] -translate-x-1/2 bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.8)]" />
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-center">
         {riskStrip.map((symbol, idx) => (
           <div
             key={`${symbol.slug}-${idx}-${symbol.name}`}
@@ -4503,7 +4503,7 @@ useEffect(() => {
               idx === RISK_CENTER_INDEX ? "scale-110" : "scale-90 opacity-70"
             }`}
           >
-            <div className="flex h-24 w-20 items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32 md:w-24">
+            <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32 md:w-24">
               <img
                 src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
                 alt={symbol.name}
