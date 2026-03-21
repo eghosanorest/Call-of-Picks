@@ -834,7 +834,7 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 type RiskTier = "None" | "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
 
 const RISK_ENTRY_COST = 1;
-const RISK_CENTER_INDEX = 6;
+const RISK_CENTER_INDEX = 9;
 
 const RISK_REWARD_BY_STREAK: Record<number, number> = {
   1: 2,
