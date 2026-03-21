@@ -1383,17 +1383,17 @@ const RISK_BASE_TRANSLATE = `calc(50% - ${
 }px)`;
 
 const createRiskStrip = (forcedCenter?: LocalSymbol) => {
-  const total = 18;
+  const total = 30;
 
-const arr = Array.from({ length: total }).map(
-  () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
-);
+  const arr = Array.from({ length: total }).map(
+    () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
+  );
 
-if (forcedCenter) {
-  arr[RISK_TARGET_INDEX] = forcedCenter;
-}
+  if (forcedCenter) {
+    arr[RISK_TARGET_INDEX] = forcedCenter;
+  }
 
-return arr;
+  return arr;
 };
 
 const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => createRiskStrip());
@@ -1450,6 +1450,8 @@ const shiftRiskStripOnce = (
 
 const buildFinalRiskSequence = (finalItem: LocalSymbol) => {
   return [
+    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
+    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
     riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
     riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
     finalItem,
@@ -2693,16 +2695,12 @@ const playRiskGame = async () => {
 
     const finalSequence = buildFinalRiskSequence(finalItem);
 
-    for (let i = 0; i < finalSequence.length; i++) {
+for (let i = 0; i < finalSequence.length; i++) {
   const isLast = i === finalSequence.length - 1;
-  await shiftRiskStripOnce(finalSequence[i], isLast ? 180 : 120);
+  await shiftRiskStripOnce(finalSequence[i], isLast ? 220 : 130);
 }
 
-setRiskStrip((prev) => {
-  const locked = [...prev];
-  locked[RISK_TARGET_INDEX] = finalItem;
-  return locked;
-});
+
 
 setRiskOffset(0);
 setRiskTransitionMs(0);
