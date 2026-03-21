@@ -1178,6 +1178,7 @@ const potentialBetWin =
 const [slotStake, setSlotStake] = useState<number>(1);
 const [multiSlotMode, setMultiSlotMode] = useState(false);
 const [multiLineStake, setMultiLineStake] = useState<number>(1);
+const [slotViewMode, setSlotViewMode] = useState<"classic" | "multiline">("classic");
 
 const effectiveSlotCost = multiSlotMode ? slotStake * 3 : slotStake;
 
@@ -3718,6 +3719,23 @@ useEffect(() => {
                 className="mx-auto w-full space-y-4 max-w-md md:max-w-3xl xl:max-w-5xl"
               >
                 <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
+                <div className="grid grid-cols-2 gap-3">
+  <Button
+    onClick={() => setSlotViewMode("classic")}
+    variant={slotViewMode === "classic" ? "violet" : "ghost"}
+    className="w-full"
+  >
+    Normal / 3x3
+  </Button>
+
+  <Button
+    onClick={() => setSlotViewMode("multiline")}
+    variant={slotViewMode === "multiline" ? "violet" : "ghost"}
+    className="w-full"
+  >
+    Multi-Line
+  </Button>
+</div>
 
                 <div className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
                   <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-violet-500/18 blur-3xl" />
@@ -3773,7 +3791,28 @@ useEffect(() => {
         3x3 Layout · bis zu 3 Treffer pro Spin
       </div>
     </div>
+{slotViewMode === "multiline" && (
+  <div className="mt-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
+    <div className="mb-3 text-sm font-bold text-zinc-300">Multi-Line Einsatz</div>
 
+    <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+      {SLOT_STAKES.map((stake) => (
+        <button
+          key={`multiline-${stake}`}
+          type="button"
+          onClick={() => setMultiLineStake(stake)}
+          className={`rounded-2xl border px-3 py-3 text-sm transition ${
+            multiLineStake === stake
+              ? "border-violet-400 bg-violet-500/20 text-white"
+              : "border-white/10 bg-black/40 text-zinc-300"
+          }`}
+        >
+          <div className="font-black">{stake}</div>
+        </button>
+      ))}
+    </div>
+  </div>
+)}
     <button
       type="button"
       onClick={() => setMultiSlotMode((prev) => !prev)}
@@ -3806,7 +3845,25 @@ useEffect(() => {
                     <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
 
                     <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
-                      {multiSlotMode ? (
+                      {slotViewMode === "multiline" ? (
+  <div className="grid gap-3">
+    {multiLineGrid.map((row, rowIndex) => (
+      <div
+        key={rowIndex}
+        className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20"
+      >
+        {row.map((symbol, idx) => (
+          <Reel
+            key={`multiline-${rowIndex}-${idx}`}
+            symbol={symbol}
+            spinning={spinning}
+            delay={(rowIndex * 3 + idx) * 0.05}
+          />
+        ))}
+      </div>
+    ))}
+  </div>
+) : multiSlotMode ? (
   <div className="grid gap-3">
     {multiReels.map((row, rowIndex) => (
       <div
@@ -3849,12 +3906,20 @@ useEffect(() => {
                   </div>
 
                   <Button
-  onClick={spin}
+  onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
   variant="violet"
-  disabled={data.tokens < effectiveSlotCost || spinning}
+  disabled={
+    slotViewMode === "multiline"
+      ? data.tokens < multiLineStake || spinning
+      : data.tokens < effectiveSlotCost || spinning
+  }
   className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
 >
-  {spinning ? "Dreht..." : `${effectiveSlotCost} Token einsetzen`}
+  {spinning
+    ? "Dreht..."
+    : slotViewMode === "multiline"
+      ? `${multiLineStake} Token einsetzen`
+      : `${effectiveSlotCost} Token einsetzen`}
 </Button>
                 </div>
 
