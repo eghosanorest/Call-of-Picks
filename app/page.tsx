@@ -1174,11 +1174,12 @@ const potentialBetWin =
   parsedStake > 0 && selectedBetMatches.length > 0
     ? ceilPayout(parsedStake * totalBetOdds)
     : 0;
-    
-  const [slotStake, setSlotStake] = useState<number>(1);
-const [multiSlotMode, setMultiSlotMode] = useState(false);
 
+const [slotStake, setSlotStake] = useState<number>(1);
+const [multiSlotMode, setMultiSlotMode] = useState(false);
 const [multiLineStake, setMultiLineStake] = useState<number>(1);
+
+const effectiveSlotCost = multiSlotMode ? slotStake * 3 : slotStake;
 
 const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
 const [autoSpinMode, setAutoSpinMode] = useState<"slot" | "multiline-slot" | null>(null);
