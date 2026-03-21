@@ -4609,7 +4609,7 @@ useEffect(() => {
               onError={(e) => {
                 e.currentTarget.src = "/items/fallback.png";
               }}
-            />
+            /> 
           </div>
         </div>
       );
