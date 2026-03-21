@@ -2620,7 +2620,7 @@ const runStep = () => {
   const next = [...prev];
 
   const center = RISK_CENTER_INDEX;
-  const OFFSET = 5;
+  const OFFSET = 4;
 
   next[center + OFFSET - 2] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
   next[center + OFFSET - 1] = riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
