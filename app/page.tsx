@@ -4462,83 +4462,86 @@ useEffect(() => {
       right={<Package className="h-5 w-5 text-emerald-300" />}
     />
 
-    <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-      <div className="flex items-center gap-2 font-semibold">
-        <CheckCircle2 className="h-4 w-4" />
-        Alle Items
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        {allItemCatalog.map((item) => (
-  <div
-    key={item.id}
-    className="rounded-2xl border border-white/10 bg-black/30 p-3"
-  >
-    <ItemCard
-      item={{
-        name: item.name,
-        rarity: item.rarity,
-        image_path: item.image_path,
-        slug: item.slug,
-        category: item.category,
-      }}
-    />
-
-    <div className="mt-3 space-y-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={item.slot_enabled !== false}
-          onChange={async (e) => {
-            const { error } = await supabase
-              .from("items")
-              .update({ slot_enabled: e.target.checked })
-              .eq("id", item.id);
-
-            if (error) {
-              setMessage(error.message);
-              return;
-            }
-
-            await loadAllItems();
-          }}
-        />
-        Für Slots aktiv
-      </label>
-
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={item.multiline_enabled === true}
-          onChange={async (e) => {
-            const { error } = await supabase
-              .from("items")
-              .update({ multiline_enabled: e.target.checked })
-              .eq("id", item.id);
-
-            if (error) {
-              setMessage(error.message);
-              return;
-            }
-
-            await loadAllItems();
-          }}
-        />
-        Für Multi-Line Slots aktiv
-      </label>
-    </div>
-  </div>
-))}
-      </div>
-    </div>
+    
+    
   </>
 ) : (
 <>
-                <SectionTitle
-                  eyebrow="Verwaltung"
-                  title="Admin-Bereich"
-                  right={<Settings2 className="h-5 w-5 text-violet-300" />}
-                />
+  <SectionTitle
+    eyebrow="Verwaltung"
+    title="Admin-Bereich"
+    right={<Settings2 className="h-5 w-5 text-violet-300" />}
+  />
+
+  <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+    <div className="flex items-center gap-2 font-semibold">
+      <CheckCircle2 className="h-4 w-4" />
+      Alle Items
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      {allItemCatalog.map((item) => (
+        <div
+          key={item.id}
+          className="rounded-2xl border border-white/10 bg-black/30 p-3"
+        >
+          <ItemCard
+            item={{
+              name: item.name,
+              rarity: item.rarity,
+              image_path: item.image_path,
+              slug: item.slug,
+              category: item.category,
+            }}
+          />
+
+          <div className="mt-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.slot_enabled !== false}
+                onChange={async (e) => {
+                  const { error } = await supabase
+                    .from("items")
+                    .update({ slot_enabled: e.target.checked })
+                    .eq("id", item.id);
+
+                  if (error) {
+                    setMessage(error.message);
+                    return;
+                  }
+
+                  await loadAllItems();
+                }}
+              />
+              Für Slots aktiv
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.multiline_enabled === true}
+                onChange={async (e) => {
+                  const { error } = await supabase
+                    .from("items")
+                    .update({ multiline_enabled: e.target.checked })
+                    .eq("id", item.id);
+
+                  if (error) {
+                    setMessage(error.message);
+                    return;
+                  }
+
+                  await loadAllItems();
+                }}
+              />
+              Für Multi-Line Slots aktiv
+            </label>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
 
                 <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
                   <div className="space-y-3">
