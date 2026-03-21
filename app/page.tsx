@@ -404,6 +404,36 @@ function weightedRandom(list: LocalSymbol[]) {
   return list[list.length - 1];
 }
 
+function getForcedWinSymbol() {
+  return weightedRandom(symbolPool);
+}
+
+function buildWinningRow(symbol?: LocalSymbol): LocalSymbol[] {
+  const winSymbol = symbol || getForcedWinSymbol();
+  return [winSymbol, winSymbol, winSymbol];
+}
+
+function buildRandomRow(): LocalSymbol[] {
+  return [
+    weightedRandom(symbolPool),
+    weightedRandom(symbolPool),
+    weightedRandom(symbolPool),
+  ];
+}
+
+function isWinningRow(row: LocalSymbol[]) {
+  return row.length === 3 && row.every((item) => item.id === row[0].id);
+}
+
+function maybeUpgradeRowToWin(row: LocalSymbol[], bonusChance: number): LocalSymbol[] {
+  if (isWinningRow(row)) return row;
+
+  if (Math.random() < bonusChance) {
+    return buildWinningRow();
+  }
+
+  return row;
+}
 function generateInviteCode() {
   return `COP-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
     .toString(36)
@@ -775,11 +805,7 @@ export default function CallOfPicksPage() {
   const [data, setData] = useState<LocalData>(defaultData);
 
   const [spinning, setSpinning] = useState(false);
-  const [reels, setReels] = useState<LocalSymbol[]>([
-    symbolPool[0],
-    symbolPool[1],
-    symbolPool[2],
-  ]);
+  
   const [lastWin, setLastWin] = useState<LocalSymbol | null>(null);
 
   const [message, setMessage] = useState("");
@@ -793,6 +819,10 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, []);
+useEffect(() => {
+  if (!userId) return;
+  evaluateUserBets(userId);
+}, [data.weeks, userId]);
 const placeBet = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -978,21 +1008,45 @@ const totalBetOdds = selectedBetMatches.reduce((acc, match) => {
   const odd = side === "A" ? match.oddA : match.oddB;
   return acc * (odd || 1);
 }, 1);
+const SLOT_STAKES = [1, 5, 10, 20, 50, 100] as const;
 
+const SLOT_BONUS_CHANCE: Record<number, number> = {
+  1: 0,
+  5: 0.025,
+  10: 0.05,
+  20: 0.1,
+  50: 0.25,
+  100: 0.5,
+};
+
+const [slotStake, setSlotStake] = useState<number>(1);
+const [multiSlotMode, setMultiSlotMode] = useState(false);
+
+const [reels, setReels] = useState<LocalSymbol[]>([
+  symbolPool[0],
+  symbolPool[1],
+  symbolPool[2],
+]);
+
+const [multiReels, setMultiReels] = useState<LocalSymbol[][]>([
+  [symbolPool[0], symbolPool[1], symbolPool[2]],
+  [symbolPool[3], symbolPool[4], symbolPool[5]],
+  [symbolPool[6], symbolPool[7], symbolPool[8]],
+]);
+
+const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
 const parsedStake = Number(betStake) || 0;
 const potentialBetWin =
   parsedStake > 0 && selectedBetMatches.length > 0
     ? ceilPayout(parsedStake * totalBetOdds)
     : 0;
-    useEffect(() => {
-  if (!userId) return;
-  evaluateUserBets(userId);
-}, [data.weeks, userId]);
+    
   const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
     useState<MemberInventoryItem | null>(null);
-  const [challengeTargetUser, setChallengeTargetUser] =
+  
+    const [challengeTargetUser, setChallengeTargetUser] =
     useState<MemberInventory | null>(null);
   const [showChallengePicker, setShowChallengePicker] = useState(false);
 
@@ -1907,77 +1961,139 @@ if (!userId) {
   };
 
   const spin = async () => {
-    if (!userId) {
-      setMessage("Bitte zuerst mit Google anmelden.");
-      return;
-    }
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
 
-    if (data.tokens <= 0 || spinning) return;
+  if (data.tokens < slotStake || spinning) return;
 
-    setLastWin(null);
+  setLastWin(null);
+  setLastWins([]);
 
-    const nextTokens = data.tokens - 1;
-    const tokenSaved = await updateTokensOnline(nextTokens);
-    if (!tokenSaved) return;
+  const nextTokens = data.tokens - slotStake;
+  const tokenSaved = await updateTokensOnline(nextTokens);
+  if (!tokenSaved) return;
 
-    updateData((prev) => ({ ...prev, tokens: nextTokens }));
-    setSpinning(true);
+  updateData((prev) => ({ ...prev, tokens: nextTokens }));
+  setSpinning(true);
 
-    const rolling = setInterval(() => {
-      setReels([
-        weightedRandom(symbolPool),
-        weightedRandom(symbolPool),
-        weightedRandom(symbolPool),
+  const bonusChance = SLOT_BONUS_CHANCE[slotStake] || 0;
+
+  const rolling = setInterval(() => {
+    if (multiSlotMode) {
+      setMultiReels([
+        buildRandomRow(),
+        buildRandomRow(),
+        buildRandomRow(),
       ]);
-    }, 100);
+    } else {
+      setReels(buildRandomRow());
+    }
+  }, 100);
 
-    setTimeout(async () => {
-      clearInterval(rolling);
+  setTimeout(async () => {
+    clearInterval(rolling);
 
-      const finalReels = [
-        weightedRandom(symbolPool),
-        weightedRandom(symbolPool),
-        weightedRandom(symbolPool),
+    if (multiSlotMode) {
+      let finalGrid = [
+        buildRandomRow(),
+        buildRandomRow(),
+        buildRandomRow(),
       ];
-      setReels(finalReels);
 
-      const win = finalReels.every((r) => r.id === finalReels[0].id);
+      finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
+
+      setMultiReels(finalGrid);
+
+      const winningRows = finalGrid.filter(isWinningRow);
+      const wonSymbols = winningRows.map((row) => row[0]);
+
       const spinRecord = {
         at: Date.now(),
-        reels: finalReels.map((r) => r.id),
-        won: win,
+        reels: finalGrid.flat().map((r) => r.id),
+        won: winningRows.length > 0,
       };
 
-      await pushSpinHistoryOnline(spinRecord.reels, win);
+      await pushSpinHistoryOnline(spinRecord.reels, spinRecord.won);
 
       updateData((prev) => ({
-  ...prev,
-  inventory: win
-    ? [
-        ...prev.inventory,
-        {
-          inventory_id: `local-${Date.now()}`,
-          id: finalReels[0].id,
-          slug: finalReels[0].slug,
-          name: finalReels[0].name,
-          rarity: finalReels[0].rarity,
-          image_path: finalReels[0].image_path,
-          weight: finalReels[0].weight,
-        },
-      ]
-    : prev.inventory,
-  spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
-}));
+        ...prev,
+        inventory:
+          winningRows.length > 0
+            ? [
+                ...prev.inventory,
+                ...wonSymbols.map((symbol, index) => ({
+                  inventory_id: `local-${Date.now()}-${index}`,
+                  id: symbol.id,
+                  slug: symbol.slug,
+                  name: symbol.name,
+                  rarity: symbol.rarity,
+                  image_path: symbol.image_path,
+                  weight: symbol.weight,
+                })),
+              ]
+            : prev.inventory,
+        spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
+      }));
 
-      if (win) {
-        setLastWin(finalReels[0]);
-        await grantServerInventoryItem(finalReels[0]);
+      for (const symbol of wonSymbols) {
+        await grantServerInventoryItem(symbol);
+      }
+
+      if (wonSymbols.length > 0) {
+        setLastWins(wonSymbols);
+        setLastWin(wonSymbols[0]);
       }
 
       await loadRemoteUserGameState(userId);
       setSpinning(false);
-    }, 1800);
-  };
+      return;
+    }
+
+    let finalReels = buildRandomRow();
+    finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
+
+    setReels(finalReels);
+
+    const win = isWinningRow(finalReels);
+    const spinRecord = {
+      at: Date.now(),
+      reels: finalReels.map((r) => r.id),
+      won: win,
+    };
+
+    await pushSpinHistoryOnline(spinRecord.reels, win);
+
+    updateData((prev) => ({
+      ...prev,
+      inventory: win
+        ? [
+            ...prev.inventory,
+            {
+              inventory_id: `local-${Date.now()}`,
+              id: finalReels[0].id,
+              slug: finalReels[0].slug,
+              name: finalReels[0].name,
+              rarity: finalReels[0].rarity,
+              image_path: finalReels[0].image_path,
+              weight: finalReels[0].weight,
+            },
+          ]
+        : prev.inventory,
+      spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
+    }));
+
+    if (win) {
+      setLastWin(finalReels[0]);
+      setLastWins([finalReels[0]]);
+      await grantServerInventoryItem(finalReels[0]);
+    }
+
+    await loadRemoteUserGameState(userId);
+    setSpinning(false);
+  }, 1800);
+};
 
   const ensureProfile = async (uid: string, email: string) => {
     const { data: existing, error: fetchError } = await supabase
@@ -3432,7 +3548,54 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
+                  <div className="relative z-10 mb-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
+  <div className="mb-3 text-sm font-bold text-zinc-300">Einsatz wählen</div>
+
+  <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+    {SLOT_STAKES.map((stake) => {
+      const active = slotStake === stake;
+      const bonus = SLOT_BONUS_CHANCE[stake] * 100;
+
+      return (
+        <button
+          key={stake}
+          type="button"
+          onClick={() => setSlotStake(stake)}
+          className={`rounded-2xl border px-3 py-3 text-sm transition ${
+            active
+              ? "border-violet-400 bg-violet-500/20 text-white"
+              : "border-white/10 bg-black/40 text-zinc-300"
+          }`}
+        >
+          <div className="font-black">{stake}</div>
+          <div className="text-xs text-zinc-400">+{bonus}%</div>
+        </button>
+      );
+    })}
+  </div>
+
+  <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+    <div>
+      <div className="text-sm font-bold text-zinc-200">Multi-Slots</div>
+      <div className="text-xs text-zinc-400">
+        3x3 Layout · bis zu 3 Treffer pro Spin
+      </div>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setMultiSlotMode((prev) => !prev)}
+      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+        multiSlotMode
+          ? "bg-emerald-500 text-black"
+          : "bg-white/5 text-zinc-300"
+      }`}
+    >
+      {multiSlotMode ? "Aktiv" : "Aus"}
+    </button>
+  </div>
+</div>
+<div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
                     <div className="mb-3 grid grid-cols-6 gap-2">
                       {Array.from({ length: 12 }).map((_, i) => (
                         <div
@@ -3451,16 +3614,36 @@ useEffect(() => {
                     <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
 
                     <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
-                      <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
-                        {reels.map((symbol, idx) => (
-                          <Reel
-                            key={idx}
-                            symbol={symbol}
-                            spinning={spinning}
-                            delay={idx * 0.08}
-                          />
-                        ))}
-                      </div>
+                      {multiSlotMode ? (
+  <div className="grid gap-3">
+    {multiReels.map((row, rowIndex) => (
+      <div
+        key={rowIndex}
+        className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20"
+      >
+        {row.map((symbol, idx) => (
+          <Reel
+            key={`${rowIndex}-${idx}`}
+            symbol={symbol}
+            spinning={spinning}
+            delay={(rowIndex * 3 + idx) * 0.05}
+          />
+        ))}
+      </div>
+    ))}
+  </div>
+) : (
+  <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
+    {reels.map((symbol, idx) => (
+      <Reel
+        key={idx}
+        symbol={symbol}
+        spinning={spinning}
+        delay={idx * 0.08}
+      />
+    ))}
+  </div>
+)}
                     </div>
 
                     <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
@@ -3476,10 +3659,10 @@ useEffect(() => {
                   <Button
                     onClick={spin}
                     variant="violet"
-                    disabled={data.tokens <= 0 || spinning}
+                    disabled={data.tokens < slotStake || spinning}
                     className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
                   >
-                    {spinning ? "Dreht..." : "Spin starten"}
+                    {spinning ? "Dreht..." : `${slotStake} Token einsetzen`}
                   </Button>
                 </div>
 
