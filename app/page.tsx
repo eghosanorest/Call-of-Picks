@@ -831,7 +831,88 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 
   return true;
 }  
+type RiskTier = "None" | "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
 
+const RISK_ENTRY_COST = 1;
+const RISK_CENTER_INDEX = 7;
+
+const RISK_REWARD_BY_STREAK: Record<number, number> = {
+  1: 2,
+  2: 3,
+  3: 5,
+  4: 8,
+  5: 12,
+  6: 18,
+  7: 26,
+  8: 38,
+  9: 55,
+  10: 80,
+  11: 115,
+  12: 160,
+};
+
+const RISK_TIER_STEPS: { streak: number; tier: RiskTier }[] = [
+  { streak: 3, tier: "Common" },
+  { streak: 5, tier: "Rare" },
+  { streak: 7, tier: "Epic" },
+  { streak: 9, tier: "Legendary" },
+  { streak: 11, tier: "Ultra" },
+];
+
+function getRiskRewardForStreak(streak: number) {
+  return RISK_REWARD_BY_STREAK[streak] ?? Math.max(200, Math.floor(160 + (streak - 12) * 60));
+}
+
+function getRiskTierForStreak(streak: number): RiskTier {
+  let current: RiskTier = "None";
+  for (const step of RISK_TIER_STEPS) {
+    if (streak >= step.streak) current = step.tier;
+  }
+  return current;
+}
+
+function getRiskNextTier(streak: number) {
+  return RISK_TIER_STEPS.find((step) => step.streak > streak) || null;
+}
+
+function getRiskBombChance(streak: number) {
+  if (streak <= 0) return 0.12;
+  if (streak === 1) return 0.14;
+  if (streak === 2) return 0.17;
+  if (streak === 3) return 0.2;
+  if (streak === 4) return 0.24;
+  if (streak === 5) return 0.28;
+  if (streak === 6) return 0.33;
+  if (streak === 7) return 0.39;
+  if (streak === 8) return 0.46;
+  if (streak === 9) return 0.54;
+  if (streak === 10) return 0.62;
+  return 0.7;
+}
+function catalogItemToLocalSymbol(item: {
+  slug: string;
+  name: string;
+  rarity: string;
+  image_path: string | null;
+  weight?: number | null;
+}): LocalSymbol {
+  return {
+    id: item.slug,
+    slug: item.slug,
+    name: item.name,
+    rarity: normalizeRarity(item.rarity) as LocalSymbol["rarity"],
+    image_path: resolveItemImage(item.image_path),
+    weight: item.weight ?? 1,
+  };
+}
+
+function buildRiskStripFromPool(pool: LocalSymbol[], finalItem?: LocalSymbol) {
+  const strip = Array.from({ length: 15 }).map(() => weightedRandom(pool));
+  if (finalItem) {
+    strip[RISK_CENTER_INDEX] = finalItem;
+  }
+  return strip;
+}
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
     {
@@ -874,6 +955,30 @@ const multilineSymbols = useMemo(() => {
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
+const zombieTeddySymbol = useMemo(() => {
+  const fromCatalog = allItemCatalog.find((item) => item.slug === "zombieteddy-ultra");
+  if (fromCatalog) return catalogItemToLocalSymbol(fromCatalog);
+
+  const fallback = symbolPool.find((item) => item.slug === "zombieteddy-ultra");
+  return fallback || symbolPool[0];
+}, [allItemCatalog]);
+
+const riskSafePool = useMemo(() => {
+  const catalogPool = allItemCatalog
+    .filter((item) => item.slug !== "zombieteddy-ultra")
+    .map((item) => catalogItemToLocalSymbol(item));
+
+  if (catalogPool.length) return catalogPool;
+
+  return symbolPool.filter((item) => item.slug !== "zombieteddy-ultra");
+}, [allItemCatalog]);
+
+const riskVisualPool = useMemo(() => {
+  if (!riskSafePool.length) return [zombieTeddySymbol];
+  return [...riskSafePool, zombieTeddySymbol];
+}, [riskSafePool, zombieTeddySymbol]);
+
+
 const spinMultiLine = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -1246,8 +1351,23 @@ const [multiLineGrid, setMultiLineGrid] = useState<LocalSymbol[][]>([
 const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
 const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
-const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
+const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(
+  Array.from({ length: 15 }).map(() => symbolPool[Math.floor(Math.random() * symbolPool.length)])
+);
+const [riskStreak, setRiskStreak] = useState(0);
+const [riskPot, setRiskPot] = useState(0);
+const [riskTier, setRiskTier] = useState<RiskTier>("None");
+const [riskRunning, setRiskRunning] = useState(false);
+const [riskStarted, setRiskStarted] = useState(false);
+const [riskLastItem, setRiskLastItem] = useState<LocalSymbol | null>(null);
+const [riskGameOver, setRiskGameOver] = useState(false);
+const [riskJustLost, setRiskJustLost] = useState(false);
+const [riskGiftPreview, setRiskGiftPreview] = useState<LocalSymbol | null>(null);
 
+const riskLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
+const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
+const riskNextTier = useMemo(() => getRiskNextTier(riskStreak), [riskStreak]);
+const riskBombChance = useMemo(() => getRiskBombChance(riskStreak), [riskStreak]);
 const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
@@ -2136,7 +2256,34 @@ if (!userId) {
     await loadRemoteUserGameState(userId);
   };
 
-  const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
+  const grantCatalogGiftItem = async (giftItem: {
+  id: string;
+  slug: string;
+  name: string;
+  rarity: string;
+  image_path: string | null;
+  weight?: number | null;
+}) => {
+  if (!userId) return;
+
+  const { error } = await supabase.from("inventory_items").insert({
+    owner_id: userId,
+    item_id: giftItem.id,
+    status: "owned",
+  });
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  if (activeGroupId) {
+    await loadGroupDetails(activeGroupId);
+  }
+
+  await loadRemoteUserGameState(userId);
+};
+const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
     if (!userId) return;
 
     await supabase.from("spin_history").insert({
@@ -2319,7 +2466,184 @@ if (!userId) {
   }, 1800);
 };
 
-  const ensureProfile = async (uid: string, email: string) => {
+  const resetRiskGame = () => {
+  setRiskStarted(false);
+  setRiskStreak(0);
+  setRiskPot(0);
+  setRiskTier("None");
+  setRiskLastItem(null);
+  setRiskGameOver(false);
+  setRiskJustLost(false);
+  setRiskGiftPreview(null);
+  setRiskStrip(buildRiskStripFromPool(riskVisualPool));
+};
+
+const getGiftCandidatesForTier = (tier: RiskTier) => {
+  if (tier === "None") return [];
+
+  if (tier === "Ultra") {
+    const legendary = allItemCatalog.filter(
+      (item) => normalizeRarity(item.rarity) === "Legendary"
+    );
+    const ultra = allItemCatalog.filter(
+      (item) => normalizeRarity(item.rarity) === "Ultra"
+    );
+
+    const ultraRoll = Math.random() < 0.1;
+    return ultraRoll && ultra.length ? ultra : legendary.length ? legendary : ultra;
+  }
+
+  return allItemCatalog.filter(
+    (item) => normalizeRarity(item.rarity) === tier
+  );
+};
+
+const cashOutRiskGame = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (!riskStarted || riskRunning) return;
+
+  const payoutTokens = riskPot;
+  const reachedTier = riskTier;
+
+  let nextTokens = data.tokens + payoutTokens;
+
+  const tokenSaved = await updateTokensOnline(nextTokens);
+  if (!tokenSaved) return;
+
+  updateData((prev) => ({
+    ...prev,
+    tokens: nextTokens,
+  }));
+
+  let giftedName = "";
+  if (reachedTier !== "None") {
+    const candidates = getGiftCandidatesForTier(reachedTier);
+    if (candidates.length) {
+      const randomGift =
+        candidates[Math.floor(Math.random() * candidates.length)];
+
+      await grantCatalogGiftItem(randomGift);
+      setRiskGiftPreview(catalogItemToLocalSymbol(randomGift));
+      giftedName = ` + Geschenk: ${randomGift.name}`;
+    }
+  }
+
+  setMessage(
+    payoutTokens > 0
+      ? `${payoutTokens} Tokens ausgezahlt${giftedName}`
+      : `Run beendet${giftedName}`
+  );
+
+  resetRiskGame();
+};
+
+const playRiskGame = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (riskRunning) return;
+  if (!riskSafePool.length) {
+    setMessage("Keine Items für das Spiel verfügbar.");
+    return;
+  }
+
+  if (!riskStarted) {
+    if (data.tokens < RISK_ENTRY_COST) {
+      setMessage("Nicht genug Tokens.");
+      return;
+    }
+
+    const nextTokens = data.tokens - RISK_ENTRY_COST;
+    const tokenSaved = await updateTokensOnline(nextTokens);
+    if (!tokenSaved) return;
+
+    updateData((prev) => ({
+      ...prev,
+      tokens: nextTokens,
+    }));
+
+    setRiskStarted(true);
+    setRiskGameOver(false);
+    setRiskJustLost(false);
+    setRiskGiftPreview(null);
+  }
+
+  setRiskRunning(true);
+  setRiskLastItem(null);
+
+  if (riskLoopRef.current) {
+    clearInterval(riskLoopRef.current);
+    riskLoopRef.current = null;
+  }
+
+  riskLoopRef.current = setInterval(() => {
+    setRiskStrip((prev) => {
+      const next = [...prev.slice(1), riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]];
+      return next;
+    });
+  }, 90);
+
+  const willLose = Math.random() < getRiskBombChance(riskStreak);
+  const finalItem = willLose
+    ? zombieTeddySymbol
+    : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
+
+  setTimeout(async () => {
+    if (riskLoopRef.current) {
+      clearInterval(riskLoopRef.current);
+      riskLoopRef.current = null;
+    }
+
+    setRiskStrip(buildRiskStripFromPool(riskVisualPool, finalItem));
+    setRiskLastItem(finalItem);
+
+    const lost = finalItem.slug === "zombieteddy-ultra";
+
+    if (lost) {
+      setRiskRunning(false);
+      setRiskGameOver(true);
+      setRiskJustLost(true);
+      setMessage("Zombie Teddy! Alles verloren.");
+      setRiskStreak(0);
+      setRiskPot(0);
+      setRiskTier("None");
+      setRiskStarted(false);
+      return;
+    }
+
+    const nextStreak = riskStreak + 1;
+    const reward = getRiskRewardForStreak(nextStreak);
+    const nextPot = riskPot + reward;
+    const nextTier = getRiskTierForStreak(nextStreak);
+
+    setRiskStreak(nextStreak);
+    setRiskPot(nextPot);
+    setRiskTier(nextTier);
+    setRiskRunning(false);
+    setRiskGameOver(false);
+    setRiskJustLost(false);
+
+    setMessage(
+      `Safe! ${finalItem.name} · +${reward} Pot · Gesamt: ${nextPot}`
+    );
+  }, 1900);
+};
+
+useEffect(() => {
+  return () => {
+    if (riskLoopRef.current) {
+      clearInterval(riskLoopRef.current);
+      riskLoopRef.current = null;
+    }
+  };
+}, []);
+const ensureProfile = async (uid: string, email: string) => {
     const { data: existing, error: fetchError } = await supabase
       .from("profiles")
       .select("id, username, tokens")
@@ -3749,7 +4073,7 @@ useEffect(() => {
                 exit={{ opacity: 0, y: -10 }}
                 className="mx-auto w-full space-y-4 max-w-md md:max-w-3xl xl:max-w-5xl"
               >
-                <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
+                <SectionTitle eyebrow="Arcade" title="Slots & Alles Spitze" />
                 <div className="grid grid-cols-2 gap-3">
   <Button
   onClick={() => {
@@ -4077,9 +4401,190 @@ useEffect(() => {
     : slotViewMode === "multiline"
       ? `${multiLineStake} Token einsetzen`
       : `${effectiveSlotCost} Token einsetzen`}
+
 </Button>
                 </div>
+<div className="rounded-3xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+  <div className="flex items-start justify-between gap-3">
+    <div>
+      <div className="text-sm text-zinc-400">Risk Game</div>
+      <div className="text-2xl font-black">Alles Spitze</div>
+      <div className="mt-1 text-sm text-zinc-400">
+        Drück weiter auf Play für mehr Pot und bessere Rarity. Trifft Zombie Teddy die Mitte, verlierst du alles.
+      </div>
+    </div>
 
+    <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200">
+      Teddy: {(riskBombChance * 100).toFixed(0)}%
+    </div>
+  </div>
+
+  <div className="mt-4 grid grid-cols-3 gap-3">
+    <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Streak</div>
+      <div className="mt-1 text-2xl font-black">{riskStreak}</div>
+    </div>
+
+    <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pot</div>
+      <div className="mt-1 text-2xl font-black text-amber-200">{riskPot}</div>
+    </div>
+
+    <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Rarity</div>
+      <div className="mt-1 text-2xl font-black">{riskTier}</div>
+    </div>
+  </div>
+
+  <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4">
+    <div className="mb-3 flex items-center justify-between">
+      <div className="text-sm font-bold text-zinc-300">Laufband</div>
+      <div className="text-xs text-zinc-500">
+        Einsatz Start: {RISK_ENTRY_COST} Token
+      </div>
+    </div>
+
+    <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] px-3 py-6">
+      <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-[3px] -translate-x-1/2 bg-red-500 shadow-[0_0_18px_rgba(239,68,68,0.8)]" />
+
+      <div className="flex items-center gap-3">
+        {riskStrip.map((symbol, idx) => (
+          <div
+            key={`${symbol.slug}-${idx}-${symbol.name}`}
+            className={`shrink-0 transition ${
+              idx === RISK_CENTER_INDEX ? "scale-110" : "scale-90 opacity-70"
+            }`}
+          >
+            <div className="flex h-24 w-20 items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32 md:w-24">
+              <img
+                src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
+                alt={symbol.name}
+                className="max-h-full max-w-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.src = "/items/fallback.png";
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {riskLastItem ? (
+      <div
+        className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
+          riskLastItem.slug === "zombieteddy-ultra"
+            ? "border-red-500/20 bg-red-500/10 text-red-200"
+            : "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+        }`}
+      >
+        Letztes Icon: <span className="font-bold">{riskLastItem.name}</span>
+      </div>
+    ) : null}
+
+    {riskGiftPreview ? (
+      <div className={`mt-4 rounded-3xl border p-4 ${rarityStyles[riskGiftPreview.rarity]}`}>
+        <div className="text-xs uppercase tracking-[0.22em] opacity-80">Geschenk erhalten</div>
+        <div className="mt-3 flex items-center gap-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/20 p-2">
+            <img
+              src={getSafeItemImagePath(riskGiftPreview.slug, riskGiftPreview.image_path)}
+              alt={riskGiftPreview.name}
+              className="max-h-full max-w-full object-contain"
+              onError={(e) => {
+                e.currentTarget.src = "/items/fallback.png";
+              }}
+            />
+          </div>
+          <div>
+            <div className="font-black">{riskGiftPreview.name}</div>
+            <div className="text-sm opacity-80">{riskGiftPreview.rarity}</div>
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-sm font-bold text-zinc-300">Leiter</div>
+        <div className="text-xs text-zinc-500">
+          {riskNextTier
+            ? `Noch ${riskNextTier.streak - riskStreak} bis ${riskNextTier.tier}`
+            : "Maximale Stufe erreicht"}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {RISK_TIER_STEPS.map((step) => {
+          const active = riskStreak >= step.streak;
+          return (
+            <div
+              key={`${step.tier}-${step.streak}`}
+              className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
+                active
+                  ? "border-amber-400/30 bg-amber-500/10 text-amber-200"
+                  : "border-white/10 bg-black/20 text-zinc-400"
+              }`}
+            >
+              <div className="font-semibold">{step.tier}</div>
+              <div className="text-sm">{step.streak}+ Icons</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
+      <div className="mb-3 text-sm font-bold text-zinc-300">Mögliche Gewinne</div>
+
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        {Object.entries(RISK_REWARD_BY_STREAK).map(([streak, reward]) => (
+          <div
+            key={`risk-reward-${streak}`}
+            className="flex items-center justify-between rounded-xl bg-black/30 px-3 py-2"
+          >
+            <span className="text-zinc-400">{streak} in Folge</span>
+            <span className="font-bold text-amber-200">+{reward}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 text-xs text-zinc-500">
+        Ab 3 in Folge bekommst du beim Cashout zusätzlich 1 Geschenk entsprechend deiner erreichten Rarity.
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      <Button
+        onClick={playRiskGame}
+        variant="violet"
+        disabled={riskRunning || (!riskStarted && data.tokens < RISK_ENTRY_COST)}
+        className="w-full"
+      >
+        {riskRunning ? "Läuft..." : riskStarted ? "Weiter spielen" : `Play (${RISK_ENTRY_COST})`}
+      </Button>
+
+      <Button
+        onClick={cashOutRiskGame}
+        variant="ghost"
+        disabled={!riskStarted || riskRunning}
+        className="w-full"
+      >
+        Cashout ({riskPot})
+      </Button>
+    </div>
+
+    {(riskGameOver || riskJustLost) && (
+      <Button
+        onClick={resetRiskGame}
+        variant="danger"
+        className="mt-3 w-full"
+      >
+        Neuer Run
+      </Button>
+    )}
+  </div>
+</div>
                 <AnimatePresence>
                   {lastWin && (
                     <motion.div
