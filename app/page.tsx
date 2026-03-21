@@ -834,7 +834,7 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 type RiskTier = "None" | "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
 
 const RISK_ENTRY_COST = 1;
-const RISK_CENTER_INDEX = 7;
+const RISK_CENTER_INDEX = 6;
 
 const RISK_REWARD_BY_STREAK: Record<number, number> = {
   1: 2,
@@ -1291,7 +1291,7 @@ const potentialBetWin =
 const [slotStake, setSlotStake] = useState<number>(1);
 const [multiSlotMode, setMultiSlotMode] = useState(false);
 const [multiLineStake, setMultiLineStake] = useState<number>(1);
-const [slotViewMode, setSlotViewMode] = useState<"classic" | "multiline">("classic");
+const [slotViewMode, setSlotViewMode] = useState<"classic" | "multiline" | "risk">("classic");
 
 const effectiveSlotCost = multiSlotMode ? slotStake * 3 : slotStake;
 
@@ -4096,9 +4096,22 @@ useEffect(() => {
   >
     Multi-Line
   </Button>
-</div>
 
+  <Button
+    onClick={() => {
+      setSlotViewMode("risk");
+      setLastMultiLineWinningIndexes([]);
+    }}
+    variant={slotViewMode === "risk" ? "violet" : "ghost"}
+    className="w-full"
+  >
+    Alles Spitze
+  </Button>
+</div>
+{slotViewMode !== "risk" && (
                 <div className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
+
+
                   <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-violet-500/18 blur-3xl" />
                   <div className="pointer-events-none absolute -right-12 bottom-8 h-40 w-40 rounded-full bg-fuchsia-500/16 blur-3xl" />
                   <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-gradient-to-b from-amber-200/10 to-transparent blur-2xl" />
@@ -4118,6 +4131,7 @@ useEffect(() => {
                       <div className="text-lg font-black text-amber-200">{data.tokens}</div>
                     </div>
                   </div>
+
 
                  <div className="relative z-10 mb-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
   {slotViewMode === "multiline" ? (
@@ -4404,6 +4418,8 @@ useEffect(() => {
 
 </Button>
                 </div>
+                )}
+
 <div className="rounded-3xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
   <div className="flex items-start justify-between gap-3">
     <div>
