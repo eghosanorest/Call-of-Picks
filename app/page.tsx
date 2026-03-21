@@ -2189,60 +2189,82 @@ if (!userId) {
     clearInterval(rolling);
 
     if (multiSlotMode) {
-      let finalGrid = [
-        buildRandomRow(),
-        buildRandomRow(),
-        buildRandomRow(),
-      ];
+  let finalGrid = [
+    buildRandomRow(),
+    buildRandomRow(),
+    buildRandomRow(),
+  ];
 
-      finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
+  finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
 
-      setMultiReels(finalGrid);
+  setMultiReels(finalGrid);
 
-      const winningRows = finalGrid.filter(isWinningRow);
-      const wonSymbols = winningRows.map((row) => row[0]);
+  const winningRows = finalGrid.filter(isWinningRow);
+  const wonSymbols = winningRows.map((row) => row[0]);
+  const hitCount = winningRows.length;
 
-      const spinRecord = {
-        at: Date.now(),
-        reels: finalGrid.flat().map((r) => r.id),
-        won: winningRows.length > 0,
-      };
+  const multiplier =
+    hitCount === 1 ? 2 :
+    hitCount === 2 ? 5 :
+    hitCount >= 3 ? 12 :
+    0;
 
-      await pushSpinHistoryOnline(spinRecord.reels, spinRecord.won);
+  const payout = hitCount > 0 ? slotStake * multiplier : 0;
+  const finalTokens = nextTokens + payout;
 
-      updateData((prev) => ({
-        ...prev,
-        inventory:
-          winningRows.length > 0
-            ? [
-                ...prev.inventory,
-                ...wonSymbols.map((symbol, index) => ({
-                  inventory_id: `local-${Date.now()}-${index}`,
-                  id: symbol.id,
-                  slug: symbol.slug,
-                  name: symbol.name,
-                  rarity: symbol.rarity,
-                  image_path: symbol.image_path,
-                  weight: symbol.weight,
-                })),
-              ]
-            : prev.inventory,
-        spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
-      }));
-
-      for (const symbol of wonSymbols) {
-        await grantServerInventoryItem(symbol);
-      }
-
-      if (wonSymbols.length > 0) {
-        setLastWins(wonSymbols);
-        setLastWin(wonSymbols[0]);
-      }
-
-      await loadRemoteUserGameState(userId);
+  if (payout > 0) {
+    const tokenSaved = await updateTokensOnline(finalTokens);
+    if (!tokenSaved) {
       setSpinning(false);
       return;
     }
+  }
+
+  const spinRecord = {
+    at: Date.now(),
+    reels: finalGrid.flat().map((r) => r.id),
+    won: winningRows.length > 0,
+  };
+
+  await pushSpinHistoryOnline(spinRecord.reels, spinRecord.won);
+
+  updateData((prev) => ({
+    ...prev,
+    tokens: finalTokens,
+    inventory:
+      winningRows.length > 0
+        ? [
+            ...prev.inventory,
+            ...wonSymbols.map((symbol, index) => ({
+              inventory_id: `local-${Date.now()}-${index}`,
+              id: symbol.id,
+              slug: symbol.slug,
+              name: symbol.name,
+              rarity: symbol.rarity,
+              image_path: symbol.image_path,
+              weight: symbol.weight,
+            })),
+          ]
+        : prev.inventory,
+    spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
+  }));
+
+  for (const symbol of wonSymbols) {
+    await grantServerInventoryItem(symbol);
+  }
+
+  if (wonSymbols.length > 0) {
+    setLastWins(wonSymbols);
+    setLastWin(wonSymbols[0]);
+    setMessage(`${hitCount} Treffer! +${payout} Tokens`);
+  } else {
+    setMessage("Kein Treffer.");
+  }
+
+  await loadRemoteUserGameState(userId);
+  setSpinning(false);
+  return;
+}
 
     let finalReels = buildRandomRow();
     finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
