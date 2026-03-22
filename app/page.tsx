@@ -1181,7 +1181,32 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
 };
 
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
-const classicSpinStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const stopClassicSpinSound = () => {
+  const audio = classicSpinAudioRef.current;
+  if (!audio) return;
+
+  audio.pause();
+  audio.currentTime = 0;
+};
+
+const playClassicSpinSound = () => {
+  try {
+    if (!classicSpinAudioRef.current) {
+      classicSpinAudioRef.current = new Audio("/sounds/mystery-box-jingle-full.mp3");
+      classicSpinAudioRef.current.preload = "auto";
+    }
+
+    const audio = classicSpinAudioRef.current;
+
+    audio.pause();
+    audio.currentTime = 1.5;
+    audio.volume = 1;
+
+    audio.play().catch(() => {});
+  } catch {
+    // absichtlich leer
+  }
+};
 const parsedStake = Number(betStake) || 0;
 const potentialBetWin =
   parsedStake > 0 && selectedBetMatches.length > 0
@@ -1209,45 +1234,9 @@ const stopAutoSpin = () => {
   }
 };
 
-const stopClassicSpinSound = () => {
-  if (classicSpinStopTimeoutRef.current) {
-    clearTimeout(classicSpinStopTimeoutRef.current);
-    classicSpinStopTimeoutRef.current = null;
-  }
 
-  const audio = classicSpinAudioRef.current;
-  if (!audio) return;
 
-  audio.pause();
-  audio.currentTime = 0;
-};
 
-const playClassicSpinSound = () => {
-  try {
-    if (!classicSpinAudioRef.current) {
-      classicSpinAudioRef.current = new Audio("/sounds/mystery-box-jingle-full.mp3");
-      classicSpinAudioRef.current.preload = "auto";
-    }
-
-    const audio = classicSpinAudioRef.current;
-
-    audio.pause();
-    audio.currentTime = 1.2; // hier startest du mitten im Sound
-    audio.volume = 1;
-
-    audio.play().catch(() => {});
-
-    if (classicSpinStopTimeoutRef.current) {
-      clearTimeout(classicSpinStopTimeoutRef.current);
-    }
-
-    classicSpinStopTimeoutRef.current = setTimeout(() => {
-      stopClassicSpinSound();
-    }, 1800); // gleiche Länge wie dein normaler Spin
-  } catch {
-    // absichtlich leer
-  }
-};
 const startAutoSpin = (mode: "slot" | "multiline-slot") => {
   setAutoSpinEnabled(true);
   setAutoSpinMode(mode);
