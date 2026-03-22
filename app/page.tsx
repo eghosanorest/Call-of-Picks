@@ -4140,9 +4140,11 @@ useEffect(() => {
                     </div>
                   </div>
 
-                 {slotViewMode === "classic" && (
+                 {slotViewMode !== "multiline" && (
   <div className="relative z-10 mb-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
-    <div className="mb-3 text-sm font-bold text-zinc-300">Einsatz wählen</div>
+    <div className="mb-3 text-sm font-bold text-zinc-300">
+      {slotViewMode === "risk" ? "Risk Einsatz" : "Einsatz wählen"}
+    </div>
 
     <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
       {SLOT_STAKES.map((stake) => {
@@ -4161,32 +4163,36 @@ useEffect(() => {
             }`}
           >
             <div className="font-black">{stake}</div>
-            <div className="text-xs text-zinc-400">+{bonus}%</div>
+            <div className="text-xs text-zinc-400">
+              {slotViewMode === "risk" ? "pro Run" : `+${bonus}%`}
+            </div>
           </button>
         );
       })}
     </div>
 
-    <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
-      <div>
-        <div className="text-sm font-bold text-zinc-200">Multi-Slots</div>
-        <div className="text-xs text-zinc-400">
-          3x3 Layout · bis zu 3 Treffer pro Spin
+    {slotViewMode === "classic" && (
+      <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+        <div>
+          <div className="text-sm font-bold text-zinc-200">Multi-Slots</div>
+          <div className="text-xs text-zinc-400">
+            3x3 Layout · bis zu 3 Treffer pro Spin
+          </div>
         </div>
-      </div>
 
-      <button
-        type="button"
-        onClick={() => setMultiSlotMode((prev) => !prev)}
-        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-          multiSlotMode
-            ? "bg-emerald-500 text-black"
-            : "bg-white/5 text-zinc-300"
-        }`}
-      >
-        {multiSlotMode ? "Aktiv" : "Aus"}
-      </button>
-    </div>
+        <button
+          type="button"
+          onClick={() => setMultiSlotMode((prev) => !prev)}
+          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+            multiSlotMode
+              ? "bg-emerald-500 text-black"
+              : "bg-white/5 text-zinc-300"
+          }`}
+        >
+          {multiSlotMode ? "Aktiv" : "Aus"}
+        </button>
+      </div>
+    )}
   </div>
 )}
 
@@ -4460,48 +4466,47 @@ useEffect(() => {
   </div>
 ) : null}
 
-          <div className="mt-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-lg font-bold text-white">Leiter</div>
-              <div className="text-sm text-zinc-400">
-                {riskStreak < 4
-                  ? "Noch 4 bis Common"
-                  : riskStreak < 6
-                    ? "Noch 1 bis Rare"
-                    : riskStreak < 8
-                      ? "Noch 1 bis Epic"
-                      : riskStreak < 11
-                        ? "Noch 1 bis Legendary"
-                        : "Legendary erreicht"}
-              </div>
-            </div>
+         <div className="mt-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4">
+  <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="text-lg font-bold text-white">Leiter</div>
+    <div className="text-sm text-zinc-400 text-right">
+      {riskStreak < 4
+        ? `Noch ${4 - riskStreak} bis Common`
+        : riskStreak < 6
+          ? `Noch ${6 - riskStreak} bis Rare`
+          : riskStreak < 8
+            ? `Noch ${8 - riskStreak} bis Epic`
+            : riskStreak < 11
+              ? `Noch ${11 - riskStreak} bis Legendary`
+              : "Legendary erreicht"}
+    </div>
+  </div>
 
-            <div className="space-y-3">
-              {[
-                { label: "Common", need: 4 },
-                { label: "Rare", need: 6 },
-                { label: "Epic", need: 8 },
-                { label: "Legendary", need: 11 },
-              ].map((tier) => {
-                const active = riskStreak >= tier.need;
-                return (
-                  <div
-                    key={tier.label}
-                    className={`rounded-2xl border px-4 py-3 ${
-                      active
-                        ? "border-amber-400 bg-amber-500/15 text-amber-100"
-                        : "border-amber-500/30 bg-amber-500/5 text-zinc-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl font-black">{tier.label}</span>
-                      <span className="text-2xl font-black">{tier.need}+</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    {[
+      { label: "Common", need: 4 },
+      { label: "Rare", need: 6 },
+      { label: "Epic", need: 8 },
+      { label: "Legendary", need: 11 },
+    ].map((tier) => {
+      const active = riskStreak >= tier.need;
+
+      return (
+        <div
+          key={tier.label}
+          className={`rounded-2xl border px-3 py-3 text-center transition ${
+            active
+              ? "border-amber-400 bg-amber-500/15 text-amber-100"
+              : "border-amber-500/30 bg-amber-500/5 text-zinc-300"
+          }`}
+        >
+          <div className="text-lg font-black leading-none">{tier.label}</div>
+          <div className="mt-2 text-sm font-semibold opacity-80">{tier.need}+</div>
+        </div>
+      );
+    })}
+  </div>
+</div>
 
           
 
