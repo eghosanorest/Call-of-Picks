@@ -1413,7 +1413,8 @@ const [riskGiftPreview, setRiskGiftPreview] = useState<LocalSymbol | null>(null)
 
 const riskLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const riskSnapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+const riskViewportRef = useRef<HTMLDivElement | null>(null);
+const riskItemRefs = useRef<(HTMLDivElement | null)[]>([]);
 const clearRiskTimers = () => {
   if (riskLoopRef.current) {
     clearTimeout(riskLoopRef.current);
@@ -1458,6 +1459,33 @@ const buildFinalRiskSequence = (finalItem: LocalSymbol) => {
     riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
     finalItem,
   ];
+};
+const getItemUnderRiskLine = (): LocalSymbol | null => {
+  const viewport = riskViewportRef.current;
+  if (!viewport) return null;
+
+  const viewportRect = viewport.getBoundingClientRect();
+  const lineX = viewportRect.left + viewportRect.width / 2;
+
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  riskItemRefs.current.forEach((node, index) => {
+    if (!node) return;
+
+    const rect = node.getBoundingClientRect();
+    const itemCenterX = rect.left + rect.width / 2;
+    const distance = Math.abs(itemCenterX - lineX);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+
+  if (bestIndex === -1) return null;
+
+  return riskStrip[bestIndex] ?? null;
 };
 const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
 const riskNextTier = useMemo(() => getRiskNextTier(riskStreak), [riskStreak]);
@@ -2706,9 +2734,20 @@ for (let i = 0; i < finalSequence.length; i++) {
 
 setRiskOffset(0);
 setRiskTransitionMs(0);
-setRiskLastItem(finalItem);
+await new Promise((resolve) => setTimeout(resolve, 40));
 
-    if (lose) {
+const landedItem = getItemUnderRiskLine();
+
+if (!landedItem) {
+  setMessage("Kein Item erkannt.");
+  return;
+}
+
+setRiskLastItem(landedItem);
+
+    const reallyLost = landedItem.slug === "zombieteddy-ultra";
+
+if (reallyLost) {
       setRiskGameOver(true);
       setRiskJustLost(true);
       setRiskStarted(false);
@@ -4573,7 +4612,7 @@ useEffect(() => {
   <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-black via-black/70 to-transparent" />
   <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-black via-black/70 to-transparent" />
 
-  <div className="overflow-hidden">
+  <div ref={riskViewportRef} className="overflow-hidden">
   <div
     className="flex will-change-transform"
     style={{
@@ -4583,16 +4622,19 @@ useEffect(() => {
     }}
   >
     {visibleRiskStrip.map((symbol, idx) => {
-      const isCenter = idx === RISK_VISIBLE_CENTER_INDEX;
+  const isCenter = idx === RISK_VISIBLE_CENTER_INDEX;
 
-      return (
-        <div
-          key={`${symbol.slug}-${idx}-${riskStreak}-${riskStarted ? "run" : "idle"}`}
-          className={`shrink-0 transition ${
-            isCenter ? "scale-110" : "scale-90 opacity-70"
-          }`}
-          style={{ width: `${RISK_ITEM_WIDTH}px` }}
-        >
+  return (
+    <div
+      ref={(el) => {
+        riskItemRefs.current[idx] = el;
+      }}
+      key={`${symbol.slug}-${idx}-${riskStreak}-${riskStarted ? "run" : "idle"}`}
+      className={`shrink-0 transition ${
+        isCenter ? "scale-110" : "scale-90 opacity-70"
+      }`}
+      style={{ width: `${RISK_ITEM_WIDTH}px` }}
+    >
           <div className="flex h-24 w-full items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32">
             <img
               src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
