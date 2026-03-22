@@ -1313,7 +1313,7 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const [firstshotRound, setFirstshotRound] = useState<FirstshotRoundState | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+const riskViewportRef = useRef<HTMLDivElement | null>(null);
   const [adminDraft, setAdminDraft] = useState({
   teamA: "",
   teamB: "",
@@ -2441,7 +2441,7 @@ riskLoopRef.current = setTimeout(() => {
     setRiskRunning(false);
   }, 350);
 }, 1400);
-
+};
   riskLoopRef.current = setTimeout(animateSlowdown, speeds[0]);
 };
 
