@@ -2316,6 +2316,38 @@ const cashoutRiskGame = async () => {
   setRiskOffset(0);
 };
 
+const getRiskTargetOffset = (
+  landingIndex: number,
+  visibleWidth: number
+) => {
+  const itemCenter = landingIndex * RISK_STEP + RISK_ITEM_WIDTH / 2;
+  const lineCenter = visibleWidth / 2;
+  return -(itemCenter - lineCenter);
+};
+
+const getNearestRiskIndex = (
+  offset: number,
+  visibleWidth: number,
+  itemCount: number
+) => {
+  const lineCenter = visibleWidth / 2;
+  const linePositionInStrip = lineCenter - offset;
+
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < itemCount; i++) {
+    const itemCenter = i * RISK_STEP + RISK_ITEM_WIDTH / 2;
+    const distance = Math.abs(itemCenter - linePositionInStrip);
+
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = i;
+    }
+  }
+
+  return nearestIndex;
+};
 const spinRiskGame = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -2363,10 +2395,10 @@ const spinRiskGame = async () => {
 
   setRiskStrip(nextStrip);
 
-  const targetOffset = -(landingIndex * RISK_STEP);
-  const overshoot = targetOffset - RISK_STEP * 6.5;
-
-  setRiskOffset(overshoot);
+  const visibleWidth = riskViewportRef.current?.clientWidth || 900;
+const targetOffset = getRiskTargetOffset(landingIndex, visibleWidth);
+const overshoot = targetOffset - RISK_STEP * 6;
+const settleBack = targetOffset;
 
   const speeds = [65, 80, 100, 130, 170, 220, 280];
 
@@ -2379,27 +2411,36 @@ const spinRiskGame = async () => {
       return;
     }
 
-    riskLoopRef.current = setTimeout(async () => {
-      setRiskOffset(targetOffset);
+    setRiskOffset(overshoot);
 
-      const selected = nextStrip[landingIndex];
-      setRiskSelectedItem(selected);
+riskLoopRef.current = setTimeout(() => {
+  setRiskOffset(targetOffset);
 
-      if (selected.slug === "zombieteddy-ultra") {
-        setRiskPot(0);
-        setRiskStreak(0);
-        setRiskGameOver(true);
-        setMessage("Zombie Teddy getroffen. Alles verloren.");
-      } else {
-        const reward = getRiskTokenReward(selected, riskStake);
-        setRiskPot((prev) => prev + reward);
-        setRiskStreak((prev) => prev + 1);
-        setMessage(`${selected.name} erkannt. +${reward} Tokens in den Pot.`);
-      }
+  riskLoopRef.current = setTimeout(() => {
+    const finalIndex = getNearestRiskIndex(
+      targetOffset,
+      visibleWidth,
+      nextStrip.length
+    );
 
-      setRiskRunning(false);
-    }, 320);
-  };
+    const selected = nextStrip[finalIndex];
+    setRiskSelectedItem(selected);
+
+    if (selected.slug === zombieTeddySymbol.slug) {
+      setRiskPot(0);
+      setRiskStreak(0);
+      setRiskGameOver(true);
+      setMessage("Zombie Teddy getroffen. Alles verloren.");
+    } else {
+      const reward = getRiskTokenReward(selected, riskStake);
+      setRiskPot((prev) => prev + reward);
+      setRiskStreak((prev) => prev + 1);
+      setMessage(`${selected.name} erkannt. +${reward} Tokens in den Pot.`);
+    }
+
+    setRiskRunning(false);
+  }, 350);
+}, 1400);
 
   riskLoopRef.current = setTimeout(animateSlowdown, speeds[0]);
 };
@@ -4275,7 +4316,10 @@ useEffect(() => {
             <div className="text-sm text-zinc-400">Einsatz Start: {riskStake} Token</div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_60%),linear-gradient(180deg,rgba(14,14,18,1),rgba(5,5,7,1))] px-16 py-8">
+          <div
+  ref={riskViewportRef}
+  className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_60%),linear-gradient(180deg,rgba(14,14,18,1),rgba(5,5,7,1))] px-16 py-8"
+>
             <div className="pointer-events-none absolute inset-y-0 left-1/2 z-30 w-[4px] -translate-x-1/2 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_18px_rgba(248,113,113,0.85)]" />
 
             <motion.div
