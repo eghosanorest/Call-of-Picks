@@ -2897,7 +2897,7 @@ const ensureProfile = async (uid: string, email: string) => {
 
     if (error) {
       setMessage(error.message);
-      return;
+      return; 
     }
 
     const allRows = (rows || []) as ChallengeType[];
