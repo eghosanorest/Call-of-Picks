@@ -4139,85 +4139,83 @@ useEffect(() => {
                     </div>
                   </div>
 
-                 {slotViewMode !== "risk" && (
+                 {slotViewMode === "classic" && (
   <div className="relative z-10 mb-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
-    {slotViewMode === "multiline" ? (
-      <>
-        <div className="mb-3 text-sm font-bold text-zinc-300">Multi-Line Einsatz</div>
+    <div className="mb-3 text-sm font-bold text-zinc-300">Einsatz wählen</div>
 
-        <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
-          {SLOT_STAKES.map((stake) => (
-            <button
-              key={`multiline-${stake}`}
-              type="button"
-              onClick={() => setMultiLineStake(stake)}
-              className={`rounded-2xl border px-3 py-3 text-sm transition ${
-                multiLineStake === stake
-                  ? "border-violet-400 bg-violet-500/20 text-white"
-                  : "border-white/10 bg-black/40 text-zinc-300"
-              }`}
-            >
-              <div className="font-black">{stake}</div>
-            </button>
-          ))}
-        </div>
+    <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+      {SLOT_STAKES.map((stake) => {
+        const active = slotStake === stake;
+        const bonus = SLOT_BONUS_CHANCE[stake] * 100;
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
-          <div className="text-sm font-bold text-zinc-200">Multi-Line Modus</div>
-          <div className="text-xs text-zinc-400">
-            3x3 Grid · 8 Gewinnlinien · Einsatz nur für Multi-Line
-          </div>
-        </div>
-      </>
-    ) : (
-      <>
-        <div className="mb-3 text-sm font-bold text-zinc-300">Einsatz wählen</div>
-
-        <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
-          {SLOT_STAKES.map((stake) => {
-            const active = slotStake === stake;
-            const bonus = SLOT_BONUS_CHANCE[stake] * 100;
-
-            return (
-              <button
-                key={stake}
-                type="button"
-                onClick={() => setSlotStake(stake)}
-                className={`rounded-2xl border px-3 py-3 text-sm transition ${
-                  active
-                    ? "border-violet-400 bg-violet-500/20 text-white"
-                    : "border-white/10 bg-black/40 text-zinc-300"
-                }`}
-              >
-                <div className="font-black">{stake}</div>
-                <div className="text-xs text-zinc-400">+{bonus}%</div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
-          <div>
-            <div className="text-sm font-bold text-zinc-200">Multi-Slots</div>
-            <div className="text-xs text-zinc-400">
-              3x3 Layout · bis zu 3 Treffer pro Spin
-            </div>
-          </div>
-
+        return (
           <button
+            key={stake}
             type="button"
-            onClick={() => setMultiSlotMode((prev) => !prev)}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              multiSlotMode
-                ? "bg-emerald-500 text-black"
-                : "bg-white/5 text-zinc-300"
+            onClick={() => setSlotStake(stake)}
+            className={`rounded-2xl border px-3 py-3 text-sm transition ${
+              active
+                ? "border-violet-400 bg-violet-500/20 text-white"
+                : "border-white/10 bg-black/40 text-zinc-300"
             }`}
           >
-            {multiSlotMode ? "Aktiv" : "Aus"}
+            <div className="font-black">{stake}</div>
+            <div className="text-xs text-zinc-400">+{bonus}%</div>
           </button>
+        );
+      })}
+    </div>
+
+    <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+      <div>
+        <div className="text-sm font-bold text-zinc-200">Multi-Slots</div>
+        <div className="text-xs text-zinc-400">
+          3x3 Layout · bis zu 3 Treffer pro Spin
         </div>
-      </>
-    )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setMultiSlotMode((prev) => !prev)}
+        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+          multiSlotMode
+            ? "bg-emerald-500 text-black"
+            : "bg-white/5 text-zinc-300"
+        }`}
+      >
+        {multiSlotMode ? "Aktiv" : "Aus"}
+      </button>
+    </div>
+  </div>
+)}
+
+{slotViewMode === "multiline" && (
+  <div className="relative z-10 mb-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
+    <div className="mb-3 text-sm font-bold text-zinc-300">Multi-Line Einsatz</div>
+
+    <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+      {SLOT_STAKES.map((stake) => (
+        <button
+          key={`multiline-${stake}`}
+          type="button"
+          onClick={() => setMultiLineStake(stake)}
+          className={`rounded-2xl border px-3 py-3 text-sm transition ${
+            multiLineStake === stake
+              ? "border-violet-400 bg-violet-500/20 text-white"
+              : "border-white/10 bg-black/40 text-zinc-300"
+          }`}
+        >
+          <div className="font-black">{stake}</div>
+        </button>
+      ))}
+    </div>
+
+    <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+      <div className="text-sm font-bold text-zinc-200">Multi-Line Modus</div>
+      <div className="text-xs text-zinc-400">
+        3x3 Grid · 8 Gewinnlinien · Einsatz nur für Multi-Line
+      </div>
+    </div>
   </div>
 )}
 <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
