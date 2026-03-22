@@ -4329,28 +4329,33 @@ useEffect(() => {
     duration: riskRunning ? 2.35 : 0.28,
     ease: riskRunning ? [0.12, 0.8, 0.18, 1] : "easeOut",
   }}
-            >
-              {riskStrip.map((symbol, index) => (
-                <div
-                  key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
-                  className={`relative flex h-40 w-[104px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-3 ${
-                    riskSelectedItem?.slug === symbol.slug && !riskRunning
-                      ? "border-red-400 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.28)]"
-                      : "border-white/10 bg-white/[0.03]"
-                  }`}
-                >
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_45%)]" />
-                  <img
-                    src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
-                    alt={symbol.name}
-                    className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]"
-                    onError={(e) => {
-                      e.currentTarget.src = "/items/fallback.png";
-                    }}
-                  />
-                </div>
-              ))}
-            </motion.div>
+  className="flex items-center"
+  style={{
+    gap: `${RISK_ITEM_GAP}px`,
+    width: "max-content",
+  }}
+>
+  {riskStrip.map((symbol, index) => (
+    <div
+      key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
+      className={`relative flex h-40 w-[104px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-3 ${
+        riskSelectedIndex === index && !riskRunning
+          ? "border-red-400 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.28)]"
+          : "border-white/10 bg-white/[0.03]"
+      }`}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_45%)]" />
+      <img
+        src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
+        alt={symbol.name}
+        className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]"
+        onError={(e) => {
+          e.currentTarget.src = "/items/fallback.png";
+        }}
+      />
+    </div>
+  ))}
+</motion.div>
           </div>
 
           <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
