@@ -2942,6 +2942,7 @@ if (isClassicSingleSlot) {
     }
   }
 }, [data.weeks, data.currentMajor, data.currentWeek, isAdmin]);
+
 useEffect(() => {
   const init = async () => {
     await loadAllItems();
@@ -2949,91 +2950,70 @@ useEffect(() => {
     await autoLockExpiredMatches();
     await loadMatches();
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (session?.user) {
-  const user = session.user;
-  setUserId(user.id);
-  setUserEmail(user.email || "");
-  setIsAdmin(ADMIN_USER_IDS.includes(user.id));
-  await ensureProfile(user.id, user.email || "");
-  await loadRemoteUserGameState(user.id);
-if (session?.user) {
-  const user = session.user;
-  setUserId(user.id);
-  setUserEmail(user.email || "");
-  setIsAdmin(ADMIN_USER_IDS.includes(user.id));
-  await ensureProfile(user.id, user.email || "");
-  await loadRemoteUserGameState(user.id);
-
-  setData((prev) => ({
-    ...prev,
-    tokens: 9999,
-  }));
-
-  await loadUserBets(user.id);
-  await loadMyGroups(user.id);
-}
-  setData((prev) => ({
-    ...prev,
-    tokens: 9999,
-  }));
-
-  await loadUserBets(user.id);
-  await loadMyGroups(user.id);
-}
-
-  setMounted(true);
-};
-
-    init();
-
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-  const user = session.user;
-  setUserId(user.id);
-  setUserEmail(user.email || "");
-  setIsAdmin(ADMIN_USER_IDS.includes(user.id));
-  await ensureProfile(user.id, user.email || "");
-  await loadRemoteUserGameState(user.id);
-  await loadUserBets(user.id);
-  await loadMyGroups(user.id);
-} else {
-        setUserId("");
-        setUserEmail("");
-        setProfileName("");
-        setNeedsUsername(false);
-        setIsAdmin(false);
-        setMyGroups([]);
-        setActiveGroupId("");
-        setMembers([]);
-        setMemberInventories([]);
-        setSelectedMember(null);
-        setChallengeTargetItem(null);
-        setChallengeTargetUser(null);
-        setShowChallengePicker(false);
-        setIncomingChallenges([]);
-        setOutgoingChallenges([]);
-        setAllChallenges([]);
-        setSelectedChallenge(null);
-        setData((prev) => ({
-  ...prev,
-  picks: {},
-  resolvedMatchIds: [],
-  tokens: 0,
-  inventory: [],
-  spinHistory: [],
-  bets: [],
-}));
-      }
-    });
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    return () => subscription.unsubscribe();
-  }, []);
+    if (session?.user) {
+      const user = session.user;
+      setUserId(user.id);
+      setUserEmail(user.email || "");
+      setIsAdmin(ADMIN_USER_IDS.includes(user.id));
+      await ensureProfile(user.id, user.email || "");
+      await loadRemoteUserGameState(user.id);
+      await loadUserBets(user.id);
+      await loadMyGroups(user.id);
+    }
+
+    setMounted(true);
+  };
+
+  init();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user) {
+      const user = session.user;
+      setUserId(user.id);
+      setUserEmail(user.email || "");
+      setIsAdmin(ADMIN_USER_IDS.includes(user.id));
+      await ensureProfile(user.id, user.email || "");
+      await loadRemoteUserGameState(user.id);
+      await loadUserBets(user.id);
+      await loadMyGroups(user.id);
+    } else {
+      setUserId("");
+      setUserEmail("");
+      setProfileName("");
+      setNeedsUsername(false);
+      setIsAdmin(false);
+      setMyGroups([]);
+      setActiveGroupId("");
+      setMembers([]);
+      setMemberInventories([]);
+      setSelectedMember(null);
+      setChallengeTargetItem(null);
+      setChallengeTargetUser(null);
+      setShowChallengePicker(false);
+      setIncomingChallenges([]);
+      setOutgoingChallenges([]);
+      setAllChallenges([]);
+      setSelectedChallenge(null);
+      setData((prev) => ({
+        ...prev,
+        picks: {},
+        resolvedMatchIds: [],
+        tokens: 0,
+        inventory: [],
+        spinHistory: [],
+        bets: [],
+      }));
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
 
   useEffect(() => {
   const channel = supabase
