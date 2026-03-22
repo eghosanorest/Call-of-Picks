@@ -864,7 +864,7 @@ export default function CallOfPicksPage() {
 const multilineSymbols = useMemo(() => {
   return allItemCatalog
     .filter((item) => item.slot_enabled !== false && item.multiline_enabled === true)
-    .slice(0, 6)
+    .slice(0, 5)
     .map((item) => ({
       id: item.slug,
       slug: item.slug,
@@ -880,8 +880,8 @@ const spinMultiLine = async () => {
     return;
   }
 
-  if (multilineSymbols.length !== 6) {
-    setMessage("Für Multi-Line Slots müssen genau 6 Symbole freigegeben sein.");
+  if (multilineSymbols.length !== 5) {
+    setMessage("Für Multi-Line Slots müssen genau 5 Symbole freigegeben sein.");
     return;
   }
 
