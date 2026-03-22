@@ -4612,12 +4612,14 @@ useEffect(() => {
   <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-black via-black/70 to-transparent" />
   <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-black via-black/70 to-transparent" />
 
-  <div ref={riskViewportRef} className="overflow-hidden">
+  <div ref={riskViewportRef} className="relative overflow-hidden">
   <div
     className="flex will-change-transform"
     style={{
       gap: `${RISK_GAP}px`,
-      transform: `translateX(${riskOffset}px)`,
+      width: "max-content",
+      marginLeft: "50%",
+      transform: `translateX(calc(-50% + ${riskOffset}px))`,
       transition: riskTransitionMs > 0 ? `transform ${riskTransitionMs}ms ease-out` : "none",
     }}
   >
@@ -4631,9 +4633,12 @@ useEffect(() => {
       }}
       key={`${symbol.slug}-${idx}-${riskStreak}-${riskStarted ? "run" : "idle"}`}
       className={`shrink-0 transition ${
-        isCenter ? "scale-110" : "scale-90 opacity-70"
-      }`}
-      style={{ width: `${RISK_ITEM_WIDTH}px` }}
+  isCenter ? "scale-110" : "scale-90 opacity-70"
+}`}
+style={{
+  width: `${RISK_ITEM_WIDTH}px`,
+  minWidth: `${RISK_ITEM_WIDTH}px`,
+}}
     >
           <div className="flex h-24 w-full items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32">
             <img
