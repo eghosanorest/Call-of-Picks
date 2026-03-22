@@ -4350,7 +4350,7 @@ useEffect(() => {
   ref={riskViewportRef}
   className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_60%),linear-gradient(180deg,rgba(14,14,18,1),rgba(5,5,7,1))] px-16 py-8"
 >
-            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-30 w-[4px] -translate-x-1/2 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_18px_rgba(248,113,113,0.85)]" />
+            <div className="pointer-events-none absolute inset-y-0 left-[52.5%] z-30 w-[4px] -translate-x-1/2 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_18px_rgba(248,113,113,0.85)]" />
 
             <motion.div
   animate={{ x: riskOffset }}
@@ -4391,27 +4391,62 @@ useEffect(() => {
             Letztes Icon: <span className="font-black">{riskSelectedItem?.name || "-"}</span>
           </div>
 
-          {riskGameOver && (
-            <div className="mt-4 rounded-3xl border border-red-500 bg-red-950/70 p-4">
-              <div className="text-xs uppercase tracking-[0.2em] text-red-200">Geschenk erhalten</div>
-              <div className="mt-3 flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-400/30 bg-black/25 p-2">
-                  <img
-                    src={getSafeItemImagePath(zombieTeddySymbol.slug, zombieTeddySymbol.image_path)}
-                    alt={zombieTeddySymbol.name}
-                    className="max-h-full max-w-full object-contain"
-                    onError={(e) => {
-                      e.currentTarget.src = "/items/fallback.png";
-                    }}
-                  />
-                </div>
-                <div>
-                  <div className="text-3xl font-black text-white">{zombieTeddySymbol.name}</div>
-                  <div className="text-xl text-red-200">Ultra</div>
-                </div>
-              </div>
-            </div>
-          )}
+          {riskGameOver ? (
+  // 💀 GAME OVER (Teddy)
+  <div className="mt-4 rounded-3xl border border-red-500 bg-red-950/70 p-4">
+    <div className="text-xs uppercase tracking-[0.2em] text-red-200">
+      {zombieTeddySymbol.name}
+    </div>
+
+    <div className="mt-3 flex items-center gap-4">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-400/30 bg-black/25 p-2">
+        <img
+          src={getSafeItemImagePath(zombieTeddySymbol.slug, zombieTeddySymbol.image_path)}
+          alt={zombieTeddySymbol.name}
+          className="max-h-full max-w-full object-contain"
+          onError={(e) => {
+            e.currentTarget.src = "/items/fallback.png";
+          }}
+        />
+      </div>
+
+      <div>
+        <div className="text-3xl font-black text-white">GAME OVER</div>
+        <div className="text-xl text-red-200">gg</div>
+      </div>
+    </div>
+  </div>
+
+) : riskCashedOut && lastWonItem ? (
+  // 💰 AUSGEZAHLT → Geschenk anzeigen
+  <div className="mt-4 rounded-3xl border border-emerald-500 bg-emerald-950/60 p-4">
+    <div className="text-xs uppercase tracking-[0.2em] text-emerald-300">
+      GESCHENK ERHALTEN
+    </div>
+
+    <div className="mt-3 flex items-center gap-4">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-400/30 bg-black/25 p-2">
+        <img
+          src={getSafeItemImagePath(lastWonItem.slug, lastWonItem.image_path)}
+          alt={lastWonItem.name}
+          className="max-h-full max-w-full object-contain"
+          onError={(e) => {
+            e.currentTarget.src = "/items/fallback.png";
+          }}
+        />
+      </div>
+
+      <div>
+        <div className="text-3xl font-black text-white">
+          {lastWonItem.name}
+        </div>
+        <div className="text-xl text-emerald-300">
+          {lastWonItem.rarity}
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
 
           <div className="mt-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4">
             <div className="mb-3 flex items-center justify-between">
