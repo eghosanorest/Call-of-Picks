@@ -961,7 +961,11 @@ const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<LocalData>(defaultData);
 
   const [spinning, setSpinning] = useState(false);
-  
+  useEffect(() => {
+  return () => {
+    stopClassicSpinSound();
+  };
+}, []);
   const [lastWin, setLastWin] = useState<LocalSymbol | null>(null);
 
   const [message, setMessage] = useState("");
@@ -1176,7 +1180,8 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
   100: 0.5,
 };
 
-
+const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
+const classicSpinStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const parsedStake = Number(betStake) || 0;
 const potentialBetWin =
   parsedStake > 0 && selectedBetMatches.length > 0
@@ -1204,6 +1209,45 @@ const stopAutoSpin = () => {
   }
 };
 
+const stopClassicSpinSound = () => {
+  if (classicSpinStopTimeoutRef.current) {
+    clearTimeout(classicSpinStopTimeoutRef.current);
+    classicSpinStopTimeoutRef.current = null;
+  }
+
+  const audio = classicSpinAudioRef.current;
+  if (!audio) return;
+
+  audio.pause();
+  audio.currentTime = 0;
+};
+
+const playClassicSpinSound = () => {
+  try {
+    if (!classicSpinAudioRef.current) {
+      classicSpinAudioRef.current = new Audio("/sounds/mystery-box-jingle-full.mp3");
+      classicSpinAudioRef.current.preload = "auto";
+    }
+
+    const audio = classicSpinAudioRef.current;
+
+    audio.pause();
+    audio.currentTime = 1.2; // hier startest du mitten im Sound
+    audio.volume = 1;
+
+    audio.play().catch(() => {});
+
+    if (classicSpinStopTimeoutRef.current) {
+      clearTimeout(classicSpinStopTimeoutRef.current);
+    }
+
+    classicSpinStopTimeoutRef.current = setTimeout(() => {
+      stopClassicSpinSound();
+    }, 1800); // gleiche Länge wie dein normaler Spin
+  } catch {
+    // absichtlich leer
+  }
+};
 const startAutoSpin = (mode: "slot" | "multiline-slot") => {
   setAutoSpinEnabled(true);
   setAutoSpinMode(mode);
@@ -2510,6 +2554,14 @@ useEffect(() => {
   if (!tokenSaved) return;
 
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
+const isClassicSingleSlot = slotViewMode === "classic" && !multiSlotMode;
+
+if (isClassicSingleSlot) {
+  playClassicSpinSound();
+} else {
+  stopClassicSpinSound();
+}
+
   setSpinning(true);
 
   const bonusChance = SLOT_BONUS_CHANCE[slotStake] || 0;
@@ -2908,6 +2960,27 @@ useEffect(() => {
   setIsAdmin(ADMIN_USER_IDS.includes(user.id));
   await ensureProfile(user.id, user.email || "");
   await loadRemoteUserGameState(user.id);
+if (session?.user) {
+  const user = session.user;
+  setUserId(user.id);
+  setUserEmail(user.email || "");
+  setIsAdmin(ADMIN_USER_IDS.includes(user.id));
+  await ensureProfile(user.id, user.email || "");
+  await loadRemoteUserGameState(user.id);
+
+  setData((prev) => ({
+    ...prev,
+    tokens: 9999,
+  }));
+
+  await loadUserBets(user.id);
+  await loadMyGroups(user.id);
+}
+  setData((prev) => ({
+    ...prev,
+    tokens: 9999,
+  }));
+
   await loadUserBets(user.id);
   await loadMyGroups(user.id);
 }
