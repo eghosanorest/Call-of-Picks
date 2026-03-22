@@ -831,96 +831,7 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 
   return true;
 }  
-type RiskTier = "None" | "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
 
-const RISK_ENTRY_COST = 1;
-const RISK_STRIP_CENTER_INDEX = 2;
-
-const RISK_REWARD_BY_STREAK: Record<number, number> = {
-  1: 2,
-  2: 3,
-  3: 5,
-  4: 8,
-  5: 12,
-  6: 18,
-  7: 26,
-  8: 38,
-  9: 55,
-  10: 80,
-  11: 115,
-  12: 160,
-};
-
-const RISK_TIER_STEPS: { streak: number; tier: RiskTier }[] = [
-  { streak: 3, tier: "Common" },
-  { streak: 5, tier: "Rare" },
-  { streak: 7, tier: "Epic" },
-  { streak: 9, tier: "Legendary" },
-  { streak: 11, tier: "Ultra" },
-];
-
-function getRiskRewardForStreak(streak: number) {
-  return RISK_REWARD_BY_STREAK[streak] ?? Math.max(200, Math.floor(160 + (streak - 12) * 60));
-}
-
-function getRiskTierForStreak(streak: number): RiskTier {
-  let current: RiskTier = "None";
-  for (const step of RISK_TIER_STEPS) {
-    if (streak >= step.streak) current = step.tier;
-  }
-  return current;
-}
-
-function getRiskNextTier(streak: number) {
-  return RISK_TIER_STEPS.find((step) => step.streak > streak) || null;
-}
-
-function getRiskBombChance(streak: number) {
-  if (streak <= 0) return 0.12;
-  if (streak === 1) return 0.14;
-  if (streak === 2) return 0.17;
-  if (streak === 3) return 0.2;
-  if (streak === 4) return 0.24;
-  if (streak === 5) return 0.28;
-  if (streak === 6) return 0.33;
-  if (streak === 7) return 0.39;
-  if (streak === 8) return 0.46;
-  if (streak === 9) return 0.54;
-  if (streak === 10) return 0.62;
-  return 0.7;
-}
-function catalogItemToLocalSymbol(item: {
-  slug: string;
-  name: string;
-  rarity: string;
-  image_path: string | null;
-  weight?: number | null;
-}): LocalSymbol {
-  return {
-    id: item.slug,
-    slug: item.slug,
-    name: item.name,
-    rarity: normalizeRarity(item.rarity) as LocalSymbol["rarity"],
-    image_path: resolveItemImage(item.image_path),
-    weight: item.weight ?? 1,
-  };
-}
-
-function buildRiskStripFromPool(pool: LocalSymbol[], finalItem?: LocalSymbol) {
-  const STRIP_LENGTH = 30;
-
-  const strip = Array.from({ length: STRIP_LENGTH }).map(() =>
-    weightedRandom(pool)
-  );
-
-  const targetIndex = STRIP_LENGTH - 3; // 🔥 wichtig!
-
-  if (finalItem) {
-    strip[targetIndex] = finalItem;
-  }
-
-  return strip;
-}
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
     {
@@ -963,41 +874,6 @@ const multilineSymbols = useMemo(() => {
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
-const zombieTeddySymbol = useMemo(() => {
-  const fromCatalog = allItemCatalog.find((item) => item.slug === "zombieteddy-ultra");
-  if (fromCatalog) return catalogItemToLocalSymbol(fromCatalog);
-
-  const fallback = symbolPool.find((item) => item.slug === "zombieteddy-ultra");
-  return fallback || symbolPool[0];
-}, [allItemCatalog]);
-
-const riskSafePool = useMemo(() => {
-  const catalogPool = allItemCatalog
-    .filter((item) => item.slug !== "zombieteddy-ultra")
-    .map((item) => catalogItemToLocalSymbol(item));
-
-  if (catalogPool.length) return catalogPool;
-
-  return symbolPool.filter((item) => item.slug !== "zombieteddy-ultra");
-}, [allItemCatalog]);
-
-const riskVisualPool = useMemo(() => {
-  if (!riskSafePool.length) return [zombieTeddySymbol];
-  return [...riskSafePool, zombieTeddySymbol];
-}, [riskSafePool, zombieTeddySymbol]);
-const getSlotPool = () => {
-  return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
-};
-
-const buildRandomSlotRow = (): LocalSymbol[] => {
-  const pool = getSlotPool();
-  return [
-    weightedRandom(pool),
-    weightedRandom(pool),
-    weightedRandom(pool),
-  ];
-};
-
 const spinMultiLine = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -1317,6 +1193,7 @@ const effectiveSlotCost = multiSlotMode ? slotStake * 3 : slotStake;
 const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
 const [autoSpinMode, setAutoSpinMode] = useState<"slot" | "multiline-slot" | null>(null);
 const autoSpinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 const stopAutoSpin = () => {
   setAutoSpinEnabled(false);
   setAutoSpinMode(null);
@@ -1331,6 +1208,7 @@ const startAutoSpin = (mode: "slot" | "multiline-slot") => {
   setAutoSpinEnabled(true);
   setAutoSpinMode(mode);
 };
+
 useEffect(() => {
   if (!autoSpinEnabled || spinning) return;
 
@@ -1349,6 +1227,7 @@ useEffect(() => {
     }
   };
 }, [autoSpinEnabled, autoSpinMode, spinning, data.tokens, slotStake, multiLineStake, multiSlotMode]);
+
 const [reels, setReels] = useState<LocalSymbol[]>([
   symbolPool[0],
   symbolPool[1],
@@ -1370,129 +1249,50 @@ const [multiLineGrid, setMultiLineGrid] = useState<LocalSymbol[][]>([
 const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
 const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
 const [lastMultiLinePayout, setLastMultiLinePayout] = useState(0);
+const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
 
+// Alles Spitze
+const RISK_VISIBLE_COUNT = 13;
+const RISK_ITEM_WIDTH = 104;
+const RISK_ITEM_GAP = 18;
+const RISK_STEP = RISK_ITEM_WIDTH + RISK_ITEM_GAP;
 
-const RISK_VISIBLE_COUNT = 7;
-const RISK_VISIBLE_CENTER_INDEX = Math.floor(RISK_VISIBLE_COUNT / 2); // = 3
-const RISK_TARGET_INDEX = RISK_VISIBLE_CENTER_INDEX;
+const riskAllSymbols = useMemo(() => {
+  return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
+}, [slotEnabledSymbols]);
 
-const RISK_ITEM_WIDTH = 72;
-const RISK_GAP = 12;
-const RISK_STEP = RISK_ITEM_WIDTH + RISK_GAP;
+const riskSafePool = useMemo(() => {
+  return riskAllSymbols.filter((item) => item.slug !== "zombieteddy-ultra");
+}, [riskAllSymbols]);
 
-const createRiskStrip = (forcedCenter?: LocalSymbol) => {
-  const total = 30;
+const riskVisualPool = useMemo(() => {
+  return riskAllSymbols.length ? riskAllSymbols : symbolPool;
+}, [riskAllSymbols]);
 
-  const arr = Array.from({ length: total }).map(
-    () => riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)]
+const zombieTeddySymbol = useMemo(() => {
+  return (
+    riskAllSymbols.find((item) => item.slug === "zombieteddy-ultra") ||
+    symbolPool.find((item) => item.slug === "zombieteddy-ultra") ||
+    symbolPool[0]
   );
+}, [riskAllSymbols]);
 
-  if (forcedCenter) {
-    arr[RISK_TARGET_INDEX] = forcedCenter;
-  }
-
-  return arr;
+const buildRiskStrip = (count = 25): LocalSymbol[] => {
+  const source = riskVisualPool.length ? riskVisualPool : symbolPool;
+  return Array.from({ length: count }, () => source[Math.floor(Math.random() * source.length)]);
 };
 
-const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => createRiskStrip());
-const [riskOffset, setRiskOffset] = useState(0);
-const [riskTransitionMs, setRiskTransitionMs] = useState(0);
-
-const visibleRiskStrip = useMemo(() => {
-  return riskStrip.slice(0, RISK_VISIBLE_COUNT);
-}, [riskStrip]);
-const [riskStreak, setRiskStreak] = useState(0);
+const [riskStake, setRiskStake] = useState<number>(1);
 const [riskPot, setRiskPot] = useState(0);
-const [riskTier, setRiskTier] = useState<RiskTier>("None");
+const [riskStreak, setRiskStreak] = useState(0);
+const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => buildRiskStrip(25));
 const [riskRunning, setRiskRunning] = useState(false);
-const [riskStarted, setRiskStarted] = useState(false);
-const [riskLastItem, setRiskLastItem] = useState<LocalSymbol | null>(null);
+const [riskSelectedItem, setRiskSelectedItem] = useState<LocalSymbol | null>(null);
 const [riskGameOver, setRiskGameOver] = useState(false);
-const [riskJustLost, setRiskJustLost] = useState(false);
-const [riskGiftPreview, setRiskGiftPreview] = useState<LocalSymbol | null>(null);
+const [riskGiftRarity, setRiskGiftRarity] = useState<LocalSymbol["rarity"] | null>(null);
+const [riskOffset, setRiskOffset] = useState(0);
 
 const riskLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const riskSnapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const riskViewportRef = useRef<HTMLDivElement | null>(null);
-const riskItemRefs = useRef<(HTMLDivElement | null)[]>([]);
-const clearRiskTimers = () => {
-  if (riskLoopRef.current) {
-    clearTimeout(riskLoopRef.current);
-    riskLoopRef.current = null;
-  }
-
-  if (riskSnapRef.current) {
-    clearTimeout(riskSnapRef.current);
-    riskSnapRef.current = null;
-  }
-};
-
-const shiftRiskStripOnce = (
-  forcedNext?: LocalSymbol,
-  duration = 120
-) => {
-  return new Promise<void>((resolve) => {
-    const nextSymbol =
-      forcedNext ??
-      riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-
-    setRiskTransitionMs(duration);
-    setRiskOffset(-RISK_STEP);
-
-    riskSnapRef.current = setTimeout(() => {
-      setRiskStrip((prev) => [...prev.slice(1), nextSymbol]);
-      setRiskTransitionMs(0);
-      setRiskOffset(0);
-
-      riskSnapRef.current = setTimeout(() => {
-        resolve();
-      }, 20);
-    }, duration);
-  });
-};
-
-const buildFinalRiskSequence = (finalItem: LocalSymbol) => {
-  return [
-    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
-    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
-    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
-    riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)],
-    finalItem,
-  ];
-};
-const getItemUnderRiskLine = (): LocalSymbol | null => {
-  const viewport = riskViewportRef.current;
-  if (!viewport) return null;
-
-  const viewportRect = viewport.getBoundingClientRect();
-  const lineX = viewportRect.left + viewportRect.width / 2;
-
-  let bestIndex = -1;
-  let bestDistance = Number.POSITIVE_INFINITY;
-
-  riskItemRefs.current.forEach((node, index) => {
-    if (!node) return;
-
-    const rect = node.getBoundingClientRect();
-    const itemCenterX = rect.left + rect.width / 2;
-    const distance = Math.abs(itemCenterX - lineX);
-
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  });
-
-  if (bestIndex === -1) return null;
-
-  return riskStrip[bestIndex] ?? null;
-};
-const [lastMultiLineWinningIndexes, setLastMultiLineWinningIndexes] = useState<number[]>([]);
-const riskNextTier = useMemo(() => getRiskNextTier(riskStreak), [riskStreak]);
-const riskBombChance = useMemo(() => getRiskBombChance(riskStreak), [riskStreak]);
-
-
-
 
 const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
@@ -2334,14 +2134,13 @@ if (!userId) {
     ]);
 
     setData((prev) => ({
-  ...prev,
-  picks: {},
-  resolvedMatchIds: [],
-  tokens: 0,
-  inventory: [],
-  spinHistory: [],
-  bets: [],
-}));
+      ...prev,
+      picks: {},
+      resolvedMatchIds: [],
+      tokens: 0,
+      inventory: [],
+      spinHistory: [],
+    }));
 
     setLastWin(null);
     setScreen("home");
@@ -2383,34 +2182,7 @@ if (!userId) {
     await loadRemoteUserGameState(userId);
   };
 
-  const grantCatalogGiftItem = async (giftItem: {
-  id: string;
-  slug: string;
-  name: string;
-  rarity: string;
-  image_path: string | null;
-  weight?: number | null;
-}) => {
-  if (!userId) return;
-
-  const { error } = await supabase.from("inventory_items").insert({
-    owner_id: userId,
-    item_id: giftItem.id,
-    status: "owned",
-  });
-
-  if (error) {
-    setMessage(error.message);
-    return;
-  }
-
-  if (activeGroupId) {
-    await loadGroupDetails(activeGroupId);
-  }
-
-  await loadRemoteUserGameState(userId);
-};
-const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
+  const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
     if (!userId) return;
 
     await supabase.from("spin_history").insert({
@@ -2435,7 +2207,210 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
 
     return true;
   };
+const getRiskTokenReward = (symbol: LocalSymbol, stake: number) => {
+  if (symbol.slug === "zombieteddy-ultra") return 0;
 
+  const baseByRarity: Record<LocalSymbol["rarity"], number> = {
+    Common: 1,
+    Rare: 2,
+    Epic: 4,
+    Legendary: 7,
+    Ultra: 0,
+  };
+
+  return baseByRarity[symbol.rarity] * stake;
+};
+
+const getRiskGiftRarity = (streak: number): LocalSymbol["rarity"] | null => {
+  if (streak >= 11) return "Legendary";
+  if (streak >= 8) return "Epic";
+  if (streak >= 6) return "Rare";
+  if (streak >= 4) return "Common";
+  return null;
+};
+
+const grantServerInventoryItemByRarity = async (rarity: LocalSymbol["rarity"]) => {
+  if (!userId) return null;
+
+  const pool = riskSafePool.filter((item) => item.rarity === rarity);
+  if (!pool.length) return null;
+
+  const chosen = pool[Math.floor(Math.random() * pool.length)];
+  await grantServerInventoryItem(chosen);
+  return chosen;
+};
+
+const resetRiskRound = () => {
+  if (riskLoopRef.current) {
+    clearTimeout(riskLoopRef.current);
+    riskLoopRef.current = null;
+  }
+
+  setRiskRunning(false);
+  setRiskPot(0);
+  setRiskStreak(0);
+  setRiskSelectedItem(null);
+  setRiskGameOver(false);
+  setRiskGiftRarity(null);
+  setRiskStrip(buildRiskStrip(25));
+  setRiskOffset(0);
+};
+
+const cashoutRiskGame = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (riskRunning) return;
+
+  const nextGiftRarity = getRiskGiftRarity(riskStreak);
+  const nextTokens = data.tokens + riskPot;
+
+  const tokenSaved = await updateTokensOnline(nextTokens);
+  if (!tokenSaved) return;
+
+  updateData((prev) => ({
+    ...prev,
+    tokens: nextTokens,
+  }));
+
+  
+
+  if (nextGiftRarity) {
+  const symbol = await grantServerInventoryItemByRarity(nextGiftRarity);
+  setRiskGiftRarity(nextGiftRarity);
+
+  if (symbol) {
+    updateData((prev) => ({
+      ...prev,
+      inventory: [
+        {
+          inventory_id: `risk-gift-${Date.now()}`,
+          id: symbol.id,
+          slug: symbol.slug,
+          name: symbol.name,
+          rarity: symbol.rarity,
+          image_path: symbol.image_path,
+          weight: symbol.weight,
+        },
+        ...prev.inventory,
+      ],
+    }));
+  }
+} else {
+  setRiskGiftRarity(null);
+}
+
+  setMessage(
+    nextGiftRarity
+      ? `Ausgezahlt: +${riskPot} Tokens und ein ${nextGiftRarity}-Geschenk!`
+      : `Ausgezahlt: +${riskPot} Tokens`
+  );
+
+  setRiskPot(0);
+  setRiskStreak(0);
+  setRiskSelectedItem(null);
+  setRiskGameOver(false);
+  setRiskStrip(buildRiskStrip(25));
+  setRiskOffset(0);
+};
+
+const spinRiskGame = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
+
+  if (riskRunning || spinning) return;
+  if (riskStake <= 0) {
+    setMessage("Bitte einen gültigen Einsatz wählen.");
+    return;
+  }
+  if (data.tokens < riskStake) {
+    setMessage("Nicht genug Tokens.");
+    return;
+  }
+  if (!riskSafePool.length) {
+    setMessage("Keine gültigen Alles-Spitze-Items gefunden.");
+    return;
+  }
+
+  const nextTokens = data.tokens - riskStake;
+  const tokenSaved = await updateTokensOnline(nextTokens);
+  if (!tokenSaved) return;
+
+  updateData((prev) => ({ ...prev, tokens: nextTokens }));
+
+  setRiskRunning(true);
+  setRiskGameOver(false);
+  setRiskGiftRarity(null);
+  setRiskSelectedItem(null);
+
+  const shouldBust = Math.random() < 0.46;
+  const landingSymbol = shouldBust
+    ? zombieTeddySymbol
+    : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
+
+  const bufferLeft = 10;
+  const visibleCount = 25;
+  const landingIndex = bufferLeft + Math.floor(Math.random() * 5);
+
+  const nextStrip = Array.from({ length: visibleCount }, (_, index) => {
+    if (index === landingIndex) return landingSymbol;
+    return riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
+  });
+
+  setRiskStrip(nextStrip);
+
+  const targetOffset = -(landingIndex * RISK_STEP);
+  const overshoot = targetOffset - RISK_STEP * 6.5;
+
+  setRiskOffset(overshoot);
+
+  const speeds = [65, 80, 100, 130, 170, 220, 280];
+
+  let step = 0;
+  const animateSlowdown = () => {
+    if (step < speeds.length - 1) {
+      setRiskOffset((prev) => prev + RISK_STEP * 0.95);
+      step += 1;
+      riskLoopRef.current = setTimeout(animateSlowdown, speeds[step]);
+      return;
+    }
+
+    riskLoopRef.current = setTimeout(async () => {
+      setRiskOffset(targetOffset);
+
+      const selected = nextStrip[landingIndex];
+      setRiskSelectedItem(selected);
+
+      if (selected.slug === "zombieteddy-ultra") {
+        setRiskPot(0);
+        setRiskStreak(0);
+        setRiskGameOver(true);
+        setMessage("Zombie Teddy getroffen. Alles verloren.");
+      } else {
+        const reward = getRiskTokenReward(selected, riskStake);
+        setRiskPot((prev) => prev + reward);
+        setRiskStreak((prev) => prev + 1);
+        setMessage(`${selected.name} erkannt. +${reward} Tokens in den Pot.`);
+      }
+
+      setRiskRunning(false);
+    }, 320);
+  };
+
+  riskLoopRef.current = setTimeout(animateSlowdown, speeds[0]);
+};
+
+useEffect(() => {
+  return () => {
+    if (riskLoopRef.current) {
+      clearTimeout(riskLoopRef.current);
+    }
+  };
+}, []);
   const spin = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -2459,12 +2434,12 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
   const rolling = setInterval(() => {
     if (multiSlotMode) {
       setMultiReels([
-  buildRandomSlotRow(),
-  buildRandomSlotRow(),
-  buildRandomSlotRow(),
-]);
+        buildRandomRow(),
+        buildRandomRow(),
+        buildRandomRow(),
+      ]);
     } else {
-      setReels(buildRandomSlotRow());
+      setReels(buildRandomRow());
     }
   }, 100);
 
@@ -2473,10 +2448,10 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
 
     if (multiSlotMode) {
   let finalGrid = [
-  buildRandomSlotRow(),
-  buildRandomSlotRow(),
-  buildRandomSlotRow(),
-];
+    buildRandomRow(),
+    buildRandomRow(),
+    buildRandomRow(),
+  ];
 
   finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
 
@@ -2549,7 +2524,7 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
   return;
 }
 
-    let finalReels = buildRandomSlotRow();
+    let finalReels = buildRandomRow();
     finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
 
     setReels(finalReels);
@@ -2593,200 +2568,7 @@ const pushSpinHistoryOnline = async (reels: string[], won: boolean) => {
   }, 1800);
 };
 
-  const resetRiskGame = () => {
-  clearRiskTimers();
-  setRiskRunning(false);
-  setRiskStarted(false);
-  setRiskGameOver(false);
-  setRiskJustLost(false);
-  setRiskLastItem(null);
-  setRiskGiftPreview(null);
-  setRiskStreak(0);
-  setRiskPot(0);
-  setRiskTier("None");
-  setRiskTransitionMs(0);
-  setRiskOffset(0);
-  setRiskStrip(createRiskStrip());
-};
-
-const getGiftCandidatesForTier = (tier: RiskTier) => {
-  if (tier === "None") return [];
-
-  if (tier === "Ultra") {
-    const legendary = allItemCatalog.filter(
-      (item) => normalizeRarity(item.rarity) === "Legendary"
-    );
-    const ultra = allItemCatalog.filter(
-      (item) => normalizeRarity(item.rarity) === "Ultra"
-    );
-
-    const ultraRoll = Math.random() < 0.1;
-    return ultraRoll && ultra.length ? ultra : legendary.length ? legendary : ultra;
-  }
-
-  return allItemCatalog.filter(
-    (item) => normalizeRarity(item.rarity) === tier
-  );
-};
-
-const cashOutRiskGame = async () => {
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
-
-  if (!riskStarted || riskRunning) return;
-
-  const payoutTokens = riskPot;
-  const reachedTier = riskTier;
-  const nextTokens = data.tokens + payoutTokens;
-
-  const tokenSaved = await updateTokensOnline(nextTokens);
-  if (!tokenSaved) return;
-
-  updateData((prev) => ({
-    ...prev,
-    tokens: nextTokens,
-  }));
-
-  let giftedName = "";
-
-  if (reachedTier !== "None") {
-    const candidates = getGiftCandidatesForTier(reachedTier);
-
-    if (candidates.length) {
-      const randomGift =
-        candidates[Math.floor(Math.random() * candidates.length)];
-
-      await grantCatalogGiftItem(randomGift);
-      setRiskGiftPreview(catalogItemToLocalSymbol(randomGift));
-      giftedName = ` + Geschenk: ${randomGift.name}`;
-    }
-  }
-
-  setMessage(
-    payoutTokens > 0
-      ? `${payoutTokens} Tokens ausgezahlt${giftedName}`
-      : `Run beendet${giftedName}`
-  );
-
-  resetRiskGame();
-};
-
-const playRiskGame = async () => {
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
-    return;
-  }
-
-  if (riskRunning || spinning) return;
-
-  if (!riskStarted) {
-    if (data.tokens < RISK_ENTRY_COST) {
-      setMessage("Nicht genug Token für Alles Spitze.");
-      return;
-    }
-
-    const nextTokens = data.tokens - RISK_ENTRY_COST;
-    const tokenSaved = await updateTokensOnline(nextTokens);
-    if (!tokenSaved) return;
-
-    updateData((prev) => ({
-      ...prev,
-      tokens: nextTokens,
-    }));
-
-    setRiskStarted(true);
-    setRiskPot(RISK_ENTRY_COST);
-    setRiskStreak(0);
-    setRiskTier("None");
-    setRiskGameOver(false);
-    setRiskJustLost(false);
-    setRiskGiftPreview(null);
-  }
-
-  clearRiskTimers();
-  setRiskRunning(true);
-  setRiskJustLost(false);
-  setRiskLastItem(null);
-
-  const lose = Math.random() < riskBombChance;
-  const finalItem = lose
-    ? zombieTeddySymbol
-    : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
-
-    const introSteps = 10;
-  const introDurations = [90, 90, 85, 80, 75, 70, 80, 95, 115, 140];
-
-  try {
-    for (let i = 0; i < introSteps; i++) {
-      await shiftRiskStripOnce(undefined, introDurations[i] ?? 100);
-    }
-
-    const finalSequence = buildFinalRiskSequence(finalItem);
-
-for (let i = 0; i < finalSequence.length; i++) {
-  const isLast = i === finalSequence.length - 1;
-  await shiftRiskStripOnce(finalSequence[i], isLast ? 220 : 130);
-}
-
-
-
-setRiskOffset(0);
-setRiskTransitionMs(0);
-await new Promise((resolve) => setTimeout(resolve, 40));
-
-const landedItem = getItemUnderRiskLine();
-
-if (!landedItem) {
-  setMessage("Kein Item erkannt.");
-  return;
-}
-
-setRiskLastItem(landedItem);
-
-    const reallyLost = landedItem.slug === "zombieteddy-ultra";
-
-if (reallyLost) {
-      setRiskGameOver(true);
-      setRiskJustLost(true);
-      setRiskStarted(false);
-      setRiskStreak(0);
-      setRiskPot(0);
-      setRiskTier("None");
-      setRiskGiftPreview(null);
-      setMessage("Zombie Teddy getroffen. Alles verloren.");
-    } else {
-      const nextStreak = riskStreak + 1;
-      const nextTier = getRiskTierForStreak(nextStreak);
-
-      let nextPot = riskPot;
-      if (nextPot <= 0) nextPot = RISK_ENTRY_COST;
-
-      nextPot += getRiskRewardForStreak(nextStreak);
-
-      setRiskStreak(nextStreak);
-      setRiskPot(nextPot);
-      setRiskTier(nextTier);
-      setRiskGiftPreview(finalItem);
-      setMessage(`Safe! Streak ${nextStreak} · Pot ${nextPot}`);
-    }
-  } catch (error) {
-    console.error("Risk animation error:", error);
-    setMessage("Risk-Animation fehlgeschlagen.");
-  } finally {
-    setRiskRunning(false);
-    setRiskTransitionMs(0);
-    setRiskOffset(0);
-  }
-};
-
-useEffect(() => {
-  return () => {
-    clearRiskTimers();
-  };
-}, []);
-const ensureProfile = async (uid: string, email: string) => {
+  const ensureProfile = async (uid: string, email: string) => {
     const { data: existing, error: fetchError } = await supabase
       .from("profiles")
       .select("id, username, tokens")
@@ -2886,7 +2668,7 @@ const ensureProfile = async (uid: string, email: string) => {
       setIncomingChallenges([]);
       setOutgoingChallenges([]);
       setAllChallenges([]);
-      return; 
+      return;
     }
 
     const { data: rows, error } = await supabase
@@ -2897,7 +2679,7 @@ const ensureProfile = async (uid: string, email: string) => {
 
     if (error) {
       setMessage(error.message);
-      return; 
+      return;
     }
 
     const allRows = (rows || []) as ChallengeType[];
@@ -4216,13 +3998,14 @@ useEffect(() => {
                 exit={{ opacity: 0, y: -10 }}
                 className="mx-auto w-full space-y-4 max-w-md md:max-w-3xl xl:max-w-5xl"
               >
-                <SectionTitle eyebrow="Arcade" title="Slots & Alles Spitze" />
-                <div className="grid grid-cols-2 gap-3">
+                <SectionTitle eyebrow="Slotmachine" title="Dreh für 1 Token" />
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
   <Button
-  onClick={() => {
-    setSlotViewMode("classic");
-    setLastMultiLineWinningIndexes([]);
-  }}
+    onClick={() => {
+      setSlotViewMode("classic");
+      setLastMultiLineWinningIndexes([]);
+      setRiskGiftRarity(null);
+    }}
     variant={slotViewMode === "classic" ? "violet" : "ghost"}
     className="w-full"
   >
@@ -4230,10 +4013,11 @@ useEffect(() => {
   </Button>
 
   <Button
-  onClick={() => {
-    setSlotViewMode("multiline");
-    setLastMultiLineWinningIndexes([]);
-  }}
+    onClick={() => {
+      setSlotViewMode("multiline");
+      setLastMultiLineWinningIndexes([]);
+      setRiskGiftRarity(null);
+    }}
     variant={slotViewMode === "multiline" ? "violet" : "ghost"}
     className="w-full"
   >
@@ -4251,10 +4035,8 @@ useEffect(() => {
     Alles Spitze
   </Button>
 </div>
-{slotViewMode !== "risk" && (
+
                 <div className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
-
-
                   <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-violet-500/18 blur-3xl" />
                   <div className="pointer-events-none absolute -right-12 bottom-8 h-40 w-40 rounded-full bg-fuchsia-500/16 blur-3xl" />
                   <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-gradient-to-b from-amber-200/10 to-transparent blur-2xl" />
@@ -4274,7 +4056,6 @@ useEffect(() => {
                       <div className="text-lg font-black text-amber-200">{data.tokens}</div>
                     </div>
                   </div>
-
 
                  <div className="relative z-10 mb-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
   {slotViewMode === "multiline" ? (
@@ -4371,22 +4152,296 @@ useEffect(() => {
                       ))}
                     </div>
 
-                    {slotViewMode !== "multiline" && (
+                    {slotViewMode === "classic" && (
   <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
 )}
 
                     <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
-                      {slotViewMode === "multiline" ? (
-  <div className="relative mx-auto w-fit">
+  {slotViewMode === "multiline" ? (
+    <div className="relative mx-auto w-fit">
+      <div className="grid gap-3">
+        {multiLineGrid.map((row, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20"
+          >
+            {row.map((symbol, idx) => (
+              <Reel
+                key={`multiline-${rowIndex}-${idx}`}
+                symbol={symbol}
+                spinning={spinning}
+                delay={(rowIndex * 3 + idx) * 0.05}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div className="pointer-events-none absolute inset-0 z-30">
+        {[0, 1, 2].map((row) => {
+          const active = lastMultiLineWinningIndexes.includes(row);
+          const top = row === 0 ? "16.66%" : row === 1 ? "50%" : "83.33%";
+
+          return (
+            <div
+              key={`row-line-${row}`}
+              className={`absolute left-[4%] right-[4%] h-[2px] -translate-y-1/2 rounded-full transition-all duration-300 ${
+                active
+                  ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
+                  : "bg-white/10"
+              }`}
+              style={{ top }}
+            />
+          );
+        })}
+
+        {[0, 1, 2].map((col) => {
+          const lineIndex = 3 + col;
+          const active = lastMultiLineWinningIndexes.includes(lineIndex);
+          const left = col === 0 ? "16.66%" : col === 1 ? "50%" : "83.33%";
+
+          return (
+            <div
+              key={`col-line-${col}`}
+              className={`absolute top-[4%] bottom-[4%] w-[2px] -translate-x-1/2 rounded-full transition-all duration-300 ${
+                active
+                  ? "bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.95)]"
+                  : "bg-white/10"
+              }`}
+              style={{ left }}
+            />
+          );
+        })}
+
+        {[0, 1].map((diag) => {
+          const lineIndex = 6 + diag;
+          const active = lastMultiLineWinningIndexes.includes(lineIndex);
+
+          return (
+            <div
+              key={`diag-line-${diag}`}
+              className={`absolute left-[8%] top-1/2 h-[2px] w-[84%] -translate-y-1/2 origin-center rounded-full transition-all duration-300 ${
+                active
+                  ? "bg-fuchsia-300 shadow-[0_0_18px_rgba(244,114,182,0.95)]"
+                  : "bg-white/10"
+              }`}
+              style={{
+                transform: `translateY(-50%) rotate(${diag === 0 ? 35 : -35}deg)`,
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  ) : slotViewMode === "risk" ? (
+    <div className="space-y-4">
+      <div className="rounded-3xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm text-zinc-400">Risk Game</div>
+            <div className="text-2xl font-black">Alles Spitze</div>
+            <div className="mt-1 text-sm text-zinc-400">
+              Drück weiter auf Play für mehr Pot und bessere Rarity. Trifft Zombie Teddy die Mitte, verlierst du alles.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200">
+            Teddy: 46%
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Streak</div>
+            <div className="mt-1 text-2xl font-black">{riskStreak}</div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pot</div>
+            <div className="mt-1 text-2xl font-black text-amber-200">{riskPot}</div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Rarity</div>
+            <div className="mt-1 text-2xl font-black">
+              {getRiskGiftRarity(riskStreak) || "-"}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-lg font-bold text-white">Laufband</div>
+            <div className="text-sm text-zinc-400">Einsatz Start: {riskStake} Token</div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_60%),linear-gradient(180deg,rgba(14,14,18,1),rgba(5,5,7,1))] px-16 py-8">
+            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-30 w-[4px] -translate-x-1/2 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_18px_rgba(248,113,113,0.85)]" />
+
+            <motion.div
+              animate={{ x: riskOffset }}
+              transition={{ duration: riskRunning ? 0.18 : 0.42, ease: "easeOut" }}
+              className="flex items-center"
+              style={{
+                gap: `${RISK_ITEM_GAP}px`,
+                width: "max-content",
+              }}
+            >
+              {riskStrip.map((symbol, index) => (
+                <div
+                  key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
+                  className={`relative flex h-40 w-[104px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-3 ${
+                    riskSelectedItem?.slug === symbol.slug && !riskRunning
+                      ? "border-red-400 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.28)]"
+                      : "border-white/10 bg-white/[0.03]"
+                  }`}
+                >
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_45%)]" />
+                  <img
+                    src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
+                    alt={symbol.name}
+                    className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]"
+                    onError={(e) => {
+                      e.currentTarget.src = "/items/fallback.png";
+                    }}
+                  />
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            Letztes Icon: <span className="font-black">{riskSelectedItem?.name || "-"}</span>
+          </div>
+
+          {riskGameOver && (
+            <div className="mt-4 rounded-3xl border border-red-500 bg-red-950/70 p-4">
+              <div className="text-xs uppercase tracking-[0.2em] text-red-200">Geschenk erhalten</div>
+              <div className="mt-3 flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-400/30 bg-black/25 p-2">
+                  <img
+                    src={getSafeItemImagePath(zombieTeddySymbol.slug, zombieTeddySymbol.image_path)}
+                    alt={zombieTeddySymbol.name}
+                    className="max-h-full max-w-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "/items/fallback.png";
+                    }}
+                  />
+                </div>
+                <div>
+                  <div className="text-3xl font-black text-white">{zombieTeddySymbol.name}</div>
+                  <div className="text-xl text-red-200">Ultra</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-lg font-bold text-white">Leiter</div>
+              <div className="text-sm text-zinc-400">
+                {riskStreak < 4
+                  ? "Noch 4 bis Common"
+                  : riskStreak < 6
+                    ? "Noch 1 bis Rare"
+                    : riskStreak < 8
+                      ? "Noch 1 bis Epic"
+                      : riskStreak < 11
+                        ? "Noch 1 bis Legendary"
+                        : "Legendary erreicht"}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { label: "Common", need: 4 },
+                { label: "Rare", need: 6 },
+                { label: "Epic", need: 8 },
+                { label: "Legendary", need: 11 },
+              ].map((tier) => {
+                const active = riskStreak >= tier.need;
+                return (
+                  <div
+                    key={tier.label}
+                    className={`rounded-2xl border px-4 py-3 ${
+                      active
+                        ? "border-amber-400 bg-amber-500/15 text-amber-100"
+                        : "border-amber-500/30 bg-amber-500/5 text-zinc-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-black">{tier.label}</span>
+                      <span className="text-2xl font-black">{tier.need}+</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            {SLOT_STAKES.map((stake) => {
+              const active = riskStake === stake;
+              return (
+                <button
+                  key={`risk-stake-${stake}`}
+                  type="button"
+                  onClick={() => setRiskStake(stake)}
+                  disabled={riskRunning}
+                  className={`rounded-2xl border px-3 py-3 text-sm transition ${
+                    active
+                      ? "border-violet-400 bg-violet-500/20 text-white"
+                      : "border-white/10 bg-black/40 text-zinc-300"
+                  }`}
+                >
+                  <div className="font-black">{stake}</div>
+                  <div className="text-xs text-zinc-400">pro Spin</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <Button
+              onClick={spinRiskGame}
+              variant="violet"
+              disabled={riskRunning || data.tokens < riskStake}
+              className="w-full"
+            >
+              {riskPot > 0 ? "Weiter" : "Play"}
+            </Button>
+
+            <Button
+              onClick={cashoutRiskGame}
+              variant="ghost"
+              disabled={riskRunning || riskPot <= 0 || riskGameOver}
+              className="w-full"
+            >
+              Auszahlen
+            </Button>
+
+            <Button
+              onClick={resetRiskRound}
+              variant="danger"
+              disabled={riskRunning}
+              className="w-full"
+            >
+              Neu starten
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : multiSlotMode ? (
     <div className="grid gap-3">
-      {multiLineGrid.map((row, rowIndex) => (
+      {multiReels.map((row, rowIndex) => (
         <div
           key={rowIndex}
           className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20"
         >
           {row.map((symbol, idx) => (
             <Reel
-              key={`multiline-${rowIndex}-${idx}`}
+              key={`${rowIndex}-${idx}`}
               symbol={symbol}
               spinning={spinning}
               delay={(rowIndex * 3 + idx) * 0.05}
@@ -4395,91 +4450,19 @@ useEffect(() => {
         </div>
       ))}
     </div>
-
-    <div className="pointer-events-none absolute inset-0 z-30">
-      {[0, 1, 2].map((row) => {
-        const active = lastMultiLineWinningIndexes.includes(row);
-        const top = row === 0 ? "16.66%" : row === 1 ? "50%" : "83.33%";
-
-        return (
-          <div
-            key={`row-line-${row}`}
-            className={`absolute left-[4%] right-[4%] h-[2px] -translate-y-1/2 rounded-full transition-all duration-300 ${
-              active
-                ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
-                : "bg-white/10"
-            }`}
-            style={{ top }}
-          />
-        );
-      })}
-
-      {[0, 1, 2].map((col) => {
-        const lineIndex = 3 + col;
-        const active = lastMultiLineWinningIndexes.includes(lineIndex);
-        const left = col === 0 ? "16.66%" : col === 1 ? "50%" : "83.33%";
-
-        return (
-          <div
-            key={`col-line-${col}`}
-            className={`absolute top-[4%] bottom-[4%] w-[2px] -translate-x-1/2 rounded-full transition-all duration-300 ${
-              active
-                ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
-                : "bg-white/10"
-            }`}
-            style={{ left }}
-          />
-        );
-      })}
-
-      <div
-        className={`absolute left-[8%] top-1/2 h-[2px] w-[84%] -translate-y-1/2 rotate-[35deg] rounded-full transition-all duration-300 ${
-          lastMultiLineWinningIndexes.includes(6)
-            ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
-            : "bg-white/10"
-        }`}
-      />
-
-      <div
-        className={`absolute left-[8%] top-1/2 h-[2px] w-[84%] -translate-y-1/2 -rotate-[35deg] rounded-full transition-all duration-300 ${
-          lastMultiLineWinningIndexes.includes(7)
-            ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
-            : "bg-white/10"
-        }`}
-      />
+  ) : (
+    <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
+      {reels.map((symbol, idx) => (
+        <Reel
+          key={idx}
+          symbol={symbol}
+          spinning={spinning}
+          delay={idx * 0.08}
+        />
+      ))}
     </div>
-  </div>
-) : multiSlotMode ? (
-  <div className="grid gap-3">
-    {multiReels.map((row, rowIndex) => (
-      <div
-        key={rowIndex}
-        className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20"
-      >
-        {row.map((symbol, idx) => (
-          <Reel
-            key={`${rowIndex}-${idx}`}
-            symbol={symbol}
-            spinning={spinning}
-            delay={(rowIndex * 3 + idx) * 0.05}
-          />
-        ))}
-      </div>
-    ))}
-  </div>
-) : (
-  <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
-    {reels.map((symbol, idx) => (
-      <Reel
-        key={idx}
-        symbol={symbol}
-        spinning={spinning}
-        delay={idx * 0.08}
-      />
-    ))}
-  </div>
-)}
-                    </div>
+  )}
+</div>
 
                     <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
                       <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
@@ -4543,236 +4526,26 @@ useEffect(() => {
     )}
   </div>
 )}
-<Button
-  onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
-  variant="violet"
-  disabled={
-    slotViewMode === "multiline"
-      ? data.tokens < multiLineStake || spinning
-      : data.tokens < effectiveSlotCost || spinning
-  }
-  className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
->
-  {spinning
-    ? "Dreht..."
-    : slotViewMode === "multiline"
-      ? `${multiLineStake} Token einsetzen`
-      : `${effectiveSlotCost} Token einsetzen`}
-
-</Button>
-                </div>
-                )}
-
-{slotViewMode === "risk" && (
-  <div className="rounded-3xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <div className="text-sm text-zinc-400">Risk Game</div>
-        <div className="text-2xl font-black">Alles Spitze</div>
-      <div className="mt-1 text-sm text-zinc-400">
-        Drück weiter auf Play für mehr Pot und bessere Rarity. Trifft Zombie Teddy die Mitte, verlierst du alles.
-      </div>
-    </div>
-
-    <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200">
-      Teddy: {(riskBombChance * 100).toFixed(0)}%
-    </div>
-  </div>
-
-  <div className="mt-4 grid grid-cols-3 gap-3">
-    <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Streak</div>
-      <div className="mt-1 text-2xl font-black">{riskStreak}</div>
-    </div>
-
-    <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pot</div>
-      <div className="mt-1 text-2xl font-black text-amber-200">{riskPot}</div>
-    </div>
-
-    <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Rarity</div>
-      <div className="mt-1 text-2xl font-black">{riskTier}</div>
-    </div>
-  </div>
-
-  <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4">
-    <div className="mb-3 flex items-center justify-between">
-      <div className="text-sm font-bold text-zinc-300">Laufband</div>
-      <div className="text-xs text-zinc-500">
-        Einsatz Start: {RISK_ENTRY_COST} Token
-      </div>
-    </div>
-
-    <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] px-3 py-5">
-  <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 -translate-x-1/2">
-    <div className="h-full w-[3px] rounded-full bg-red-400 shadow-[0_0_20px_rgba(248,113,113,0.9)]" />
-  </div>
-
-  <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-black via-black/70 to-transparent" />
-  <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-black via-black/70 to-transparent" />
-
-  <div ref={riskViewportRef} className="relative overflow-hidden">
-  <div
-    className="flex will-change-transform"
-    style={{
-      gap: `${RISK_GAP}px`,
-      width: "max-content",
-      marginLeft: "50%",
-      transform: `translateX(calc(-50% + ${riskOffset}px))`,
-      transition: riskTransitionMs > 0 ? `transform ${riskTransitionMs}ms ease-out` : "none",
-    }}
+{slotViewMode !== "risk" && (
+  <Button
+    onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
+    variant="violet"
+    disabled={
+      slotViewMode === "multiline"
+        ? data.tokens < multiLineStake || spinning
+        : data.tokens < effectiveSlotCost || spinning
+    }
+    className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
   >
-    {visibleRiskStrip.map((symbol, idx) => {
-  const isCenter = idx === RISK_VISIBLE_CENTER_INDEX;
-
-  return (
-    <div
-      ref={(el) => {
-        riskItemRefs.current[idx] = el;
-      }}
-      key={`${symbol.slug}-${idx}-${riskStreak}-${riskStarted ? "run" : "idle"}`}
-      className={`shrink-0 transition ${
-  isCenter ? "scale-110" : "scale-90 opacity-70"
-}`}
-style={{
-  width: `${RISK_ITEM_WIDTH}px`,
-  minWidth: `${RISK_ITEM_WIDTH}px`,
-}}
-    >
-          <div className="flex h-24 w-full items-center justify-center rounded-[22px] border border-white/10 bg-black/35 p-2 md:h-32">
-            <img
-              src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
-              alt={symbol.name}
-              className="max-h-full max-w-full object-contain"
-              onError={(e) => {
-                e.currentTarget.src = "/items/fallback.png";
-              }}
-            /> 
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
-</div>
-
-    {riskLastItem ? (
-      <div
-        className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-          riskLastItem.slug === "zombieteddy-ultra"
-            ? "border-red-500/20 bg-red-500/10 text-red-200"
-            : "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-        }`}
-      >
-        Letztes Icon: <span className="font-bold">{riskLastItem.name}</span>
-      </div>
-    ) : null}
-
-    {riskGiftPreview ? (
-      <div className={`mt-4 rounded-3xl border p-4 ${rarityStyles[riskGiftPreview.rarity]}`}>
-        <div className="text-xs uppercase tracking-[0.22em] opacity-80">Geschenk erhalten</div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/20 p-2">
-            <img
-              src={getSafeItemImagePath(riskGiftPreview.slug, riskGiftPreview.image_path)}
-              alt={riskGiftPreview.name}
-              className="max-h-full max-w-full object-contain"
-              onError={(e) => {
-                e.currentTarget.src = "/items/fallback.png";
-              }}
-            />
-          </div>
-          <div>
-            <div className="font-black">{riskGiftPreview.name}</div>
-            <div className="text-sm opacity-80">{riskGiftPreview.rarity}</div>
-          </div>
-        </div>
-      </div>
-    ) : null}
-
-    <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-bold text-zinc-300">Leiter</div>
-        <div className="text-xs text-zinc-500">
-          {riskNextTier
-            ? `Noch ${riskNextTier.streak - riskStreak} bis ${riskNextTier.tier}`
-            : "Maximale Stufe erreicht"}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {RISK_TIER_STEPS.map((step) => {
-          const active = riskStreak >= step.streak;
-          return (
-            <div
-              key={`${step.tier}-${step.streak}`}
-              className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
-                active
-                  ? "border-amber-400/30 bg-amber-500/10 text-amber-200"
-                  : "border-white/10 bg-black/20 text-zinc-400"
-              }`}
-            >
-              <div className="font-semibold">{step.tier}</div>
-              <div className="text-sm">{step.streak}+ Icons</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-
-    <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
-      <div className="mb-3 text-sm font-bold text-zinc-300">Mögliche Gewinne</div>
-
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        {Object.entries(RISK_REWARD_BY_STREAK).map(([streak, reward]) => (
-          <div
-            key={`risk-reward-${streak}`}
-            className="flex items-center justify-between rounded-xl bg-black/30 px-3 py-2"
-          >
-            <span className="text-zinc-400">{streak} in Folge</span>
-            <span className="font-bold text-amber-200">+{reward}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3 text-xs text-zinc-500">
-        Ab 3 in Folge bekommst du beim Cashout zusätzlich 1 Geschenk entsprechend deiner erreichten Rarity.
-      </div>
-    </div>
-
-    <div className="mt-4 grid grid-cols-2 gap-3">
-      <Button
-        onClick={playRiskGame}
-        variant="violet"
-        disabled={riskRunning || (!riskStarted && data.tokens < RISK_ENTRY_COST)}
-        className="w-full"
-      >
-        {riskRunning ? "Läuft..." : riskStarted ? "Weiter spielen" : `Play (${RISK_ENTRY_COST})`}
-      </Button>
-
-      <Button
-        onClick={cashOutRiskGame}
-        variant="ghost"
-        disabled={!riskStarted || riskRunning}
-        className="w-full"
-      >
-        Cashout ({riskPot})
-      </Button>
-    </div>
-
-    {(riskGameOver || riskJustLost) && (
-      <Button
-        onClick={resetRiskGame}
-        variant="danger"
-        className="mt-3 w-full"
-      >
-        Neuer Run
-      </Button>
-    )}
-  </div>
-</div>
+    {spinning
+      ? "Dreht..."
+      : slotViewMode === "multiline"
+        ? `${multiLineStake} Token einsetzen`
+        : `${effectiveSlotCost} Token einsetzen`}
+  </Button>
 )}
+                </div>
+
                 <AnimatePresence>
                   {lastWin && (
                     <motion.div
