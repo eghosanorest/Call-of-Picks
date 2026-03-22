@@ -1259,6 +1259,7 @@ const RISK_STEP = RISK_ITEM_WIDTH + RISK_ITEM_GAP;
 const RISK_BUFFER_LEFT = 18;
 const RISK_SESSION_LENGTH = 240;
 const RISK_START_INDEX = 18;
+const RISK_BUST_CHANCE = 0.28;
 const riskAllSymbols = useMemo(() => {
   return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
 }, [slotEnabledSymbols]);
@@ -2427,7 +2428,7 @@ setRiskGiftRarity(null);
 setRiskSelectedItem(null);
 setRiskSelectedIndex(null);
 
-  const shouldBust = Math.random() < 0.46;
+  const shouldBust = Math.random() < RISK_BUST_CHANCE;
   const landingSymbol = shouldBust
     ? zombieTeddySymbol
     : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
@@ -4327,8 +4328,8 @@ useEffect(() => {
           </div>
 
           <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200">
-            Teddy: 46%
-          </div>
+  Teddy: {(RISK_BUST_CHANCE * 100).toFixed(0)}%
+</div>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
