@@ -1303,12 +1303,6 @@ const [riskSelectedIndex, setRiskSelectedIndex] = useState<number | null>(null);
 const riskStake = slotStake;
 const [riskPot, setRiskPot] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
-const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => {
-  const initialStrip = buildRiskStrip(RISK_VISIBLE_COUNT * 6);
-  riskGameStripRef.current = initialStrip;
-  return initialStrip;
-});
-
 const [riskRunning, setRiskRunning] = useState(false);
 const [riskSelectedItem, setRiskSelectedItem] = useState<LocalSymbol | null>(null);
 const [riskGameOver, setRiskGameOver] = useState(false);
@@ -1318,6 +1312,11 @@ const [riskGiftRarity, setRiskGiftRarity] = useState<LocalSymbol["rarity"] | nul
 const [riskOffset, setRiskOffset] = useState(0);
 
 const riskLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const riskViewportRef = useRef<HTMLDivElement | null>(null);
+const riskSpinCursorRef = useRef(RISK_BUFFER_LEFT);
+const riskGameStripRef = useRef<LocalSymbol[]>(buildRiskStrip(RISK_VISIBLE_COUNT * 6));
+
+const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(riskGameStripRef.current);
 
 
 const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
@@ -1339,9 +1338,7 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const [firstshotRound, setFirstshotRound] = useState<FirstshotRoundState | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const riskViewportRef = useRef<HTMLDivElement | null>(null);
-const riskSpinCursorRef = useRef(RISK_BUFFER_LEFT);
-const riskGameStripRef = useRef<LocalSymbol[]>(buildRiskStrip(RISK_VISIBLE_COUNT * 6));
+
 
   const [adminDraft, setAdminDraft] = useState({
   teamA: "",
