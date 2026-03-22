@@ -1307,6 +1307,8 @@ const [riskCursor, setRiskCursor] = useState(RISK_START_INDEX);
 const [riskRunning, setRiskRunning] = useState(false);
 const [riskSelectedItem, setRiskSelectedItem] = useState<LocalSymbol | null>(null);
 const [riskGameOver, setRiskGameOver] = useState(false);
+const [riskCashedOut, setRiskCashedOut] = useState(false);
+const [lastWonItem, setLastWonItem] = useState<LocalSymbol | null>(null);
 const [riskGiftRarity, setRiskGiftRarity] = useState<LocalSymbol["rarity"] | null>(null);
 const [riskOffset, setRiskOffset] = useState(0);
 
@@ -2279,6 +2281,8 @@ const resetRiskRound = () => {
   setRiskSelectedItem(null);
   setRiskSelectedIndex(null);
   setRiskGameOver(false);
+  setRiskCashedOut(false);
+  setLastWonItem(null);
   setRiskGiftRarity(null);
   setRiskStrip(freshStrip);
   setRiskOffset(0);
@@ -2303,32 +2307,36 @@ const cashoutRiskGame = async () => {
     tokens: nextTokens,
   }));
 
-  
+  let wonGift: LocalSymbol | null = null;
 
   if (nextGiftRarity) {
-  const symbol = await grantServerInventoryItemByRarity(nextGiftRarity);
-  setRiskGiftRarity(nextGiftRarity);
+    const symbol = await grantServerInventoryItemByRarity(nextGiftRarity);
+    setRiskGiftRarity(nextGiftRarity);
+    wonGift = symbol || null;
 
-  if (symbol) {
-    updateData((prev) => ({
-      ...prev,
-      inventory: [
-        {
-          inventory_id: `risk-gift-${Date.now()}`,
-          id: symbol.id,
-          slug: symbol.slug,
-          name: symbol.name,
-          rarity: symbol.rarity,
-          image_path: symbol.image_path,
-          weight: symbol.weight,
-        },
-        ...prev.inventory,
-      ],
-    }));
+    if (symbol) {
+      updateData((prev) => ({
+        ...prev,
+        inventory: [
+          {
+            inventory_id: `risk-gift-${Date.now()}`,
+            id: symbol.id,
+            slug: symbol.slug,
+            name: symbol.name,
+            rarity: symbol.rarity,
+            image_path: symbol.image_path,
+            weight: symbol.weight,
+          },
+          ...prev.inventory,
+        ],
+      }));
+    }
+  } else {
+    setRiskGiftRarity(null);
   }
-} else {
-  setRiskGiftRarity(null);
-}
+
+  setRiskCashedOut(true);
+  setLastWonItem(wonGift);
 
   setMessage(
     nextGiftRarity
@@ -2337,12 +2345,12 @@ const cashoutRiskGame = async () => {
   );
 
   setRiskPot(0);
-setRiskStreak(0);
-setRiskSelectedItem(null);
-setRiskSelectedIndex(null);
-setRiskGameOver(false);
-setRiskStrip(buildRiskStrip(RISK_VISIBLE_COUNT));
-setRiskOffset(0);
+  setRiskStreak(0);
+  setRiskSelectedItem(null);
+  setRiskSelectedIndex(null);
+  setRiskGameOver(false);
+  setRiskStrip(buildRiskStrip(RISK_VISIBLE_COUNT));
+  setRiskOffset(0);
 };
 
 const getRiskTargetOffset = (
@@ -2412,10 +2420,12 @@ const spinRiskGame = async () => {
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
 
   setRiskRunning(true);
-  setRiskGameOver(false);
-  setRiskGiftRarity(null);
-  setRiskSelectedItem(null);
-  setRiskSelectedIndex(null);
+setRiskGameOver(false);
+setRiskCashedOut(false);
+setLastWonItem(null);
+setRiskGiftRarity(null);
+setRiskSelectedItem(null);
+setRiskSelectedIndex(null);
 
   const shouldBust = Math.random() < 0.46;
   const landingSymbol = shouldBust
