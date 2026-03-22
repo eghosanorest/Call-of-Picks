@@ -4125,20 +4125,31 @@ useEffect(() => {
                   <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-gradient-to-b from-amber-200/10 to-transparent blur-2xl" />
 
                   <div className="relative z-10 mb-4 flex items-center justify-between rounded-[24px] border border-white/10 bg-black/30 px-4 py-3 backdrop-blur">
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.32em] text-amber-200/80">
-                        Premium Slot
-                      </div>
-                      <div className="mt-1 text-lg font-black text-white">Jackpot Spin</div>
-                    </div>
+  <div>
+    <div className="text-[10px] font-bold uppercase tracking-[0.32em] text-amber-200/80">
+      {slotViewMode === "classic"
+        ? "Classic Slot"
+        : slotViewMode === "multiline"
+          ? "Multi-Line Slot"
+          : "Risk Game"}
+    </div>
 
-                    <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-right">
-                      <div className="text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
-                        Tokens
-                      </div>
-                      <div className="text-lg font-black text-amber-200">{data.tokens}</div>
-                    </div>
-                  </div>
+    <div className="mt-1 text-lg font-black text-white">
+      {slotViewMode === "classic"
+        ? "Gewinne Items"
+        : slotViewMode === "multiline"
+          ? "Gewinne Token"
+          : "Gewinne Token und Items"}
+    </div>
+  </div>
+
+  <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-right">
+    <div className="text-[10px] uppercase tracking-[0.22em] text-amber-200/70">
+      Tokens
+    </div>
+    <div className="text-lg font-black text-amber-200">{data.tokens}</div>
+  </div>
+</div>
 
                  {slotViewMode !== "multiline" && (
   <div className="relative z-10 mb-4 rounded-[24px] border border-white/10 bg-black/30 p-4 backdrop-blur">
@@ -4223,6 +4234,58 @@ useEffect(() => {
         3x3 Grid · 8 Gewinnlinien · Einsatz nur für Multi-Line
       </div>
     </div>
+  </div>
+)}
+{slotViewMode === "multiline" && (
+  <div className="mb-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-4">
+    <div className="text-center">
+      <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
+        Multi-Line Auszahlung
+      </div>
+      <div className="mt-1 text-sm text-zinc-400">
+        8 mögliche Linien · Gewinn = Einsatz × Multiplikator
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+      {[
+        { hits: 1, multi: "0.4x" },
+        { hits: 2, multi: "2x" },
+        { hits: 3, multi: "10x" },
+        { hits: 4, multi: "50x" },
+        { hits: 5, multi: "200x" },
+        { hits: 6, multi: "1000x" },
+        { hits: 8, multi: "20000x" },
+      ].map((row) => (
+        <div
+          key={row.hits}
+          className="rounded-2xl border border-white/10 bg-black/40 px-3 py-3 text-center"
+        >
+          <div className="font-black text-white">{row.hits} Treffer</div>
+          <div className="text-zinc-400">{row.multi}</div>
+        </div>
+      ))}
+    </div>
+
+    <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-center">
+      <div className="text-xs uppercase tracking-[0.2em] text-amber-200/80">
+        Aktueller Einsatz
+      </div>
+      <div className="mt-1 text-lg font-black text-amber-200">
+        {multiLineStake} Tokens
+      </div>
+    </div>
+
+    {lastMultiLineHitCount > 0 && (
+      <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-center">
+        <div className="text-sm font-bold text-emerald-200">
+          Letzter Gewinn
+        </div>
+        <div className="mt-1 text-lg font-black text-white">
+          {lastMultiLineHitCount} Treffer · +{lastMultiLinePayout} Tokens
+        </div>
+      </div>
+    )}
   </div>
 )}
 <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
@@ -4583,58 +4646,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  {slotViewMode === "multiline" && (
-  <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-4">
-    <div className="text-center">
-      <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
-        Multi-Line Auszahlung
-      </div>
-      <div className="mt-1 text-sm text-zinc-400">
-        8 mögliche Linien · Gewinn = Einsatz × Multiplikator
-      </div>
-    </div>
-
-    <div className="mt-4 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-      {[
-        { hits: 1, multi: "0.4x" },
-        { hits: 2, multi: "2x" },
-        { hits: 3, multi: "10x" },
-        { hits: 4, multi: "50x" },
-        { hits: 5, multi: "200x" },
-        { hits: 6, multi: "1000x" },
-        { hits: 8, multi: "20000x" },
-      ].map((row) => (
-        <div
-          key={row.hits}
-          className="rounded-2xl border border-white/10 bg-black/40 px-3 py-3 text-center"
-        >
-          <div className="font-black text-white">{row.hits} Treffer</div>
-          <div className="text-zinc-400">{row.multi}</div>
-        </div>
-      ))}
-    </div>
-
-    <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-center">
-      <div className="text-xs uppercase tracking-[0.2em] text-amber-200/80">
-        Aktueller Einsatz
-      </div>
-      <div className="mt-1 text-lg font-black text-amber-200">
-        {multiLineStake} Tokens
-      </div>
-    </div>
-
-    {lastMultiLineHitCount > 0 && (
-      <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-center">
-        <div className="text-sm font-bold text-emerald-200">
-          Letzter Gewinn
-        </div>
-        <div className="mt-1 text-lg font-black text-white">
-          {lastMultiLineHitCount} Treffer · +{lastMultiLinePayout} Tokens
-        </div>
-      </div>
-    )}
-  </div>
-)}
+                  
 {slotViewMode !== "risk" && (
   <Button
     onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
