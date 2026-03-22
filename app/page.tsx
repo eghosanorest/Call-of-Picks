@@ -1189,6 +1189,8 @@ const stopClassicSpinSound = () => {
   audio.currentTime = 0;
 };
 
+const classicSpinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 const playClassicSpinSound = () => {
   try {
     if (!classicSpinAudioRef.current) {
@@ -1202,7 +1204,16 @@ const playClassicSpinSound = () => {
     audio.currentTime = 1.5;
     audio.volume = 1;
 
-    audio.play().catch(() => {});
+    // 🧠 WICHTIG: alten Timer löschen
+    if (classicSpinTimeoutRef.current) {
+      clearTimeout(classicSpinTimeoutRef.current);
+    }
+
+    // ⏱️ HIER kommt der Delay rein
+    classicSpinTimeoutRef.current = setTimeout(() => {
+      audio.play().catch(() => {});
+    }, 1000); // <- hier einstellen (z.B. 1000 = 1 Sekunde)
+
   } catch {
     // absichtlich leer
   }
