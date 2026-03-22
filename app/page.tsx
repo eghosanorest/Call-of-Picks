@@ -72,7 +72,7 @@ type LocalSymbol = {
   image_path: string;
   weight: number;
 };
-type LocalData = {
+type LocalData = { 
   lastDailyClaim?: string | null;
   currentWeek: number;
   currentMajor: string;
