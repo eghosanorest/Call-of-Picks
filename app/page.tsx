@@ -1303,8 +1303,12 @@ const [riskSelectedIndex, setRiskSelectedIndex] = useState<number | null>(null);
 const [riskStake, setRiskStake] = useState<number>(1);
 const [riskPot, setRiskPot] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
-const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>([]);
-const [riskCursor, setRiskCursor] = useState(RISK_START_INDEX);
+const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => {
+  const initialStrip = buildRiskStrip(RISK_VISIBLE_COUNT * 6);
+  riskGameStripRef.current = initialStrip;
+  return initialStrip;
+});
+
 const [riskRunning, setRiskRunning] = useState(false);
 const [riskSelectedItem, setRiskSelectedItem] = useState<LocalSymbol | null>(null);
 const [riskGameOver, setRiskGameOver] = useState(false);
