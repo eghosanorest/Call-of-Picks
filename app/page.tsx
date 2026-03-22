@@ -1257,6 +1257,8 @@ const RISK_ITEM_WIDTH = 104;
 const RISK_ITEM_GAP = 20;
 const RISK_STEP = RISK_ITEM_WIDTH + RISK_ITEM_GAP;
 const RISK_BUFFER_LEFT = 18;
+const RISK_SESSION_LENGTH = 240;
+const RISK_START_INDEX = 18;
 const riskAllSymbols = useMemo(() => {
   return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
 }, [slotEnabledSymbols]);
@@ -1277,15 +1279,31 @@ const zombieTeddySymbol = useMemo(() => {
   );
 }, [riskAllSymbols]);
 
-const buildRiskStrip = (count = 25): LocalSymbol[] => {
+const buildRiskStrip = (count = RISK_VISIBLE_COUNT): LocalSymbol[] => {
   const source = riskVisualPool.length ? riskVisualPool : symbolPool;
-  return Array.from({ length: count }, () => source[Math.floor(Math.random() * source.length)]);
+  return Array.from({ length: count }, () => {
+    return source[Math.floor(Math.random() * source.length)];
+  });
+};
+const ensureRiskGameStripLength = (
+  strip: LocalSymbol[],
+  minLength: number
+): LocalSymbol[] => {
+  if (strip.length >= minLength) return strip;
+
+  const source = riskVisualPool.length ? riskVisualPool : symbolPool;
+  const extra = Array.from({ length: minLength - strip.length }, () => {
+    return source[Math.floor(Math.random() * source.length)];
+  });
+
+  return [...strip, ...extra];
 };
 const [riskSelectedIndex, setRiskSelectedIndex] = useState<number | null>(null);
 const [riskStake, setRiskStake] = useState<number>(1);
 const [riskPot, setRiskPot] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
-const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => buildRiskStrip(25));
+const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>([]);
+const [riskCursor, setRiskCursor] = useState(RISK_START_INDEX);
 const [riskRunning, setRiskRunning] = useState(false);
 const [riskSelectedItem, setRiskSelectedItem] = useState<LocalSymbol | null>(null);
 const [riskGameOver, setRiskGameOver] = useState(false);
@@ -1293,6 +1311,7 @@ const [riskGiftRarity, setRiskGiftRarity] = useState<LocalSymbol["rarity"] | nul
 const [riskOffset, setRiskOffset] = useState(0);
 
 const riskLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
 const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
@@ -1314,6 +1333,9 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const riskViewportRef = useRef<HTMLDivElement | null>(null);
+const riskSpinCursorRef = useRef(RISK_BUFFER_LEFT);
+const riskGameStripRef = useRef<LocalSymbol[]>(buildRiskStrip(RISK_VISIBLE_COUNT * 6));
+
   const [adminDraft, setAdminDraft] = useState({
   teamA: "",
   teamB: "",
@@ -2246,15 +2268,20 @@ const resetRiskRound = () => {
     riskLoopRef.current = null;
   }
 
+  const freshStrip = buildRiskStrip(RISK_VISIBLE_COUNT * 6);
+
+  riskGameStripRef.current = freshStrip;
+  riskSpinCursorRef.current = RISK_BUFFER_LEFT;
+
   setRiskRunning(false);
-setRiskPot(0);
-setRiskStreak(0);
-setRiskSelectedItem(null);
-setRiskSelectedIndex(null);
-setRiskGameOver(false);
-setRiskGiftRarity(null);
-setRiskStrip(buildRiskStrip(RISK_VISIBLE_COUNT));
-setRiskOffset(0);
+  setRiskPot(0);
+  setRiskStreak(0);
+  setRiskSelectedItem(null);
+  setRiskSelectedIndex(null);
+  setRiskGameOver(false);
+  setRiskGiftRarity(null);
+  setRiskStrip(freshStrip);
+  setRiskOffset(0);
 };
 
 const cashoutRiskGame = async () => {
@@ -2395,37 +2422,39 @@ const spinRiskGame = async () => {
     ? zombieTeddySymbol
     : riskSafePool[Math.floor(Math.random() * riskSafePool.length)];
 
-  const landingIndex = RISK_BUFFER_LEFT + Math.floor(Math.random() * 6);
+  let workingStrip = riskGameStripRef.current;
+  let cursor = riskSpinCursorRef.current;
 
-  const nextStrip = Array.from({ length: RISK_VISIBLE_COUNT }, (_, index) => {
-    if (index === landingIndex) return landingSymbol;
-    return riskVisualPool[Math.floor(Math.random() * riskVisualPool.length)];
-  });
+  const travelSteps = 8 + Math.floor(Math.random() * 5);
+  const landingIndex = cursor + travelSteps;
 
-  setRiskStrip(nextStrip);
+  workingStrip = ensureRiskGameStripLength(
+    workingStrip,
+    landingIndex + RISK_BUFFER_LEFT + 20
+  );
+
+  workingStrip[landingIndex] = landingSymbol;
+
+  riskGameStripRef.current = workingStrip;
+  setRiskStrip(workingStrip);
 
   const visibleWidth = riskViewportRef.current?.clientWidth || 900;
   const targetOffset = getRiskTargetOffset(landingIndex, visibleWidth);
-  const startOffset = targetOffset - RISK_STEP * 12;
 
-  setRiskOffset(startOffset);
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      setRiskOffset(targetOffset);
-    });
-  });
+  setRiskOffset(targetOffset);
 
   riskLoopRef.current = setTimeout(() => {
     const finalIndex = getNearestRiskIndex(
       targetOffset,
       visibleWidth,
-      nextStrip.length
+      workingStrip.length
     );
 
-    const selected = nextStrip[finalIndex];
+    const selected = workingStrip[finalIndex];
     setRiskSelectedItem(selected);
     setRiskSelectedIndex(finalIndex);
+
+    riskSpinCursorRef.current = finalIndex;
 
     if (selected.slug === zombieTeddySymbol.slug) {
       setRiskPot(0);
@@ -2441,7 +2470,7 @@ const spinRiskGame = async () => {
 
     setRiskRunning(false);
     riskLoopRef.current = null;
-  }, 2400);
+  }, 2350);
 };
   
 
