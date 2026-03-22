@@ -1300,7 +1300,7 @@ const ensureRiskGameStripLength = (
   return [...strip, ...extra];
 };
 const [riskSelectedIndex, setRiskSelectedIndex] = useState<number | null>(null);
-const [riskStake, setRiskStake] = useState<number>(1);
+const riskStake = slotStake;
 const [riskPot, setRiskPot] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
 const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(() => {
@@ -4506,27 +4506,7 @@ useEffect(() => {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
-            {SLOT_STAKES.map((stake) => {
-              const active = riskStake === stake;
-              return (
-                <button
-                  key={`risk-stake-${stake}`}
-                  type="button"
-                  onClick={() => setRiskStake(stake)}
-                  disabled={riskRunning}
-                  className={`rounded-2xl border px-3 py-3 text-sm transition ${
-                    active
-                      ? "border-violet-400 bg-violet-500/20 text-white"
-                      : "border-white/10 bg-black/40 text-zinc-300"
-                  }`}
-                >
-                  <div className="font-black">{stake}</div>
-                  <div className="text-xs text-zinc-400">pro Spin</div>
-                </button>
-              );
-            })}
-          </div>
+          
 
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <Button
