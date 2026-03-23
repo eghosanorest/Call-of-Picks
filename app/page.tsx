@@ -1088,20 +1088,26 @@ const placeBet = async () => {
 }, [data.weeks, userId]);
 const [profileOpen, setProfileOpen] = useState(false);
 const [profileTab, setProfileTab] = useState<"profile" | "friends" | "chat" | "inventory">("profile");
-const [chatImageUploading, setChatImageUploading] = useState(false);
+
 const [displayName, setDisplayName] = useState("");
 const [avatarUrl, setAvatarUrl] = useState("");
 const [friendSearch, setFriendSearch] = useState("");
 const [friendSearchResults, setFriendSearchResults] = useState<any[]>([]);
 const [friends, setFriends] = useState<any[]>([]);
 const [friendRequests, setFriendRequests] = useState<any[]>([]);
+
 const [chatPosition, setChatPosition] = useState({ x: 24, y: 24 });
 const [chatDragging, setChatDragging] = useState(false);
 const chatDragOffsetRef = useRef({ x: 0, y: 0 });
+
 const [activeChat, setActiveChat] = useState<any | null>(null);
 const [chatMessages, setChatMessages] = useState<any[]>([]);
 const [chatInput, setChatInput] = useState("");
 const [chatOpen, setChatOpen] = useState(false);
+const [chatImageUploading, setChatImageUploading] = useState(false);
+
+const chatBottomRef = useRef<HTMLDivElement | null>(null);
+
 const startChatDrag = (e: React.MouseEvent<HTMLDivElement>) => {
   setChatDragging(true);
   chatDragOffsetRef.current = {
@@ -1132,6 +1138,11 @@ useEffect(() => {
     window.removeEventListener("mouseup", handleUp);
   };
 }, [chatDragging]);
+
+useEffect(() => {
+  if (!chatOpen) return;
+  chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [chatMessages, chatOpen]);
 const uploadAvatar = async (file: File) => {
   const {
     data: { user },
@@ -1139,7 +1150,7 @@ const uploadAvatar = async (file: File) => {
 
   if (!user || !file) return;
 
-  const fileExt = file.name.split(".").pop();
+  const fileExt = file.name.split(".").pop() || "png";
   const filePath = `${user.id}/avatar.${fileExt}`;
 
   const { error: uploadError } = await supabase.storage
@@ -1147,10 +1158,10 @@ const uploadAvatar = async (file: File) => {
     .upload(filePath, file, { upsert: true });
 
   if (uploadError) {
-  console.error("AVATAR UPLOAD ERROR:", uploadError);
-  setMessage(`Upload fehlgeschlagen: ${uploadError.message}`);
-  return;
-}
+    console.error("AVATAR UPLOAD ERROR:", uploadError);
+    setMessage(`Upload fehlgeschlagen: ${uploadError.message}`);
+    return;
+  }
 
   const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
   const publicUrl = data.publicUrl;
@@ -1158,9 +1169,9 @@ const uploadAvatar = async (file: File) => {
   setAvatarUrl(publicUrl);
 
   const { error: profileError } = await supabase
-  .from("profiles")
-  .update({ avatar_url: publicUrl })
-  .eq("id", user.id);
+    .from("profiles")
+    .update({ avatar_url: publicUrl })
+    .eq("id", user.id);
 
   if (profileError) {
     console.error(profileError);
@@ -1205,7 +1216,6 @@ const saveProfile = async () => {
   await loadFriends(user.id);
   await loadFriendRequests(user.id);
 };
-
 const searchUsers = async () => {
   if (!friendSearch.trim()) {
     setFriendSearchResults([]);
@@ -1382,7 +1392,9 @@ const openChatWithFriend = async (friendId: string) => {
   let { data: existing, error: existingError } = await supabase
     .from("direct_chats")
     .select("*")
-    .or(`and(user_a.eq.${userId},user_b.eq.${friendId}),and(user_a.eq.${friendId},user_b.eq.${userId})`)
+    .or(
+      `and(user_a.eq.${userId},user_b.eq.${friendId}),and(user_a.eq.${friendId},user_b.eq.${userId})`
+    )
     .maybeSingle();
 
   if (existingError) {
@@ -1449,6 +1461,7 @@ const sendMessage = async () => {
 
   await loadMessages(activeChat.id);
 };
+
 const deleteChat = async (friendId: string) => {
   if (!userId) return;
 
@@ -1458,58 +1471,65 @@ const deleteChat = async (friendId: string) => {
 
   if (!confirmed) return;
 
-  let { data: existing, error: existingError } = await supabase
-    .from("direct_chats")
-    .select("id")
-    .or(
-      `and(user_a.eq.${userId},user_b.eq.${friendId}),and(user_a.eq.${friendId},user_b.eq.${userId})`
-    )
-    .maybeSingle();
+  try {
+    const { data: existing, error: existingError } = await supabase
+      .from("direct_chats")
+      .select("id")
+      .or(
+        `and(user_a.eq.${userId},user_b.eq.${friendId}),and(user_a.eq.${friendId},user_b.eq.${userId})`
+      )
+      .maybeSingle();
 
-  if (existingError) {
-    console.error(existingError);
-    setMessage(existingError.message);
-    return;
+    if (existingError) {
+      console.error(existingError);
+      setMessage(existingError.message);
+      return;
+    }
+
+    if (!existing) {
+      setMessage("Kein Chat gefunden.");
+      return;
+    }
+
+    const chatId = existing.id;
+
+    const { error: deleteMessagesError } = await supabase
+      .from("direct_messages")
+      .delete()
+      .eq("chat_id", chatId);
+
+    if (deleteMessagesError) {
+      console.error(deleteMessagesError);
+      setMessage(deleteMessagesError.message);
+      return;
+    }
+
+    const { error: deleteChatError } = await supabase
+      .from("direct_chats")
+      .delete()
+      .eq("id", chatId);
+
+    if (deleteChatError) {
+      console.error(deleteChatError);
+      setMessage(deleteChatError.message);
+      return;
+    }
+
+    if (activeChat?.id === chatId) {
+      setActiveChat(null);
+      setChatMessages([]);
+      setChatInput("");
+      setChatOpen(false);
+    }
+
+    setMessage("Chat gelöscht.");
+    await loadFriends(userId);
+  } catch (error: any) {
+    console.error(error);
+    setMessage(error?.message || "Chat konnte nicht gelöscht werden.");
   }
-
-  if (!existing) {
-    setMessage("Kein Chat gefunden.");
-    return;
-  }
-
-  const chatId = existing.id;
-
-  const { error: deleteMessagesError } = await supabase
-    .from("direct_messages")
-    .delete()
-    .eq("chat_id", chatId);
-
-  if (deleteMessagesError) {
-    console.error(deleteMessagesError);
-    setMessage(deleteMessagesError.message);
-    return;
-  }
-
-  const { error: deleteChatError } = await supabase
-    .from("direct_chats")
-    .delete()
-    .eq("id", chatId);
-
-  if (deleteChatError) {
-    console.error(deleteChatError);
-    setMessage(deleteChatError.message);
-    return;
-  }
-
-  if (activeChat?.id === chatId) {
-    setActiveChat(null);
-    setChatMessages([]);
-    setChatInput("");
-    setChatOpen(false);
-  }
-
-  setMessage("Chat gelöscht.");
 };
+
 const sendChatImage = async (file: File) => {
   if (!userId || !activeChat || !file) return;
 
@@ -1553,11 +1573,6 @@ const sendChatImage = async (file: File) => {
     setChatImageUploading(false);
   }
 };
-const chatBottomRef = useRef<HTMLDivElement | null>(null);
-useEffect(() => {
-  if (!chatOpen) return;
-  chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-}, [chatMessages, chatOpen]);
 
 const [showCompletedHomeMatches, setShowCompletedHomeMatches] = useState(false);
   const [myGroups, setMyGroups] = useState<GroupType[]>([]);
@@ -7314,17 +7329,23 @@ setProfileTab("profile");
     }}
   >
     <div
-      onMouseDown={startChatDrag}
-      className="flex cursor-move items-center justify-between border-b border-white/10 p-3"
+  onMouseDown={startChatDrag}
+  className="flex cursor-move items-center justify-between border-b border-white/10 p-3"
+>
+  <div className="font-bold text-white">Chat</div>
+
+  <div className="flex items-center gap-2">
+    
+
+    <button
+      type="button"
+      onClick={() => setChatOpen(false)}
+      className="rounded-lg bg-white/10 px-2 py-1 text-xs text-white"
     >
-      <div className="font-bold text-white">Chat</div>
-      <button
-        onClick={() => setChatOpen(false)}
-        className="rounded-lg bg-white/10 px-2 py-1 text-xs text-white"
-      >
-        X
-      </button>
-    </div>
+      X
+    </button>
+  </div>
+</div>
 
     <div className="h-80 overflow-y-auto space-y-2 p-3">
   {chatMessages.length === 0 ? (
