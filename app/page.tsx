@@ -1114,10 +1114,10 @@ const uploadAvatar = async (file: File) => {
     .upload(filePath, file, { upsert: true });
 
   if (uploadError) {
-    console.error(uploadError);
-    setMessage("Upload fehlgeschlagen.");
-    return;
-  }
+  console.error("AVATAR UPLOAD ERROR:", uploadError);
+  setMessage(`Upload fehlgeschlagen: ${uploadError.message}`);
+  return;
+}
 
   const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
   const publicUrl = data.publicUrl;
