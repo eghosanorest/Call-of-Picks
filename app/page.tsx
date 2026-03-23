@@ -1088,7 +1088,7 @@ const placeBet = async () => {
 }, [data.weeks, userId]);
 const [profileOpen, setProfileOpen] = useState(false);
 const [profileTab, setProfileTab] = useState<"profile" | "friends" | "chat" | "inventory">("profile");
-
+const [chatList, setChatList] = useState<any[]>([]);
 const [displayName, setDisplayName] = useState("");
 const [avatarUrl, setAvatarUrl] = useState("");
 const [friendSearch, setFriendSearch] = useState("");
@@ -1105,7 +1105,102 @@ const [chatMessages, setChatMessages] = useState<any[]>([]);
 const [chatInput, setChatInput] = useState("");
 const [chatOpen, setChatOpen] = useState(false);
 const [chatImageUploading, setChatImageUploading] = useState(false);
+const loadChatList = async (uid: string) => {
+  if (!uid) {
+    setChatList([]);
+    return;
+  }
 
+  const { data: chats, error: chatsError } = await supabase
+    .from("direct_chats")
+    .select("id, user_a, user_b")
+    .or(`user_a.eq.${uid},user_b.eq.${uid}`);
+
+  if (chatsError) {
+    console.error(chatsError);
+    setMessage(chatsError.message);
+    return;
+  }
+
+  if (!chats?.length) {
+    setChatList([]);
+    return;
+  }
+
+  const otherUserIds = chats.map((chat: any) =>
+    chat.user_a === uid ? chat.user_b : chat.user_a
+  );
+
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .in("id", otherUserIds);
+
+  if (profileError) {
+    console.error(profileError);
+    setMessage(profileError.message);
+    return;
+  }
+
+  const profileMap = new Map((profileRows || []).map((p: any) => [p.id, p]));
+
+  setChatList(
+    chats.map((chat: any) => {
+      const otherUserId = chat.user_a === uid ? chat.user_b : chat.user_a;
+      return {
+        id: chat.id,
+        friend_id: otherUserId,
+        profile: profileMap.get(otherUserId) || null,
+      };
+    })
+  );
+};
+const deleteChatById = async (chatId: string) => {
+  if (!userId || !chatId) return;
+
+  const confirmed = window.confirm(
+    "Willst du diesen Chat wirklich löschen? Alle Nachrichten in diesem Chat werden entfernt."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const { error: deleteMessagesError } = await supabase
+      .from("direct_messages")
+      .delete()
+      .eq("chat_id", chatId);
+
+    if (deleteMessagesError) {
+      console.error("DELETE MESSAGES ERROR:", deleteMessagesError);
+      setMessage(`Nachrichten konnten nicht gelöscht werden: ${deleteMessagesError.message}`);
+      return;
+    }
+
+    const { error: deleteChatError } = await supabase
+      .from("direct_chats")
+      .delete()
+      .eq("id", chatId);
+
+    if (deleteChatError) {
+      console.error("DELETE CHAT ERROR:", deleteChatError);
+      setMessage(`Chat konnte nicht gelöscht werden: ${deleteChatError.message}`);
+      return;
+    }
+
+    if (activeChat?.id === chatId) {
+      setActiveChat(null);
+      setChatMessages([]);
+      setChatInput("");
+      setChatOpen(false);
+    }
+
+    await loadChatList(userId);
+    setMessage("Chat gelöscht.");
+  } catch (error: any) {
+    console.error("DELETE CHAT CATCH:", error);
+    setMessage(error?.message || "Chat konnte nicht gelöscht werden.");
+  }
+};
 const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
 const startChatDrag = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1462,73 +1557,7 @@ const sendMessage = async () => {
   await loadMessages(activeChat.id);
 };
 
-const deleteChat = async (friendId: string) => {
-  if (!userId) return;
 
-  const confirmed = window.confirm(
-    "Willst du diesen Chat wirklich löschen? Alle Nachrichten in diesem Chat werden entfernt."
-  );
-
-  if (!confirmed) return;
-
-  try {
-    const { data: existing, error: existingError } = await supabase
-      .from("direct_chats")
-      .select("id")
-      .or(
-        `and(user_a.eq.${userId},user_b.eq.${friendId}),and(user_a.eq.${friendId},user_b.eq.${userId})`
-      )
-      .maybeSingle();
-
-    if (existingError) {
-      console.error(existingError);
-      setMessage(existingError.message);
-      return;
-    }
-
-    if (!existing) {
-      setMessage("Kein Chat gefunden.");
-      return;
-    }
-
-    const chatId = existing.id;
-
-    const { error: deleteMessagesError } = await supabase
-      .from("direct_messages")
-      .delete()
-      .eq("chat_id", chatId);
-
-    if (deleteMessagesError) {
-      console.error(deleteMessagesError);
-      setMessage(deleteMessagesError.message);
-      return;
-    }
-
-    const { error: deleteChatError } = await supabase
-      .from("direct_chats")
-      .delete()
-      .eq("id", chatId);
-
-    if (deleteChatError) {
-      console.error(deleteChatError);
-      setMessage(deleteChatError.message);
-      return;
-    }
-
-    if (activeChat?.id === chatId) {
-      setActiveChat(null);
-      setChatMessages([]);
-      setChatInput("");
-      setChatOpen(false);
-    }
-
-    setMessage("Chat gelöscht.");
-    await loadFriends(userId);
-  } catch (error: any) {
-    console.error(error);
-    setMessage(error?.message || "Chat konnte nicht gelöscht werden.");
-  }
-};
 
 const sendChatImage = async (file: File) => {
   if (!userId || !activeChat || !file) return;
@@ -3472,6 +3501,7 @@ await loadUserBets(user.id);
 await loadMyGroups(user.id);
 await loadFriends(user.id);
 await loadFriendRequests(user.id);
+await loadChatList(user.id);
     }
 
     setMounted(true);
@@ -3493,6 +3523,7 @@ await loadUserBets(user.id);
 await loadMyGroups(user.id);
 await loadFriends(user.id);
 await loadFriendRequests(user.id);
+await loadChatList(user.id);
     } else {
       setUserId("");
       setUserEmail("");
@@ -3755,6 +3786,7 @@ setChatInput("");
 setChatOpen(false);
 setProfileOpen(false);
 setProfileTab("profile");
+setChatList([]);
   };
 
   const saveDisplayName = async () => {
@@ -5538,11 +5570,11 @@ setProfileTab("profile");
       </button>
 
       <button
-        onClick={() => deleteChat(friend.friend_id)}
-        className="rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white"
-      >
-        Löschen
-      </button>
+  onClick={() => deleteChatById(friend.id)}
+  className="rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white"
+>
+  Löschen
+</button>
     </div>
   </div>
 ))}
@@ -5553,42 +5585,46 @@ setProfileTab("profile");
       {profileTab === "chat" && (
   <div className="space-y-2">
     <div className="text-sm text-zinc-400">
-      Starte einen Chat über die Freundesliste.
+      Hier siehst du nur bestehende Chats.
     </div>
 
-    {friends.map((friend) => (
-      <div
-        key={friend.id}
-        className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
-      >
-        <div className="flex items-center gap-3">
-          <img
-            src={friend.profile?.avatar_url || "/default-avatar.png"}
-            alt=""
-            className="h-10 w-10 rounded-full object-cover"
-          />
-          <div className="font-semibold">
-            {friend.profile?.display_name || friend.profile?.username || "Unbekannt"}
+    {chatList.length === 0 ? (
+      <div className="text-sm text-zinc-400">Noch keine Chats vorhanden.</div>
+    ) : (
+      chatList.map((chat) => (
+        <div
+          key={chat.id}
+          className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+        >
+          <div className="flex items-center gap-3">
+            <img
+              src={chat.profile?.avatar_url || "/default-avatar.png"}
+              alt=""
+              className="h-10 w-10 rounded-full object-cover"
+            />
+            <div className="font-semibold">
+              {chat.profile?.display_name || chat.profile?.username || "Unbekannt"}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openChatWithFriend(chat.friend_id)}
+              className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
+            >
+              Öffnen
+            </button>
+
+            <button
+              onClick={() => deleteChatById(chat.id)}
+              className="rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white"
+            >
+              Löschen
+            </button>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => openChatWithFriend(friend.friend_id)}
-            className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
-          >
-            Öffnen
-          </button>
-
-          <button
-            onClick={() => deleteChat(friend.friend_id)}
-            className="rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white"
-          >
-            Löschen
-          </button>
-        </div>
-      </div>
-    ))}
+      ))
+    )}
   </div>
 )}
 
