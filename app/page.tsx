@@ -173,7 +173,6 @@ type FirstshotUiState =
 
 const teamIcons: Record<string, string> = {
   "OpTic Texas": "/team-logos/optic-texas-logo.png",
-  "Atlanta FaZe": "/team-logos/faze.png",
   "FaZe Vegas": "/team-logos/faze-vegas.png",
   "Miami Heretics": "/team-logos/mh-logo.png",
   "Carolina Royal Ravens": "/team-logos/rr-logo.png",
@@ -185,7 +184,6 @@ const teamIcons: Record<string, string> = {
   "Paris Gentle Mates": "/team-logos/gm-logo.png",
   "Toronto Ultra": "/team-logos/koi-logo.png",
   "Boston Breach": "/team-logos/bb-logo.png",
-  "LA Guerrillas": "/team-logos/lag-logo.png",
 };
 
 const allTeams = Object.keys(teamIcons);
