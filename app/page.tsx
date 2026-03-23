@@ -1361,19 +1361,12 @@ const loadFriends = async (uid: string) => {
 const loadMessages = async (chatId: string) => {
   const { data, error } = await supabase
     .from("direct_messages")
-    .select(`
-      *,
-      sender:sender_id (
-        id,
-        username,
-        avatar_url
-      )
-    `)
+    .select("*")
     .eq("chat_id", chatId)
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error(error);
+    console.error("LOAD MESSAGES ERROR:", error);
     setMessage(error.message);
     return;
   }
@@ -1426,6 +1419,16 @@ const sendMessage = async () => {
   if (!userId || !activeChat || !chatInput.trim()) return;
 
   const messageToSend = chatInput.trim();
+
+  const optimisticMessage = {
+    id: `local-${Date.now()}`,
+    chat_id: activeChat.id,
+    sender_id: userId,
+    message: messageToSend,
+    created_at: new Date().toISOString(),
+  };
+
+  setChatMessages((prev) => [...prev, optimisticMessage]);
   setChatInput("");
 
   const { error } = await supabase.from("direct_messages").insert({
@@ -1437,9 +1440,12 @@ const sendMessage = async () => {
   if (error) {
     console.error(error);
     setMessage(error.message);
+    setChatMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
     setChatInput(messageToSend);
     return;
   }
+
+  await loadMessages(activeChat.id);
 };
 const chatBottomRef = useRef<HTMLDivElement | null>(null);
 useEffect(() => {
@@ -7180,6 +7186,10 @@ setProfileTab("profile");
     chatMessages.map((msg) => {
       const isMe = msg.sender_id === userId;
 
+      const friendProfile = friends.find((f) => f.friend_id === msg.sender_id)?.profile;
+      const otherAvatar = friendProfile?.avatar_url || "/default-avatar.png";
+      const otherName = friendProfile?.username || friendProfile?.display_name || "User";
+
       return (
         <div
           key={msg.id}
@@ -7187,8 +7197,8 @@ setProfileTab("profile");
         >
           {!isMe && (
             <img
-              src={msg.sender?.avatar_url || "/default-avatar.png"}
-              alt={msg.sender?.username || "User"}
+              src={otherAvatar}
+              alt={otherName}
               className="h-8 w-8 rounded-full border border-white/10 object-cover"
             />
           )}
@@ -7200,7 +7210,7 @@ setProfileTab("profile");
           >
             {!isMe && (
               <div className="mb-1 text-[10px] text-zinc-300">
-                {msg.sender?.username || "User"}
+                {otherName}
               </div>
             )}
             <div>{msg.message}</div>
