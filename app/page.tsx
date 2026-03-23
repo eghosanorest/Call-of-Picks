@@ -6224,14 +6224,14 @@ setChatList([]);
             onClick={() =>
               setAdminDraft((prev) => ({ ...prev, teamA: team }))
             }
-            className={`h-9 rounded-lg border px-2 text-left text-[11px] flex items-center ${
+            className={`h-6 rounded-lg border px-2 text-left text-[11px] flex items-center ${
   adminDraft.teamA === team
     ? "border-violet-400 bg-violet-500/20"
     : "border-white/10 bg-black/40"
 }`}
             
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
   <span className="scale-[0.5] origin-left">
     <TeamMini name={team} />
   </span>
@@ -6252,13 +6252,13 @@ setChatList([]);
             onClick={() =>
               setAdminDraft((prev) => ({ ...prev, teamB: team }))
             }
-            className={`rounded-xl border px-3 py-[6px] text-left text-xs ${
-              adminDraft.teamB === team
-                ? "border-cyan-400 bg-cyan-500/20"
-                : "border-white/10 bg-black/40"
-            }`}
+            className={`h-6 rounded-lg border px-2 text-left text-[11px] flex items-center ${
+  adminDraft.teamB === team
+    ? "border-cyan-400 bg-cyan-500/20"
+    : "border-white/10 bg-black/40"
+}`}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
   <span className="scale-[0.5] origin-left">
     <TeamMini name={team} />
   </span>
