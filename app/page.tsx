@@ -955,8 +955,8 @@ setLastMultiLineWinningIndexes(winningIndexes);
 
 const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
-    "home" | "picks" | "slot" | "inventory" | "group" | "admin"
-  >("home");
+  "home" | "picks" | "slot" | "profile" | "group" | "admin"
+>("home");
 
   const [data, setData] = useState<LocalData>(defaultData);
 
@@ -1084,6 +1084,323 @@ const placeBet = async () => {
   if (!userId) return;
   evaluateUserBets(userId);
 }, [data.weeks, userId]);
+const [profileOpen, setProfileOpen] = useState(false);
+const [profileTab, setProfileTab] = useState<"profile" | "friends" | "chat" | "inventory">("profile");
+
+const [displayName, setDisplayName] = useState("");
+const [avatarUrl, setAvatarUrl] = useState("");
+const [friendSearch, setFriendSearch] = useState("");
+const [friendSearchResults, setFriendSearchResults] = useState<any[]>([]);
+const [friends, setFriends] = useState<any[]>([]);
+const [friendRequests, setFriendRequests] = useState<any[]>([]);
+
+const [activeChat, setActiveChat] = useState<any | null>(null);
+const [chatMessages, setChatMessages] = useState<any[]>([]);
+const [chatInput, setChatInput] = useState("");
+const [chatOpen, setChatOpen] = useState(false);
+
+const uploadAvatar = async (file: File) => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user || !file) return;
+
+  const fileExt = file.name.split(".").pop();
+  const filePath = `${user.id}/avatar.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) {
+    console.error(uploadError);
+    setMessage("Upload fehlgeschlagen.");
+    return;
+  }
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+  const publicUrl = data.publicUrl;
+
+  setAvatarUrl(publicUrl);
+
+  const { error: profileError } = await supabase.from("profiles").upsert({
+    id: user.id,
+    avatar_url: publicUrl,
+  });
+
+  if (profileError) {
+    console.error(profileError);
+    setMessage("Profilbild konnte nicht gespeichert werden.");
+    return;
+  }
+
+  setMessage("Profilbild aktualisiert.");
+};
+
+const saveProfile = async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const name = displayName.trim();
+
+  if (!name) {
+    setMessage("Bitte einen Anzeigenamen eingeben.");
+    return;
+  }
+
+  const { error } = await supabase.from("profiles").upsert({
+    id: user.id,
+    username: name,
+    display_name: name,
+    avatar_url: avatarUrl,
+  });
+
+  if (error) {
+    console.error(error);
+    setMessage("Profil konnte nicht gespeichert werden.");
+    return;
+  }
+
+  setProfileName(name);
+  setNeedsUsername(false);
+  setMessage("Profil gespeichert.");
+
+  await loadFriends(user.id);
+  await loadFriendRequests(user.id);
+};
+
+const searchUsers = async () => {
+  if (!friendSearch.trim()) {
+    setFriendSearchResults([]);
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .ilike("username", `%${friendSearch.trim()}%`)
+    .limit(10);
+
+  if (error) {
+    console.error(error);
+    setMessage(error.message);
+    return;
+  }
+
+  setFriendSearchResults((data || []).filter((row: any) => row.id !== userId));
+};
+
+const sendFriendRequest = async (receiverId: string) => {
+  if (!userId) return;
+
+  const { error } = await supabase.from("friend_requests").insert({
+    sender_id: userId,
+    receiver_id: receiverId,
+    status: "pending",
+  });
+
+  if (error) {
+    console.error(error);
+    setMessage(error.message);
+    return;
+  }
+
+  setMessage("Freundschaftsanfrage gesendet.");
+  await loadFriendRequests(userId);
+};
+
+const loadFriendRequests = async (uid: string) => {
+  const { data, error } = await supabase
+    .from("friend_requests")
+    .select(`
+      id,
+      sender_id,
+      receiver_id,
+      status
+    `)
+    .eq("receiver_id", uid)
+    .eq("status", "pending");
+
+  if (error) {
+    console.error(error);
+    setMessage(error.message);
+    return;
+  }
+
+  if (!data?.length) {
+    setFriendRequests([]);
+    return;
+  }
+
+  const senderIds = data.map((row: any) => row.sender_id);
+
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .in("id", senderIds);
+
+  if (profileError) {
+    console.error(profileError);
+    setMessage(profileError.message);
+    return;
+  }
+
+  const profileMap = new Map((profileRows || []).map((p: any) => [p.id, p]));
+
+  setFriendRequests(
+    data.map((row: any) => ({
+      ...row,
+      sender_profile: profileMap.get(row.sender_id) || null,
+    }))
+  );
+};
+
+const acceptFriendRequest = async (request: any) => {
+  const { error: reqError } = await supabase
+    .from("friend_requests")
+    .update({ status: "accepted" })
+    .eq("id", request.id);
+
+  if (reqError) {
+    console.error(reqError);
+    setMessage(reqError.message);
+    return;
+  }
+
+  const { error: friendsError } = await supabase.from("friends").insert([
+    { user_id: request.sender_id, friend_id: request.receiver_id },
+    { user_id: request.receiver_id, friend_id: request.sender_id },
+  ]);
+
+  if (friendsError) {
+    console.error(friendsError);
+    setMessage(friendsError.message);
+    return;
+  }
+
+  setMessage("Freund hinzugefügt.");
+  await loadFriends(userId);
+  await loadFriendRequests(userId);
+};
+
+const loadFriends = async (uid: string) => {
+  const { data, error } = await supabase
+    .from("friends")
+    .select("id, user_id, friend_id")
+    .eq("user_id", uid);
+
+  if (error) {
+    console.error(error);
+    setMessage(error.message);
+    return;
+  }
+
+  if (!data?.length) {
+    setFriends([]);
+    return;
+  }
+
+  const friendIds = data.map((row: any) => row.friend_id);
+
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .in("id", friendIds);
+
+  if (profileError) {
+    console.error(profileError);
+    setMessage(profileError.message);
+    return;
+  }
+
+  const profileMap = new Map((profileRows || []).map((p: any) => [p.id, p]));
+
+  setFriends(
+    data.map((row: any) => ({
+      ...row,
+      profile: profileMap.get(row.friend_id) || null,
+    }))
+  );
+};
+
+const loadMessages = async (chatId: string) => {
+  const { data, error } = await supabase
+    .from("direct_messages")
+    .select("*")
+    .eq("chat_id", chatId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    setMessage(error.message);
+    return;
+  }
+
+  setChatMessages(data || []);
+};
+
+const openChatWithFriend = async (friendId: string) => {
+  if (!userId) return;
+
+  let { data: existing, error: existingError } = await supabase
+    .from("direct_chats")
+    .select("*")
+    .or(`and(user_a.eq.${userId},user_b.eq.${friendId}),and(user_a.eq.${friendId},user_b.eq.${userId})`)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error(existingError);
+    setMessage(existingError.message);
+    return;
+  }
+
+  let chat = existing;
+
+  if (!chat) {
+    const { data: created, error: createError } = await supabase
+      .from("direct_chats")
+      .insert({
+        user_a: userId,
+        user_b: friendId,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error(createError);
+      setMessage(createError.message);
+      return;
+    }
+
+    chat = created;
+  }
+
+  setActiveChat(chat);
+  setChatOpen(true);
+  await loadMessages(chat.id);
+};
+
+const sendMessage = async () => {
+  if (!userId || !activeChat || !chatInput.trim()) return;
+
+  const { error } = await supabase.from("direct_messages").insert({
+    chat_id: activeChat.id,
+    sender_id: userId,
+    message: chatInput.trim(),
+  });
+
+  if (error) {
+    console.error(error);
+    setMessage(error.message);
+    return;
+  }
+
+  setChatInput("");
+};
 const [showCompletedHomeMatches, setShowCompletedHomeMatches] = useState(false);
   const [myGroups, setMyGroups] = useState<GroupType[]>([]);
   const [activeGroupId, setActiveGroupId] = useState("");
@@ -1093,7 +1410,8 @@ const [showBetBuilder, setShowBetBuilder] = useState(false);
 const [showMyBets, setShowMyBets] = useState(false);
 const [betStake, setBetStake] = useState("1");
 const [betSelections, setBetSelections] = useState<Record<string, PickSide>>({});
-  const [groupName, setGroupName] = useState("");
+  
+const [groupName, setGroupName] = useState("");
   const [joinCode, setJoinCode] = useState("");
 const allOpenMatches = useMemo(() => {
   return Object.values(data.weeks)
@@ -1510,7 +1828,11 @@ const loadMatches = async () => {
   { data: spinRows, error: spinError },
   { data: invRows, error: invError },
 ] = await Promise.all([
-  supabase.from("profiles").select("username, tokens").eq("id", uid).maybeSingle(),
+  supabase
+  .from("profiles")
+  .select("username, display_name, avatar_url, tokens")
+  .eq("id", uid)
+  .maybeSingle(),
   supabase.from("user_picks").select("match_id, pick_side").eq("user_id", uid),
   supabase.from("match_rewards").select("match_id").eq("user_id", uid),
   supabase
@@ -1571,10 +1893,13 @@ const resolvedMatchIds = (rewardRows || []).map((r: any) => String(r.match_id));
   spinHistory,
 }));
 
-    if (profile?.username) {
-      setProfileName(profile.username);
-      setNeedsUsername(false);
-    }
+    if (profile) {
+  const nextName = profile.display_name || profile.username || "";
+  setProfileName(profile.username || nextName);
+  setDisplayName(nextName);
+  setAvatarUrl(profile.avatar_url || "");
+  setNeedsUsername(!nextName);
+}
   };
 
   const setPickOnline = async (matchId: string, side: PickSide) => {
@@ -2706,10 +3031,12 @@ if (isClassicSingleSlot) {
     if (!existing) {
       const fallbackName = email?.split("@")[0] || `user-${uid.slice(0, 8)}`;
       const { error: insertError } = await supabase.from("profiles").insert({
-        id: uid,
-        username: fallbackName,
-        tokens: 0,
-      });
+  id: uid,
+  username: fallbackName,
+  display_name: fallbackName,
+  avatar_url: "",
+  tokens: 0,
+});
 
       if (insertError) {
         setMessage(insertError.message);
@@ -2717,12 +3044,17 @@ if (isClassicSingleSlot) {
       }
 
       setProfileName(fallbackName);
-      setNeedsUsername(false);
-      return;
+setDisplayName(fallbackName);
+setAvatarUrl("");
+setNeedsUsername(false);
+return;
     }
 
-    setProfileName(existing.username || "");
-    setNeedsUsername(!existing.username);
+    const nextName = (existing as any)?.display_name || existing?.username || "";
+setProfileName(existing?.username || nextName);
+setDisplayName(nextName);
+setAvatarUrl((existing as any)?.avatar_url || "");
+setNeedsUsername(!nextName);
   };
 
   const loadGroupInventories = async (groupUserIds: string[]) => {
@@ -2884,9 +3216,9 @@ if (isClassicSingleSlot) {
     }
 
     const { data: profileRows, error: profileRowsError } = await supabase
-      .from("profiles")
-      .select("id, username")
-      .in("id", memberIds);
+  .from("profiles")
+  .select("id, username, display_name, avatar_url")
+  .in("id", memberIds);
 
     if (profileRowsError) {
       setMessage(profileRowsError.message);
@@ -2894,13 +3226,20 @@ if (isClassicSingleSlot) {
     }
 
     const profileMap = new Map(
-      (profileRows || []).map((p: any) => [p.id, p.username || p.id])
-    );
+  (profileRows || []).map((p: any) => [
+    p.id,
+    {
+      username: p.username || p.display_name || p.id,
+      avatar_url: p.avatar_url || "",
+    },
+  ])
+);
 
-    const nextMembers = memberIds.map((id: string) => ({
-      user_id: id,
-      username: profileMap.get(id) || id,
-    }));
+const nextMembers = memberIds.map((id: string) => ({
+  user_id: id,
+  username: profileMap.get(id)?.username || id,
+  avatar_url: profileMap.get(id)?.avatar_url || "",
+}));
 
     setMembers(nextMembers);
     await loadGroupInventories(memberIds);
@@ -2948,9 +3287,11 @@ useEffect(() => {
       setUserEmail(user.email || "");
       setIsAdmin(ADMIN_USER_IDS.includes(user.id));
       await ensureProfile(user.id, user.email || "");
-      await loadRemoteUserGameState(user.id);
-      await loadUserBets(user.id);
-      await loadMyGroups(user.id);
+await loadRemoteUserGameState(user.id);
+await loadUserBets(user.id);
+await loadMyGroups(user.id);
+await loadFriends(user.id);
+await loadFriendRequests(user.id);
     }
 
     setMounted(true);
@@ -2967,9 +3308,11 @@ useEffect(() => {
       setUserEmail(user.email || "");
       setIsAdmin(ADMIN_USER_IDS.includes(user.id));
       await ensureProfile(user.id, user.email || "");
-      await loadRemoteUserGameState(user.id);
-      await loadUserBets(user.id);
-      await loadMyGroups(user.id);
+await loadRemoteUserGameState(user.id);
+await loadUserBets(user.id);
+await loadMyGroups(user.id);
+await loadFriends(user.id);
+await loadFriendRequests(user.id);
     } else {
       setUserId("");
       setUserEmail("");
@@ -2997,6 +3340,18 @@ useEffect(() => {
         spinHistory: [],
         bets: [],
       }));
+      setDisplayName("");
+setAvatarUrl("");
+setFriendSearch("");
+setFriendSearchResults([]);
+setFriends([]);
+setFriendRequests([]);
+setActiveChat(null);
+setChatMessages([]);
+setChatInput("");
+setChatOpen(false);
+setProfileOpen(false);
+setProfileTab("profile");
     }
   });
 
@@ -3048,6 +3403,29 @@ useEffect(() => {
     };
   }, []);
 
+  useEffect(() => {
+  if (!activeChat?.id) return;
+
+  const channel = supabase
+    .channel(`chat-${activeChat.id}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "direct_messages",
+        filter: `chat_id=eq.${activeChat.id}`,
+      },
+      (payload) => {
+        setChatMessages((prev) => [...prev, payload.new as any]);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [activeChat?.id]);
   useEffect(() => {
     if (!userId) {
       setMembers([]);
@@ -3180,6 +3558,18 @@ useEffect(() => {
     setOutgoingChallenges([]);
     setAllChallenges([]);
     setSelectedChallenge(null);
+    setDisplayName("");
+setAvatarUrl("");
+setFriendSearch("");
+setFriendSearchResults([]);
+setFriends([]);
+setFriendRequests([]);
+setActiveChat(null);
+setChatMessages([]);
+setChatInput("");
+setChatOpen(false);
+setProfileOpen(false);
+setProfileTab("profile");
   };
 
   const saveDisplayName = async () => {
@@ -3832,19 +4222,19 @@ useEffect(() => {
 
                   <div className="mt-5 flex gap-3">
                     <Button
-                      onClick={() => setScreen("picks")}
-                      className="flex flex-1 items-center justify-center gap-2"
-                    >
-                      Jetzt tippen <ChevronRight className="h-4 w-4" />
-                    </Button>
+  onClick={() => setScreen("picks")}
+  className="flex flex-1 items-center justify-center gap-2"
+>
+  Jetzt tippen <ChevronRight className="h-4 w-4" />
+</Button>
 
-                    <Button
-                      onClick={() => setScreen("slot")}
-                      variant="ghost"
-                      className="flex-1 border-white/15 bg-white/10"
-                    >
-                      Slot öffnen
-                    </Button>
+<Button
+  onClick={() => setScreen("slot")}
+  variant="ghost"
+  className="flex-1 border-white/15 bg-white/10"
+>
+  Slot öffnen
+</Button>
                   </div>
                 </div>
 
@@ -4772,68 +5162,264 @@ useEffect(() => {
               </motion.div>
             )}
 
-            {screen === "inventory" && (
-              <motion.div
-                key="inventory"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
+            {screen === "profile" && (
+  <div className="space-y-6">
+    <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          onClick={() => setProfileTab("profile")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+            profileTab === "profile" ? "bg-white text-black" : "bg-white/10 text-white"
+          }`}
+        >
+          Profil
+        </button>
+
+        <button
+          onClick={() => setProfileTab("friends")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+            profileTab === "friends" ? "bg-white text-black" : "bg-white/10 text-white"
+          }`}
+        >
+          Freunde
+        </button>
+
+        <button
+          onClick={() => setProfileTab("chat")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+            profileTab === "chat" ? "bg-white text-black" : "bg-white/10 text-white"
+          }`}
+        >
+          Chat
+        </button>
+
+        <button
+          onClick={() => setProfileTab("inventory")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+            profileTab === "inventory" ? "bg-white text-black" : "bg-white/10 text-white"
+          }`}
+        >
+          Inventar
+        </button>
+      </div>
+
+      {profileTab === "profile" && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <img
+              src={avatarUrl || "/default-avatar.png"}
+              alt="Avatar"
+              className="h-20 w-20 rounded-full object-cover border border-white/10"
+            />
+
+            <div className="space-y-2">
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Anzeigename"
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white outline-none"
+              />
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadAvatar(file);
+                }}
+                className="block text-sm"
+              />
+
+              <button
+                onClick={saveProfile}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-black"
               >
-                <SectionTitle eyebrow="Deine Sammlung" title="Inventar" />
+                Profil speichern
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                {inventoryCounts.length === 0 ? (
-                  <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-6 text-center text-zinc-400 shadow-xl">
-                    Noch keine Items. Gewinne eins in der Slotmachine.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {inventoryCounts.map((item) => (
-                      <ItemCard
-  key={item.id}
-  item={{
-    name: item.name,
-    rarity: item.rarity,
-    image_path: item.image_path,
-    slug: item.slug,
-    category: null,
-  }}
-  action={<div className="text-sm">x{item.quantity}</div>}
-/>
-                    ))}
-                  </div>
-                )}
+      {profileTab === "friends" && (
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="text-sm font-bold text-white">Freunde suchen</div>
+            <div className="flex gap-2">
+              <input
+                value={friendSearch}
+                onChange={(e) => setFriendSearch(e.target.value)}
+                placeholder="Name suchen..."
+                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white outline-none"
+              />
+              <button
+                onClick={searchUsers}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-black"
+              >
+                Suchen
+              </button>
+            </div>
 
-                {!!userEmail && (
-                  <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-                    <div className="text-lg font-bold">Online-Inventar</div>
-
-                    <div className="mt-3">
-                      {myOnlineInventory.length ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          {myOnlineInventory.map((item) => (
-                            <ItemCard
-  key={item.inventory_id}
-  item={{
-    name: item.name,
-    rarity: normalizeRarity(item.rarity),
-    image_path: item.image_path,
-    slug: item.slug,
-    category: item.category,
-  }}
-/>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-zinc-500">
-                          Noch keine online gespeicherten Items.
-                        </div>
-                      )}
+            <div className="space-y-2">
+              {friendSearchResults.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={user.avatar_url || "/default-avatar.png"}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                    <div className="font-semibold">
+                      {user.display_name || user.username || "Unbekannt"}
                     </div>
                   </div>
-                )}
-              </motion.div>
+
+                  <button
+                    onClick={() => sendFriendRequest(user.id)}
+                    className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white"
+                  >
+                    Hinzufügen
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-bold text-white">Anfragen</div>
+            {friendRequests.length === 0 && (
+              <div className="text-sm text-zinc-400">Keine offenen Anfragen.</div>
             )}
+
+            {friendRequests.map((request) => (
+              <div
+                key={request.id}
+                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={request.sender_profile?.avatar_url || "/default-avatar.png"}
+                    alt=""
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                  <div className="font-semibold">
+                    {request.sender_profile?.display_name ||
+                      request.sender_profile?.username ||
+                      "Unbekannt"}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => acceptFriendRequest(request)}
+                  className="rounded-xl bg-green-600 px-3 py-2 text-sm font-bold text-white"
+                >
+                  Annehmen
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-bold text-white">Freundesliste</div>
+            {friends.length === 0 && (
+              <div className="text-sm text-zinc-400">Noch keine Freunde.</div>
+            )}
+
+            {friends.map((friend) => (
+              <div
+                key={friend.id}
+                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={friend.profile?.avatar_url || "/default-avatar.png"}
+                    alt=""
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                  <div className="font-semibold">
+                    {friend.profile?.display_name || friend.profile?.username || "Unbekannt"}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => openChatWithFriend(friend.friend_id)}
+                  className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
+                >
+                  Chat
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {profileTab === "chat" && (
+        <div className="space-y-2">
+          <div className="text-sm text-zinc-400">
+            Starte einen Chat über die Freundesliste.
+          </div>
+
+          {friends.map((friend) => (
+            <div
+              key={friend.id}
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+            >
+              <div className="flex items-center gap-3">
+                <img
+                  src={friend.profile?.avatar_url || "/default-avatar.png"}
+                  alt=""
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+                <div className="font-semibold">
+                  {friend.profile?.display_name || friend.profile?.username || "Unbekannt"}
+                </div>
+              </div>
+
+              <button
+                onClick={() => openChatWithFriend(friend.friend_id)}
+                className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
+              >
+                Öffnen
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {profileTab === "inventory" && (
+        <div className="space-y-3">
+          {inventoryCounts.length === 0 ? (
+            <div className="text-sm text-zinc-400">Noch keine Items im Inventar.</div>
+          ) : (
+            inventoryCounts.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={item.image_path}
+                    alt={item.name}
+                    className="h-12 w-12 rounded-xl object-cover"
+                  />
+                  <div>
+                    <div className="font-semibold">{item.name}</div>
+                    <div className="text-xs text-zinc-400">
+                      {item.rarity} · x{item.quantity}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
             {screen === "group" && (
               <motion.div
