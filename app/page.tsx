@@ -1361,7 +1361,14 @@ const loadFriends = async (uid: string) => {
 const loadMessages = async (chatId: string) => {
   const { data, error } = await supabase
     .from("direct_messages")
-    .select("*")
+    .select(`
+      *,
+      sender:sender_id (
+        id,
+        username,
+        avatar_url
+      )
+    `)
     .eq("chat_id", chatId)
     .order("created_at", { ascending: true });
 
@@ -3455,14 +3462,8 @@ useEffect(() => {
         table: "direct_messages",
         filter: `chat_id=eq.${activeChat.id}`,
       },
-      (payload) => {
-        const newMessage = payload.new as any;
-
-        setChatMessages((prev) => {
-          const exists = prev.some((msg) => msg.id === newMessage.id);
-          if (exists) return prev;
-          return [...prev, newMessage];
-        });
+      () => {
+        loadMessages(activeChat.id);
       }
     )
     .subscribe((status) => {
@@ -7173,24 +7174,51 @@ setProfileTab("profile");
     </div>
 
     <div className="h-80 overflow-y-auto space-y-2 p-3">
-      {chatMessages.length === 0 ? (
-        <div className="text-sm text-zinc-400">Noch keine Nachrichten.</div>
-      ) : (
-        chatMessages.map((msg) => (
+  {chatMessages.length === 0 ? (
+    <div className="text-sm text-zinc-400">Noch keine Nachrichten.</div>
+  ) : (
+    chatMessages.map((msg) => {
+      const isMe = msg.sender_id === userId;
+
+      return (
+        <div
+          key={msg.id}
+          className={`flex items-start gap-2 ${isMe ? "justify-end" : "justify-start"}`}
+        >
+          {!isMe && (
+            <img
+              src={msg.sender?.avatar_url || "/default-avatar.png"}
+              alt={msg.sender?.username || "User"}
+              className="h-8 w-8 rounded-full border border-white/10 object-cover"
+            />
+          )}
+
           <div
-            key={msg.id}
-            className={`rounded-xl p-2 text-sm ${
-              msg.sender_id === userId
-                ? "bg-blue-600 text-white"
-                : "bg-white/10 text-white"
+            className={`max-w-[75%] rounded-xl p-2 text-sm ${
+              isMe ? "bg-blue-600 text-white" : "bg-white/10 text-white"
             }`}
           >
-            {msg.message}
+            {!isMe && (
+              <div className="mb-1 text-[10px] text-zinc-300">
+                {msg.sender?.username || "User"}
+              </div>
+            )}
+            <div>{msg.message}</div>
           </div>
-        ))
-      )}
-      <div ref={chatBottomRef} />
-    </div>
+
+          {isMe && (
+            <img
+              src={avatarUrl || "/default-avatar.png"}
+              alt="Ich"
+              className="h-8 w-8 rounded-full border border-white/10 object-cover"
+            />
+          )}
+        </div>
+      );
+    })
+  )}
+  <div ref={chatBottomRef} />
+</div>
 
     <div className="flex gap-2 border-t border-white/10 p-3">
       <input
