@@ -7364,12 +7364,40 @@ setProfileTab("profile");
   {msg.message ? <div>{msg.message}</div> : null}
 
   {msg.image_url ? (
+  <div className="space-y-2">
     <img
       src={msg.image_url}
       alt="Chat Bild"
       className="max-h-64 rounded-xl border border-white/10 object-cover"
     />
-  ) : null}
+
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          const response = await fetch(msg.image_url);
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = `chat-image-${msg.id || Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+
+          window.URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+          console.error(error);
+          setMessage("Bild konnte nicht heruntergeladen werden.");
+        }
+      }}
+      className="inline-flex rounded-lg bg-white/10 px-3 py-1 text-xs font-bold text-white transition hover:bg-white/20"
+    >
+      Bild herunterladen
+    </button>
+  </div>
+) : null}
 </div>
           </div>
 
