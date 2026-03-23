@@ -1124,10 +1124,10 @@ const uploadAvatar = async (file: File) => {
 
   setAvatarUrl(publicUrl);
 
-  const { error: profileError } = await supabase.from("profiles").upsert({
-    id: user.id,
-    avatar_url: publicUrl,
-  });
+  const { error: profileError } = await supabase
+  .from("profiles")
+  .update({ avatar_url: publicUrl })
+  .eq("id", user.id);
 
   if (profileError) {
     console.error(profileError);
