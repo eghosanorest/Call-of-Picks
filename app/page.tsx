@@ -824,6 +824,7 @@ export default function CallOfPicksPage() {
     is_active: boolean | null;
     slot_enabled?: boolean | null;
     multiline_enabled?: boolean | null;
+    risk_enabled?: boolean | null;
   }[]
 >([]);
 
@@ -1849,9 +1850,6 @@ const RISK_BUFFER_LEFT = 18;
 const RISK_SESSION_LENGTH = 240;
 const RISK_START_INDEX = 18;
 const RISK_BUST_CHANCE = 0.28;
-const riskAllSymbols = useMemo(() => {
-  return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
-}, [slotEnabledSymbols]);
 
 const riskEnabledSymbols = useMemo(() => {
   return allItemCatalog
@@ -1866,11 +1864,19 @@ const riskEnabledSymbols = useMemo(() => {
     }));
 }, [allItemCatalog]);
 
-const zombieTeddySymbol = useMemo(() => {
+const riskAllSymbols = useMemo<LocalSymbol[]>(() => {
+  return riskEnabledSymbols.length ? riskEnabledSymbols : symbolPool;
+}, [riskEnabledSymbols]);
+
+const riskSafePool = useMemo<LocalSymbol[]>(() => {
+  return riskAllSymbols.filter((item) => item.slug !== "zombieteddy-ultra");
+}, [riskAllSymbols]);
+
+const zombieTeddySymbol = useMemo<LocalSymbol>(() => {
   return (
     riskAllSymbols.find((item) => item.slug === "zombieteddy-ultra") ||
     symbolPool.find((item) => item.slug === "zombieteddy-ultra") ||
-    symbolPool[0]
+    symbolPool[0]!
   );
 }, [riskAllSymbols]);
 
@@ -1896,6 +1902,7 @@ const ensureRiskGameStripLength = (
 
   return [...strip, ...extra];
 };
+
 const [riskSelectedIndex, setRiskSelectedIndex] = useState<number | null>(null);
 const riskStake = slotStake;
 const [riskPot, setRiskPot] = useState(0);
@@ -1911,11 +1918,15 @@ const [riskOffset, setRiskOffset] = useState(0);
 const riskLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const riskViewportRef = useRef<HTMLDivElement | null>(null);
 const riskSpinCursorRef = useRef(RISK_BUFFER_LEFT);
-const riskGameStripRef = useRef<LocalSymbol[]>(buildRiskStrip(RISK_VISIBLE_COUNT * 6));
+const riskGameStripRef = useRef<LocalSymbol[]>([]);
 
-const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>(riskGameStripRef.current);
+const [riskStrip, setRiskStrip] = useState<LocalSymbol[]>([]);
 
-
+useEffect(() => {
+  const freshStrip = buildRiskStrip(RISK_VISIBLE_COUNT * 6);
+  riskGameStripRef.current = freshStrip;
+  setRiskStrip(freshStrip);
+}, [riskAllSymbols]);
 const [selectedMember, setSelectedMember] = useState<MemberInventory | null>(null);
 const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; scoreB: string }>>({});
   const [challengeTargetItem, setChallengeTargetItem] =
@@ -1954,7 +1965,7 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const loadAllItems = async () => {
     const { data, error } = await supabase
       .from("items")
-.select("id, slug, name, rarity, image_path, category, detail_text, weight, is_active, slot_enabled, multiline_enabled")      .order("name", { ascending: true });
+.select("id, slug, name, rarity, image_path, category, detail_text, weight, is_active, slot_enabled, multiline_enabled, risk_enabled")      .order("name", { ascending: true });
 
     if (error) {
       setMessage(error.message);
@@ -2937,6 +2948,7 @@ const getRiskGiftRarity = (streak: number): LocalSymbol["rarity"] | null => {
   if (streak >= 4) return "Common";
   return null;
 };
+
 
 const grantServerInventoryItemByRarity = async (rarity: LocalSymbol["rarity"]) => {
   if (!userId) return null;
