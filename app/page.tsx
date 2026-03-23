@@ -7304,44 +7304,46 @@ setProfileTab("profile");
         </div>
       );
     })
-  )}
+    )}
   <div ref={chatBottomRef} />
 </div>
 
-    <div className="flex gap-2 border-t border-white/10 p-3">
-  <label className="flex cursor-pointer items-center justify-center rounded-xl bg-white/10 px-3 py-2 text-sm font-bold text-white">
-    Bild
+<div className="border-t border-white/10 p-3">
+  <div className="flex w-full items-center gap-2">
+    <label className="shrink-0 flex cursor-pointer items-center justify-center rounded-xl bg-white/10 px-3 py-2 text-sm font-bold text-white">
+      Bild
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            await sendChatImage(file);
+            e.currentTarget.value = "";
+          }
+        }}
+      />
+    </label>
+
     <input
-      type="file"
-      accept="image/*"
-      className="hidden"
-      onChange={async (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-          await sendChatImage(file);
-          e.currentTarget.value = "";
-        }
+      value={chatInput}
+      onChange={(e) => setChatInput(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") sendMessage();
       }}
+      className="min-w-0 flex-1 rounded-xl bg-white/5 px-3 py-2 text-white outline-none"
+      placeholder="Nachricht..."
     />
-  </label>
 
-  <input
-    value={chatInput}
-    onChange={(e) => setChatInput(e.target.value)}
-    onKeyDown={(e) => {
-      if (e.key === "Enter") sendMessage();
-    }}
-    className="flex-1 rounded-xl bg-white/5 px-3 py-2 text-white outline-none"
-    placeholder="Nachricht..."
-  />
-
-  <button
-    onClick={sendMessage}
-    disabled={chatImageUploading}
-    className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
-  >
-    {chatImageUploading ? "..." : "Senden"}
-  </button>
+    <button
+      onClick={sendMessage}
+      disabled={chatImageUploading}
+      className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+    >
+      {chatImageUploading ? "..." : "Senden"}
+    </button>
+  </div>
 </div>
   </div>
 )}
