@@ -441,6 +441,17 @@ function generateInviteCode() {
     .toUpperCase()}`;
 }
 
+function slugifyItemName(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 function getTodayInputValue() {
   const now = new Date();
   const year = now.getFullYear();
@@ -450,20 +461,29 @@ function getTodayInputValue() {
 }
 
 function resolveItemImage(path?: string | null) {
-  if (!path || typeof path !== "string") return "/items/fallback.png";
-
-  let finalPath = path.trim();
-
-  if (!finalPath) return "/items/fallback.png";
-
-  if (!finalPath.startsWith("/items/")) {
-    if (finalPath.startsWith("/")) {
-      finalPath = `/items${finalPath}`;
-    } else {
-      finalPath = `/items/${finalPath}`;
-    }
+  if (!path || typeof path !== "string") {
+    return "/items/fallback.png";
   }
 
+  let finalPath = path.trim();
+  if (!finalPath) return "/items/fallback.png";
+
+  // ✅ Wenn schon eine komplette URL → direkt zurückgeben
+  if (finalPath.startsWith("http")) {
+    return finalPath;
+  }
+
+  // ✅ NEU: Supabase Storage (item-images Bucket)
+  // Wenn es KEIN lokaler /items Pfad ist → aus Storage holen
+  if (!finalPath.startsWith("/items/")) {
+    const { data } = supabase.storage
+      .from("item-images")
+      .getPublicUrl(finalPath);
+
+    return data.publicUrl || "/items/fallback.png";
+  }
+
+  // ✅ ALT: lokale Bilder weiterhin unterstützen
   if (!finalPath.toLowerCase().endsWith(".png")) {
     finalPath = `${finalPath}.png`;
   }
@@ -834,19 +854,20 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
-    {
-  id: string;
-  slug: string;
-  name: string;
-  rarity: string;
-  image_path: string | null;
-  category: string | null;
-  weight: number | null;
-  is_active: boolean | null;
-  slot_enabled?: boolean | null;
-  multiline_enabled?: boolean | null;
-}[]
-  >([]);
+  {
+    id: string;
+    slug: string;
+    name: string;
+    rarity: string;
+    image_path: string | null;
+    category: string | null;
+    detail_text?: string | null;
+    weight: number | null;
+    is_active: boolean | null;
+    slot_enabled?: boolean | null;
+    multiline_enabled?: boolean | null;
+  }[]
+>([]);
 
   const slotEnabledSymbols = useMemo(() => {
   return allItemCatalog
@@ -1093,7 +1114,12 @@ const [friendSearch, setFriendSearch] = useState("");
 const [friendSearchResults, setFriendSearchResults] = useState<any[]>([]);
 const [friends, setFriends] = useState<any[]>([]);
 const [friendRequests, setFriendRequests] = useState<any[]>([]);
-
+const [newItemFile, setNewItemFile] = useState<File | null>(null);
+const [newItemName, setNewItemName] = useState("");
+const [newItemRarity, setNewItemRarity] = useState<LocalSymbol["rarity"]>("Common");
+const [newItemCategory, setNewItemCategory] = useState("");
+const [newItemDetailText, setNewItemDetailText] = useState("");
+const [uploadingItem, setUploadingItem] = useState(false);
 const [chatPosition, setChatPosition] = useState({ x: 24, y: 24 });
 const [chatDragging, setChatDragging] = useState(false);
 const chatDragOffsetRef = useRef({ x: 0, y: 0 });
@@ -1907,8 +1933,7 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const loadAllItems = async () => {
     const { data, error } = await supabase
       .from("items")
-      .select("id, slug, name, rarity, image_path, category, weight, is_active, slot_enabled, multiline_enabled")
-      .order("name", { ascending: true });
+.select("id, slug, name, rarity, image_path, category, detail_text, weight, is_active, slot_enabled, multiline_enabled")      .order("name", { ascending: true });
 
     if (error) {
       setMessage(error.message);
@@ -1919,7 +1944,87 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
     setAllItemCatalog(data || []);
   };
 
-  const loadAppConfig = async () => {
+  const uploadAdminItem = async () => {
+  if (!isAdmin) {
+    setMessage("Kein Admin-Zugriff.");
+    return;
+  }
+
+  if (!newItemFile) {
+    setMessage("Bitte eine PNG-Datei auswählen.");
+    return;
+  }
+
+  if (newItemFile.type !== "image/png") {
+    setMessage("Bitte nur PNG-Dateien hochladen.");
+    return;
+  }
+
+  if (!newItemName.trim()) {
+    setMessage("Bitte einen Item-Namen eingeben.");
+    return;
+  }
+
+  const slug = slugifyItemName(newItemName);
+  if (!slug) {
+    setMessage("Ungültiger Item-Name.");
+    return;
+  }
+
+  try {
+    setUploadingItem(true);
+    setMessage("");
+
+    const filePath = `${slug}.png`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("item-images")
+      .upload(filePath, newItemFile, {
+        upsert: true,
+        contentType: "image/png",
+      });
+
+    if (uploadError) {
+      setMessage(`Upload fehlgeschlagen: ${uploadError.message}`);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("items").upsert(
+      {
+        slug,
+        name: newItemName.trim(),
+        rarity: newItemRarity,
+        image_path: filePath,
+        category: newItemCategory.trim() || null,
+        detail_text: newItemDetailText.trim() || null,
+        is_active: true,
+        slot_enabled: true,
+        multiline_enabled: false,
+        weight: 1,
+      },
+      {
+        onConflict: "slug",
+      }
+    );
+
+    if (insertError) {
+      setMessage(`Item konnte nicht gespeichert werden: ${insertError.message}`);
+      return;
+    }
+
+    setNewItemFile(null);
+    setNewItemName("");
+    setNewItemRarity("Common");
+    setNewItemCategory("");
+    setNewItemDetailText("");
+
+    await loadAllItems();
+    setMessage("Item erfolgreich hochgeladen.");
+  } finally {
+    setUploadingItem(false);
+  }
+};
+const loadAppConfig = async () => {
   const { data: row, error } = await supabase
     .from("app_config")
     .select("*")
@@ -6045,7 +6150,81 @@ setChatList([]);
           title="Lobby"
           right={<Package className="h-5 w-5 text-emerald-300" />}
         />
+<div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+  <div className="text-lg font-bold">Item hochladen</div>
 
+  <div className="mt-4 grid gap-3 md:grid-cols-2">
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">PNG-Datei</div>
+      <input
+        type="file"
+        accept="image/png"
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          setNewItemFile(file);
+        }}
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Name</div>
+      <input
+        type="text"
+        value={newItemName}
+        onChange={(e) => setNewItemName(e.target.value)}
+        placeholder="z. B. Dragon Knife"
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Rarity</div>
+      <select
+        value={newItemRarity}
+        onChange={(e) => setNewItemRarity(e.target.value as LocalSymbol["rarity"])}
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      >
+        <option value="Common">Common</option>
+        <option value="Rare">Rare</option>
+        <option value="Epic">Epic</option>
+        <option value="Legendary">Legendary</option>
+        <option value="Ultra">Ultra</option>
+      </select>
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Gruppierung</div>
+      <input
+        type="text"
+        value={newItemCategory}
+        onChange={(e) => setNewItemCategory(e.target.value)}
+        placeholder="z. B. Waffen, Sticker, Event"
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+  </div>
+
+  <div className="mt-3">
+    <div className="mb-2 text-sm text-zinc-400">Detailtext</div>
+    <textarea
+      value={newItemDetailText}
+      onChange={(e) => setNewItemDetailText(e.target.value)}
+      placeholder="Beschreibung oder Detailtext zum Item"
+      rows={4}
+      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+    />
+  </div>
+
+  <Button
+    onClick={uploadAdminItem}
+    variant="violet"
+    className="mt-4 w-full"
+    disabled={uploadingItem}
+  >
+    {uploadingItem ? "Wird hochgeladen..." : "Item hochladen"}
+  </Button>
+</div>
         <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
           <div className="flex items-center gap-2 font-semibold">
             <CheckCircle2 className="h-4 w-4" />
@@ -6065,6 +6244,7 @@ setChatList([]);
                 }}
               />
             ))}
+            
           </div>
         </div>
       </>
