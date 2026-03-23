@@ -94,7 +94,7 @@ type LocalInventoryItem = {
   slug: string;
   name: string;
   rarity: "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
-  image_path: string;
+  image_path: string | null;
   weight: number;
 };
 
