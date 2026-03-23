@@ -1853,13 +1853,18 @@ const riskAllSymbols = useMemo(() => {
   return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
 }, [slotEnabledSymbols]);
 
-const riskSafePool = useMemo(() => {
-  return riskAllSymbols.filter((item) => item.slug !== "zombieteddy-ultra");
-}, [riskAllSymbols]);
-
-const riskVisualPool = useMemo(() => {
-  return riskAllSymbols.length ? riskAllSymbols : symbolPool;
-}, [riskAllSymbols]);
+const riskEnabledSymbols = useMemo(() => {
+  return allItemCatalog
+    .filter((item) => item.risk_enabled !== false)
+    .map((item) => ({
+      id: item.slug,
+      slug: item.slug,
+      name: item.name,
+      rarity: normalizeRarity(item.rarity) as LocalSymbol["rarity"],
+      image_path: item.image_path,
+      weight: item.weight ?? 1,
+    }));
+}, [allItemCatalog]);
 
 const zombieTeddySymbol = useMemo(() => {
   return (
@@ -1870,21 +1875,23 @@ const zombieTeddySymbol = useMemo(() => {
 }, [riskAllSymbols]);
 
 const buildRiskStrip = (count = RISK_VISIBLE_COUNT): LocalSymbol[] => {
-  const source = riskVisualPool.length ? riskVisualPool : symbolPool;
+  const source = riskAllSymbols.length ? riskAllSymbols : symbolPool;
   return Array.from({ length: count }, () => {
     const picked = source[Math.floor(Math.random() * source.length)];
     return picked ?? symbolPool[0]!;
   });
 };
+
 const ensureRiskGameStripLength = (
   strip: LocalSymbol[],
   minLength: number
 ): LocalSymbol[] => {
   if (strip.length >= minLength) return strip;
 
-  const source = riskVisualPool.length ? riskVisualPool : symbolPool;
+  const source = riskAllSymbols.length ? riskAllSymbols : symbolPool;
   const extra = Array.from({ length: minLength - strip.length }, () => {
-    return source[Math.floor(Math.random() * source.length)];
+    const picked = source[Math.floor(Math.random() * source.length)];
+    return picked ?? symbolPool[0]!;
   });
 
   return [...strip, ...extra];
@@ -6327,6 +6334,27 @@ setChatList([]);
               />
               Für Multi-Line Slots aktiv
             </label>
+
+            <label className="flex items-center gap-2 text-sm">
+  <input
+    type="checkbox"
+    checked={item.risk_enabled === true}
+    onChange={async (e) => {
+      const { error } = await supabase
+        .from("items")
+        .update({ risk_enabled: e.target.checked })
+        .eq("id", item.id);
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      await loadAllItems();
+    }}
+  />
+  Für Risk Game aktiv
+</label>
           </div>
         </div>
       ))}
