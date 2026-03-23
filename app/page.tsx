@@ -3019,7 +3019,7 @@ if (isClassicSingleSlot) {
   const ensureProfile = async (uid: string, email: string) => {
     const { data: existing, error: fetchError } = await supabase
       .from("profiles")
-      .select("id, username, tokens")
+      .select("id, username, display_name, avatar_url, tokens")
       .eq("id", uid)
       .maybeSingle();
 
@@ -5446,27 +5446,7 @@ setProfileTab("profile");
                   </div>
                 ) : (
                   <>
-                    <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-                      <div className="text-lg font-bold">Profil</div>
-                      <div className="mt-2 text-sm text-zinc-400">E-Mail</div>
-                      <div className="font-semibold">{userEmail}</div>
-
-                      <div className="mt-3 text-sm text-zinc-400">Anzeigename</div>
-                      <input
-                        value={profileName}
-                        onChange={(e) => setProfileName(e.target.value)}
-                        placeholder="Neuer Anzeigename"
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-                      />
-                      <Button onClick={saveDisplayName} className="mt-3 w-full">
-                        Anzeigename speichern
-                      </Button>
-                      {needsUsername ? (
-                        <div className="mt-2 text-xs text-amber-300">
-                          Bitte vergib einen Anzeigenamen.
-                        </div>
-                      ) : null}
-                    </div>
+                    
 
                     <div className="space-y-3 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
                       <div className="text-lg font-bold">Gruppe erstellen</div>
@@ -6223,13 +6203,13 @@ setProfileTab("profile");
         <div className="fixed bottom-0 left-0 right-0 z-40 mx-auto w-full max-w-md border-t border-white/10 bg-black/85 px-3 py-3 backdrop-blur md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]">
           <div className="grid grid-cols-6 gap-2">
   {[
-  { id: "home", label: "Home", icon: Trophy },
-  { id: "picks", label: "Picks", icon: Target },
-  { id: "slot", label: "Slot", icon: Zap },
-  { id: "inventory", label: "Inventar", icon: Package },
-  { id: "group", label: "Gruppe", icon: Users },
-  { id: "admin", label: isAdmin ? "Admin" : "Lobby", icon: isAdmin ? Shield : Package },
-].map((item) => {
+    { id: "home", label: "Home", icon: Trophy },
+    { id: "picks", label: "Picks", icon: Target },
+    { id: "slot", label: "Slot", icon: Zap },
+    { id: "profile", label: "Profil", icon: Package },
+    { id: "group", label: "Gruppe", icon: Users },
+    { id: "admin", label: isAdmin ? "Admin" : "Lobby", icon: isAdmin ? Shield : Package },
+  ].map((item) => {
     const Icon = item.icon;
     const active = screen === (item.id as typeof screen);
 
@@ -6237,8 +6217,8 @@ setProfileTab("profile");
       <button
         key={item.id}
         onClick={() => {
-  setScreen(item.id as typeof screen);
-}}
+          setScreen(item.id as typeof screen);
+        }}
         className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[11px] transition ${
           active
             ? "bg-gradient-to-b from-violet-500 to-fuchsia-500 text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)]"
