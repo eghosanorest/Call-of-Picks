@@ -465,30 +465,19 @@ function resolveItemImage(path?: string | null) {
     return "/items/fallback.png";
   }
 
-  let finalPath = path.trim();
-  if (!finalPath) return "/items/fallback.png";
+  const cleaned = path.trim();
+  if (!cleaned) return "/items/fallback.png";
 
-  // ✅ Wenn schon eine komplette URL → direkt zurückgeben
-  if (finalPath.startsWith("http")) {
-    return finalPath;
+  if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+    return cleaned;
   }
 
-  // ✅ NEU: Supabase Storage (item-images Bucket)
-  // Wenn es KEIN lokaler /items Pfad ist → aus Storage holen
-  if (!finalPath.startsWith("/items/")) {
-    const { data } = supabase.storage
-      .from("item-images")
-      .getPublicUrl(finalPath);
-
-    return data.publicUrl || "/items/fallback.png";
+  if (cleaned.startsWith("/items/")) {
+    return cleaned;
   }
 
-  // ✅ ALT: lokale Bilder weiterhin unterstützen
-  if (!finalPath.toLowerCase().endsWith(".png")) {
-    finalPath = `${finalPath}.png`;
-  }
-
-  return finalPath;
+  const { data } = supabase.storage.from("item-images").getPublicUrl(cleaned);
+  return data?.publicUrl || "/items/fallback.png";
 }
 
 function normalizeRarity(rarity?: string | null) {
@@ -518,36 +507,36 @@ const slugMap: Record<string, string> = {
   "champsringlat-epic": "/items/champsringlat-epic.png",
 };
 
-  function getSafeItemImagePath(
+function getSafeItemImagePath(
   slug?: string | null,
   imagePath?: string | null
 ) {
-  if (slug && slugMap[slug]) return `${slugMap[slug]}?v=2`;
+  if (slug && slugMap[slug]) {
+    return `${slugMap[slug]}?v=2`;
+  }
 
   if (!imagePath || typeof imagePath !== "string") {
     return "/items/fallback.png";
   }
 
-  let finalPath = imagePath.trim();
-
-  if (!finalPath) {
+  const cleaned = imagePath.trim();
+  if (!cleaned) {
     return "/items/fallback.png";
   }
 
-  if (!finalPath.startsWith("/items/")) {
-    if (finalPath.startsWith("/")) {
-      finalPath = `/items${finalPath}`;
-    } else {
-      finalPath = `/items/${finalPath}`;
-    }
+  if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+    return cleaned;
   }
 
-  if (!finalPath.toLowerCase().endsWith(".png")) {
-    finalPath = `${finalPath}.png`;
+  if (cleaned.startsWith("/items/")) {
+    return `${cleaned}?v=2`;
   }
 
-  return `${finalPath}?v=2`;
+  const { data } = supabase.storage.from("item-images").getPublicUrl(cleaned);
+  return data?.publicUrl || "/items/fallback.png";
 }
+
+  
 function StatCard({
   icon: Icon,
   label,
@@ -877,7 +866,7 @@ export default function CallOfPicksPage() {
       slug: item.slug,
       name: item.name,
       rarity: normalizeRarity(item.rarity) as LocalSymbol["rarity"],
-      image_path: resolveItemImage(item.image_path),
+      image_path: item.image_path,
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
@@ -891,7 +880,7 @@ const multilineSymbols = useMemo(() => {
       slug: item.slug,
       name: item.name,
       rarity: normalizeRarity(item.rarity) as LocalSymbol["rarity"],
-      image_path: resolveItemImage(item.image_path),
+      image_path: item.image_path,
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
@@ -918,8 +907,10 @@ setLastMultiLineHitCount(0);
 setLastMultiLinePayout(0);
 setLastMultiLineWinningIndexes([]);
 
-  const randomFromMultiLine = () =>
-    multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
+  const randomFromMultiLine = (): LocalSymbol => {
+  const picked = multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
+  return picked ?? symbolPool[0]!;
+};
 
   const rolling = setInterval(() => {
     setMultiLineGrid([
@@ -1859,7 +1850,8 @@ const zombieTeddySymbol = useMemo(() => {
 const buildRiskStrip = (count = RISK_VISIBLE_COUNT): LocalSymbol[] => {
   const source = riskVisualPool.length ? riskVisualPool : symbolPool;
   return Array.from({ length: count }, () => {
-    return source[Math.floor(Math.random() * source.length)];
+    const picked = source[Math.floor(Math.random() * source.length)];
+    return picked ?? symbolPool[0]!;
   });
 };
 const ensureRiskGameStripLength = (
@@ -2184,7 +2176,7 @@ const resolvedMatchIds = (rewardRows || []).map((r: any) => String(r.match_id));
   slug: item.slug,
   name: item.name,
   rarity: normalizeRarity(item.rarity) as LocalInventoryItem["rarity"],
-  image_path: resolveItemImage(item.image_path),
+  image_path: item.image_path,
   weight: item.weight ?? 1,
 });
     });
