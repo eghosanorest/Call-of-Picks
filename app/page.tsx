@@ -1095,11 +1095,11 @@ const [friendSearch, setFriendSearch] = useState("");
 const [friendSearchResults, setFriendSearchResults] = useState<any[]>([]);
 const [friends, setFriends] = useState<any[]>([]);
 const [friendRequests, setFriendRequests] = useState<any[]>([]);
-const [showAdminItemList, setShowAdminItemList] = useState(false);
+
 const [chatPosition, setChatPosition] = useState({ x: 24, y: 24 });
 const [chatDragging, setChatDragging] = useState(false);
 const chatDragOffsetRef = useRef({ x: 0, y: 0 });
-
+const [showItemList, setShowItemList] = useState(false);
 const [activeChat, setActiveChat] = useState<any | null>(null);
 const [chatMessages, setChatMessages] = useState<any[]>([]);
 const [chatInput, setChatInput] = useState("");
@@ -6078,23 +6078,13 @@ setChatList([]);
           right={<Settings2 className="h-5 w-5 text-violet-300" />}
         />
 
-        <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-  <div className="flex items-center justify-between gap-3">
+        {showItemList && (
+  <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
     <div className="flex items-center gap-2 font-semibold">
       <CheckCircle2 className="h-4 w-4" />
       Alle Items
     </div>
 
-    <Button
-      onClick={() => setShowAdminItemList((prev) => !prev)}
-      variant="ghost"
-      className="px-3 py-2 text-sm"
-    >
-      {showAdminItemList ? "Item-Liste schließen" : "Item-Liste"}
-    </Button>
-  </div>
-
-  {showAdminItemList && (
     <div className="mt-4 grid grid-cols-2 gap-3">
       {allItemCatalog.map((item) => (
         <div
@@ -6157,8 +6147,8 @@ setChatList([]);
         </div>
       ))}
     </div>
-  )}
-</div>
+  </div>
+)}
 
                 <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
                   <div className="space-y-3">
@@ -6207,136 +6197,155 @@ setChatList([]);
                 </div>
 
                 <form
-                  onSubmit={addMatch}
-                  className="space-y-4 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-                >
-                  <div className="text-lg font-bold">Match hinzufügen</div>
+  onSubmit={addMatch}
+  className="space-y-4 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+>
+  <div className="flex items-center justify-between gap-3">
+    <div className="text-lg font-bold">Match hinzufügen</div>
 
-                  <div className="grid grid-cols-2 gap-4">
-  <div>
-    <div className="mb-2 text-sm text-zinc-400">Team A</div>
-    <div className="space-y-2">
-      {allTeams.map((team) => (
-        <button
-          key={`A-${team}`}
-          type="button"
-          onClick={() =>
-            setAdminDraft((prev) => ({ ...prev, teamA: team }))
-          }
-          className={`w-full rounded-xl border px-3 py-2 text-left text-xs ${
-            adminDraft.teamA === team
-              ? "border-violet-400 bg-violet-500/20"
-              : "border-white/10 bg-black/40"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <TeamMini name={team} />
-            <span className="truncate">{team}</span>
-          </div>
-        </button>
-      ))}
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={() => setShowItemList((prev) => !prev)}
+      className="px-4 py-2"
+    >
+      {showItemList ? "Item-Liste schließen" : "Item-Liste"}
+    </Button>
+  </div>
+
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Team A</div>
+      <div className="grid grid-cols-1 gap-2">
+        {allTeams.map((team) => (
+          <button
+            key={`A-${team}`}
+            type="button"
+            onClick={() =>
+              setAdminDraft((prev) => ({ ...prev, teamA: team }))
+            }
+            className={`rounded-xl border px-3 py-2 text-left text-xs ${
+              adminDraft.teamA === team
+                ? "border-violet-400 bg-violet-500/20"
+                : "border-white/10 bg-black/40"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="scale-75 origin-left">
+                <TeamMini name={team} />
+              </span>
+              <span className="truncate">{team}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Team B</div>
+      <div className="grid grid-cols-1 gap-2">
+        {allTeams.map((team) => (
+          <button
+            key={`B-${team}`}
+            type="button"
+            onClick={() =>
+              setAdminDraft((prev) => ({ ...prev, teamB: team }))
+            }
+            className={`rounded-xl border px-3 py-2 text-left text-xs ${
+              adminDraft.teamB === team
+                ? "border-cyan-400 bg-cyan-500/20"
+                : "border-white/10 bg-black/40"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="scale-75 origin-left">
+                <TeamMini name={team} />
+              </span>
+              <span className="truncate">{team}</span>
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   </div>
 
-  <div>
-    <div className="mb-2 text-sm text-zinc-400">Team B</div>
-    <div className="space-y-2">
-      {allTeams.map((team) => (
-        <button
-          key={`B-${team}`}
-          type="button"
-          onClick={() =>
-            setAdminDraft((prev) => ({ ...prev, teamB: team }))
-          }
-          className={`w-full rounded-xl border px-3 py-2 text-left text-xs ${
-            adminDraft.teamB === team
-              ? "border-cyan-400 bg-cyan-500/20"
-              : "border-white/10 bg-black/40"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <TeamMini name={team} />
-            <span className="truncate">{team}</span>
-          </div>
-        </button>
-      ))}
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Quote Team A</div>
+      <input
+        type="number"
+        step="0.01"
+        min="1.01"
+        value={adminDraft.oddA}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            oddA: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Quote Team B</div>
+      <input
+        type="number"
+        step="0.01"
+        min="1.01"
+        value={adminDraft.oddB}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            oddB: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
     </div>
   </div>
-</div>
 
-                  <div className="grid grid-cols-2 gap-3">
-  <div>
-    <div className="mb-2 text-sm text-zinc-400">Quote Team A</div>
-    <input
-      type="number"
-      step="0.01"
-      min="1.01"
-      value={adminDraft.oddA}
-      onChange={(e) =>
-        setAdminDraft((prev) => ({
-          ...prev,
-          oddA: e.target.value,
-        }))
-      }
-      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-    />
-  </div>
-  <div>
-    <div className="mb-2 text-sm text-zinc-400">Quote Team B</div>
-    <input
-      type="number"
-      step="0.01"
-      min="1.01"
-      value={adminDraft.oddB}
-      onChange={(e) =>
-        setAdminDraft((prev) => ({
-          ...prev,
-          oddB: e.target.value,
-        }))
-      }
-      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-    />
-  </div>
-</div><div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="mb-2 text-sm text-zinc-400">Datum</div>
-                      <input
-                        type="date"
-                        value={adminDraft.date}
-                        onChange={(e) =>
-                          setAdminDraft((prev) => ({
-                            ...prev,
-                            date: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <div className="mb-2 text-sm text-zinc-400">Uhrzeit</div>
-                      <input
-                        type="time"
-                        value={adminDraft.startsAt}
-                        onChange={(e) =>
-                          setAdminDraft((prev) => ({
-                            ...prev,
-                            startsAt: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-                      />
-                    </div>
-                  </div>
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Datum</div>
+      <input
+        type="date"
+        value={adminDraft.date}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            date: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
 
-                  <Button
-                    type="submit"
-                    variant="violet"
-                    className="flex w-full items-center justify-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Match speichern
-                  </Button>
-                </form>
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Uhrzeit</div>
+      <input
+        type="time"
+        value={adminDraft.startsAt}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            startsAt: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+  </div>
+
+  <Button
+    type="submit"
+    variant="violet"
+    className="flex w-full items-center justify-center gap-2"
+  >
+    <Plus className="h-4 w-4" />
+    Match speichern
+  </Button>
+</form>
 
                 <div className="space-y-3">
                   {(data.weeks[data.currentMajor]?.[currentWeek] || []).map((match) => (
