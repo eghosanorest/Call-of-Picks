@@ -1449,6 +1449,67 @@ const sendMessage = async () => {
 
   await loadMessages(activeChat.id);
 };
+const deleteChat = async (friendId: string) => {
+  if (!userId) return;
+
+  const confirmed = window.confirm(
+    "Willst du diesen Chat wirklich löschen? Alle Nachrichten in diesem Chat werden entfernt."
+  );
+
+  if (!confirmed) return;
+
+  let { data: existing, error: existingError } = await supabase
+    .from("direct_chats")
+    .select("id")
+    .or(
+      `and(user_a.eq.${userId},user_b.eq.${friendId}),and(user_a.eq.${friendId},user_b.eq.${userId})`
+    )
+    .maybeSingle();
+
+  if (existingError) {
+    console.error(existingError);
+    setMessage(existingError.message);
+    return;
+  }
+
+  if (!existing) {
+    setMessage("Kein Chat gefunden.");
+    return;
+  }
+
+  const chatId = existing.id;
+
+  const { error: deleteMessagesError } = await supabase
+    .from("direct_messages")
+    .delete()
+    .eq("chat_id", chatId);
+
+  if (deleteMessagesError) {
+    console.error(deleteMessagesError);
+    setMessage(deleteMessagesError.message);
+    return;
+  }
+
+  const { error: deleteChatError } = await supabase
+    .from("direct_chats")
+    .delete()
+    .eq("id", chatId);
+
+  if (deleteChatError) {
+    console.error(deleteChatError);
+    setMessage(deleteChatError.message);
+    return;
+  }
+
+  if (activeChat?.id === chatId) {
+    setActiveChat(null);
+    setChatMessages([]);
+    setChatInput("");
+    setChatOpen(false);
+  }
+
+  setMessage("Chat gelöscht.");
+};
 const sendChatImage = async (file: File) => {
   if (!userId || !activeChat || !file) return;
 
@@ -5438,65 +5499,83 @@ setProfileTab("profile");
             )}
 
             {friends.map((friend) => (
-              <div
-                key={friend.id}
-                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={friend.profile?.avatar_url || "/default-avatar.png"}
-                    alt=""
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                  <div className="font-semibold">
-                    {friend.profile?.display_name || friend.profile?.username || "Unbekannt"}
-                  </div>
-                </div>
+  <div
+    key={friend.id}
+    className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+  >
+    <div className="flex items-center gap-3">
+      <img
+        src={friend.profile?.avatar_url || "/default-avatar.png"}
+        alt=""
+        className="h-10 w-10 rounded-full object-cover"
+      />
+      <div className="font-semibold">
+        {friend.profile?.display_name || friend.profile?.username || "Unbekannt"}
+      </div>
+    </div>
 
-                <button
-                  onClick={() => openChatWithFriend(friend.friend_id)}
-                  className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
-                >
-                  Chat
-                </button>
-              </div>
-            ))}
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => openChatWithFriend(friend.friend_id)}
+        className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
+      >
+        Öffnen
+      </button>
+
+      <button
+        onClick={() => deleteChat(friend.friend_id)}
+        className="rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white"
+      >
+        Löschen
+      </button>
+    </div>
+  </div>
+))}
           </div>
         </div>
       )}
 
       {profileTab === "chat" && (
-        <div className="space-y-2">
-          <div className="text-sm text-zinc-400">
-            Starte einen Chat über die Freundesliste.
+  <div className="space-y-2">
+    <div className="text-sm text-zinc-400">
+      Starte einen Chat über die Freundesliste.
+    </div>
+
+    {friends.map((friend) => (
+      <div
+        key={friend.id}
+        className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+      >
+        <div className="flex items-center gap-3">
+          <img
+            src={friend.profile?.avatar_url || "/default-avatar.png"}
+            alt=""
+            className="h-10 w-10 rounded-full object-cover"
+          />
+          <div className="font-semibold">
+            {friend.profile?.display_name || friend.profile?.username || "Unbekannt"}
           </div>
-
-          {friends.map((friend) => (
-            <div
-              key={friend.id}
-              className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
-            >
-              <div className="flex items-center gap-3">
-                <img
-                  src={friend.profile?.avatar_url || "/default-avatar.png"}
-                  alt=""
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-                <div className="font-semibold">
-                  {friend.profile?.display_name || friend.profile?.username || "Unbekannt"}
-                </div>
-              </div>
-
-              <button
-                onClick={() => openChatWithFriend(friend.friend_id)}
-                className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
-              >
-                Öffnen
-              </button>
-            </div>
-          ))}
         </div>
-      )}
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => openChatWithFriend(friend.friend_id)}
+            className="rounded-xl bg-purple-600 px-3 py-2 text-sm font-bold text-white"
+          >
+            Öffnen
+          </button>
+
+          <button
+            onClick={() => deleteChat(friend.friend_id)}
+            className="rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white"
+          >
+            Löschen
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
 
       {profileTab === "inventory" && (
         <div className="space-y-3">
