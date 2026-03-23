@@ -6363,31 +6363,25 @@ setProfileTab("profile");
                 className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-  <img
-    src={selectedMember.avatar_url || "/default-avatar.png"}
-    alt={selectedMember.username}
-    className="h-12 w-12 rounded-full border border-white/10 object-cover"
-  />
   <div className="flex items-center gap-3">
-  <img
-    src={selectedMember.avatar_url || "/default-avatar.png"}
-    alt={selectedMember.username}
-    className="h-12 w-12 rounded-full border border-white/10 object-cover"
-  />
-  <div>
-    <div className="text-sm text-zinc-400">Inventar</div>
-    <div className="text-2xl font-black">{selectedMember.username}</div>
+    <img
+      src={selectedMember.avatar_url || "/default-avatar.png"}
+      alt={selectedMember.username}
+      className="h-12 w-12 rounded-full border border-white/10 object-cover shrink-0"
+    />
+    <div>
+      <div className="text-sm text-zinc-400">Inventar</div>
+      <div className="text-2xl font-black">{selectedMember.username}</div>
+    </div>
   </div>
+
+  <button
+    onClick={() => setSelectedMember(null)}
+    className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+  >
+    <X className="h-4 w-4" />
+  </button>
 </div>
-</div>
-                  <button
-                    onClick={() => setSelectedMember(null)}
-                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
 
                 <div className="mt-4 flex-1 overflow-y-auto pr-1">
   {selectedMember.items.length === 0 ? (
