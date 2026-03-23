@@ -1093,12 +1093,43 @@ const [friendSearch, setFriendSearch] = useState("");
 const [friendSearchResults, setFriendSearchResults] = useState<any[]>([]);
 const [friends, setFriends] = useState<any[]>([]);
 const [friendRequests, setFriendRequests] = useState<any[]>([]);
-
+const [chatPosition, setChatPosition] = useState({ x: 24, y: 24 });
+const [chatDragging, setChatDragging] = useState(false);
+const chatDragOffsetRef = useRef({ x: 0, y: 0 });
 const [activeChat, setActiveChat] = useState<any | null>(null);
 const [chatMessages, setChatMessages] = useState<any[]>([]);
 const [chatInput, setChatInput] = useState("");
 const [chatOpen, setChatOpen] = useState(false);
+const startChatDrag = (e: React.MouseEvent<HTMLDivElement>) => {
+  setChatDragging(true);
+  chatDragOffsetRef.current = {
+    x: e.clientX - chatPosition.x,
+    y: e.clientY - chatPosition.y,
+  };
+};
 
+useEffect(() => {
+  if (!chatDragging) return;
+
+  const handleMove = (e: MouseEvent) => {
+    setChatPosition({
+      x: e.clientX - chatDragOffsetRef.current.x,
+      y: e.clientY - chatDragOffsetRef.current.y,
+    });
+  };
+
+  const handleUp = () => {
+    setChatDragging(false);
+  };
+
+  window.addEventListener("mousemove", handleMove);
+  window.addEventListener("mouseup", handleUp);
+
+  return () => {
+    window.removeEventListener("mousemove", handleMove);
+    window.removeEventListener("mouseup", handleUp);
+  };
+}, [chatDragging]);
 const uploadAvatar = async (file: File) => {
   const {
     data: { user },
@@ -1387,20 +1418,28 @@ const openChatWithFriend = async (friendId: string) => {
 const sendMessage = async () => {
   if (!userId || !activeChat || !chatInput.trim()) return;
 
+  const messageToSend = chatInput.trim();
+  setChatInput("");
+
   const { error } = await supabase.from("direct_messages").insert({
     chat_id: activeChat.id,
     sender_id: userId,
-    message: chatInput.trim(),
+    message: messageToSend,
   });
 
   if (error) {
     console.error(error);
     setMessage(error.message);
+    setChatInput(messageToSend);
     return;
   }
-
-  setChatInput("");
 };
+const chatBottomRef = useRef<HTMLDivElement | null>(null);
+useEffect(() => {
+  if (!chatOpen) return;
+  chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [chatMessages, chatOpen]);
+
 const [showCompletedHomeMatches, setShowCompletedHomeMatches] = useState(false);
   const [myGroups, setMyGroups] = useState<GroupType[]>([]);
   const [activeGroupId, setActiveGroupId] = useState("");
@@ -3404,10 +3443,10 @@ useEffect(() => {
   }, []);
 
   useEffect(() => {
-  if (!activeChat?.id) return;
+  if (!activeChat?.id || !chatOpen) return;
 
   const channel = supabase
-    .channel(`chat-${activeChat.id}`)
+    .channel(`direct-chat-${activeChat.id}`)
     .on(
       "postgres_changes",
       {
@@ -3417,15 +3456,25 @@ useEffect(() => {
         filter: `chat_id=eq.${activeChat.id}`,
       },
       (payload) => {
-        setChatMessages((prev) => [...prev, payload.new as any]);
+        const newMessage = payload.new as any;
+
+        setChatMessages((prev) => {
+          const exists = prev.some((msg) => msg.id === newMessage.id);
+          if (exists) return prev;
+          return [...prev, newMessage];
+        });
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        loadMessages(activeChat.id);
+      }
+    });
 
   return () => {
     supabase.removeChannel(channel);
   };
-}, [activeChat?.id]);
+}, [activeChat?.id, chatOpen]);
   useEffect(() => {
     if (!userId) {
       setMembers([]);
@@ -7103,8 +7152,17 @@ setProfileTab("profile");
             </motion.div>
           )}
           {chatOpen && activeChat && (
-  <div className="fixed bottom-4 right-4 z-[90] w-[360px] rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl">
-    <div className="flex items-center justify-between border-b border-white/10 p-3">
+  <div
+    className="fixed z-[90] w-[360px] rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl"
+    style={{
+      left: `${chatPosition.x}px`,
+      top: `${chatPosition.y}px`,
+    }}
+  >
+    <div
+      onMouseDown={startChatDrag}
+      className="flex cursor-move items-center justify-between border-b border-white/10 p-3"
+    >
       <div className="font-bold text-white">Chat</div>
       <button
         onClick={() => setChatOpen(false)}
@@ -7131,6 +7189,7 @@ setProfileTab("profile");
           </div>
         ))
       )}
+      <div ref={chatBottomRef} />
     </div>
 
     <div className="flex gap-2 border-t border-white/10 p-3">
