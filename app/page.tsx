@@ -394,46 +394,15 @@ const defaultData: LocalData = {
   bets: [],
 };
 
-function weightedRandom(list: LocalSymbol[]) {
-  const total = list.reduce((sum, item) => sum + item.weight, 0);
-  let roll = Math.random() * total;
-  for (const item of list) {
-    roll -= item.weight;
-    if (roll <= 0) return item;
-  }
-  return list[list.length - 1];
-}
 
-function getForcedWinSymbol() {
-  return weightedRandom(symbolPool);
-}
 
-function buildWinningRow(symbol?: LocalSymbol): LocalSymbol[] {
-  const winSymbol = symbol || getForcedWinSymbol();
-  return [winSymbol, winSymbol, winSymbol];
-}
 
-function buildRandomRow(): LocalSymbol[] {
-  return [
-    weightedRandom(symbolPool),
-    weightedRandom(symbolPool),
-    weightedRandom(symbolPool),
-  ];
-}
 
 function isWinningRow(row: LocalSymbol[]) {
   return row.length === 3 && row.every((item) => item.id === row[0].id);
 }
 
-function maybeUpgradeRowToWin(row: LocalSymbol[], bonusChance: number): LocalSymbol[] {
-  if (isWinningRow(row)) return row;
 
-  if (Math.random() < bonusChance) {
-    return buildWinningRow();
-  }
-
-  return row;
-}
 function generateInviteCode() {
   return `COP-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
     .toString(36)
@@ -870,6 +839,53 @@ export default function CallOfPicksPage() {
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
+
+const activeSlotPool = useMemo<LocalSymbol[]>(() => {
+  return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
+}, [slotEnabledSymbols]);
+
+const weightedRandomFromPool = (list: LocalSymbol[]): LocalSymbol => {
+  if (!list.length) return symbolPool[0]!;
+
+  const total = list.reduce((sum, item) => sum + (item.weight ?? 1), 0);
+  let roll = Math.random() * total;
+
+  for (const item of list) {
+    roll -= item.weight ?? 1;
+    if (roll <= 0) return item;
+  }
+
+  return list[list.length - 1] ?? symbolPool[0]!;
+};
+
+const getForcedWinSymbol = (): LocalSymbol => {
+  return weightedRandomFromPool(activeSlotPool);
+};
+
+const buildWinningRow = (symbol?: LocalSymbol): LocalSymbol[] => {
+  const winSymbol = symbol || getForcedWinSymbol();
+  return [winSymbol, winSymbol, winSymbol];
+};
+
+const buildRandomRow = (): LocalSymbol[] => {
+  return [
+    weightedRandomFromPool(activeSlotPool),
+    weightedRandomFromPool(activeSlotPool),
+    weightedRandomFromPool(activeSlotPool),
+  ];
+};
+const maybeUpgradeRowToWin = (
+  row: LocalSymbol[],
+  bonusChance: number
+): LocalSymbol[] => {
+  if (isWinningRow(row)) return row;
+
+  if (Math.random() < bonusChance) {
+    return buildWinningRow();
+  }
+
+  return row;
+};
 
 const multilineSymbols = useMemo(() => {
   return allItemCatalog
