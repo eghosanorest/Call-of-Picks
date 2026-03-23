@@ -6150,81 +6150,7 @@ setChatList([]);
           title="Lobby"
           right={<Package className="h-5 w-5 text-emerald-300" />}
         />
-<div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-  <div className="text-lg font-bold">Item hochladen</div>
 
-  <div className="mt-4 grid gap-3 md:grid-cols-2">
-    <div>
-      <div className="mb-2 text-sm text-zinc-400">PNG-Datei</div>
-      <input
-        type="file"
-        accept="image/png"
-        onChange={(e) => {
-          const file = e.target.files?.[0] || null;
-          setNewItemFile(file);
-        }}
-        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-      />
-    </div>
-
-    <div>
-      <div className="mb-2 text-sm text-zinc-400">Name</div>
-      <input
-        type="text"
-        value={newItemName}
-        onChange={(e) => setNewItemName(e.target.value)}
-        placeholder="z. B. Dragon Knife"
-        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-      />
-    </div>
-
-    <div>
-      <div className="mb-2 text-sm text-zinc-400">Rarity</div>
-      <select
-        value={newItemRarity}
-        onChange={(e) => setNewItemRarity(e.target.value as LocalSymbol["rarity"])}
-        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-      >
-        <option value="Common">Common</option>
-        <option value="Rare">Rare</option>
-        <option value="Epic">Epic</option>
-        <option value="Legendary">Legendary</option>
-        <option value="Ultra">Ultra</option>
-      </select>
-    </div>
-
-    <div>
-      <div className="mb-2 text-sm text-zinc-400">Gruppierung</div>
-      <input
-        type="text"
-        value={newItemCategory}
-        onChange={(e) => setNewItemCategory(e.target.value)}
-        placeholder="z. B. Waffen, Sticker, Event"
-        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-      />
-    </div>
-  </div>
-
-  <div className="mt-3">
-    <div className="mb-2 text-sm text-zinc-400">Detailtext</div>
-    <textarea
-      value={newItemDetailText}
-      onChange={(e) => setNewItemDetailText(e.target.value)}
-      placeholder="Beschreibung oder Detailtext zum Item"
-      rows={4}
-      className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-    />
-  </div>
-
-  <Button
-    onClick={uploadAdminItem}
-    variant="violet"
-    className="mt-4 w-full"
-    disabled={uploadingItem}
-  >
-    {uploadingItem ? "Wird hochgeladen..." : "Item hochladen"}
-  </Button>
-</div>
         <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
           <div className="flex items-center gap-2 font-semibold">
             <CheckCircle2 className="h-4 w-4" />
@@ -6251,10 +6177,73 @@ setChatList([]);
     ) : (
       <>
         <SectionTitle
-          eyebrow="Verwaltung"
-          title="Admin-Bereich"
-          right={<Settings2 className="h-5 w-5 text-violet-300" />}
-        />
+  eyebrow="Verwaltung"
+  title="Admin-Bereich"
+  right={<Settings2 className="h-5 w-5 text-violet-300" />}
+/>
+
+{/* 🔥 ITEM UPLOADER START */}
+<div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+  <div className="text-lg font-bold">Item hochladen</div>
+
+  <div className="mt-3">
+    <input
+      type="file"
+      accept="image/png"
+      onChange={(e) => {
+        const file = e.target.files?.[0] || null;
+        setNewItemFile(file);
+      }}
+      className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+    />
+  </div>
+
+  <div className="mt-3 grid grid-cols-2 gap-2">
+    <input
+      type="text"
+      placeholder="Name"
+      value={newItemName}
+      onChange={(e) => setNewItemName(e.target.value)}
+      className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+    />
+
+    <select
+      value={newItemRarity}
+      onChange={(e) => setNewItemRarity(e.target.value as any)}
+      className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+    >
+      <option>Common</option>
+      <option>Rare</option>
+      <option>Epic</option>
+      <option>Legendary</option>
+      <option>Ultra</option>
+    </select>
+  </div>
+
+  <input
+    type="text"
+    placeholder="Kategorie"
+    value={newItemCategory}
+    onChange={(e) => setNewItemCategory(e.target.value)}
+    className="mt-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+  />
+
+  <textarea
+    placeholder="Detailtext"
+    value={newItemDetailText}
+    onChange={(e) => setNewItemDetailText(e.target.value)}
+    className="mt-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+  />
+
+  <Button
+    onClick={uploadAdminItem}
+    className="mt-3 w-full"
+    variant="violet"
+  >
+    Item hochladen
+  </Button>
+</div>
+{/* 🔥 ITEM UPLOADER END */}
 
         {showItemList && (
   <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
