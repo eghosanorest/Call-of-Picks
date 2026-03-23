@@ -3161,9 +3161,9 @@ setNeedsUsername(!nextName);
     }
 
     const { data: profileRows, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, username")
-      .in("id", groupUserIds);
+  .from("profiles")
+  .select("id, username, display_name, avatar_url")
+  .in("id", groupUserIds);
 
     if (profileError) {
       setMessage(profileError.message);
@@ -3502,12 +3502,12 @@ setProfileTab("profile");
   };
 }, []);
 useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  return () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  };
+}, []);
 
-  useEffect(() => {
+useEffect(() => {
   if (!activeChat?.id || !chatOpen) return;
 
   const channel = supabase
@@ -3515,18 +3515,18 @@ useEffect(() => {
     .on(
       "postgres_changes",
       {
-        event: "INSERT",
+        event: "*",
         schema: "public",
         table: "direct_messages",
         filter: `chat_id=eq.${activeChat.id}`,
       },
-      () => {
-        loadMessages(activeChat.id);
+      async () => {
+        await loadMessages(activeChat.id);
       }
     )
-    .subscribe((status) => {
+    .subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
-        loadMessages(activeChat.id);
+        await loadMessages(activeChat.id);
       }
     });
 
@@ -3534,19 +3534,20 @@ useEffect(() => {
     supabase.removeChannel(channel);
   };
 }, [activeChat?.id, chatOpen]);
-  useEffect(() => {
-    if (!userId) {
-      setMembers([]);
-      setMemberInventories([]);
-      return;
-    }
 
-    if (activeGroupId) {
-      loadGroupDetails(activeGroupId);
-    }
+useEffect(() => {
+  if (!userId) {
+    setMembers([]);
+    setMemberInventories([]);
+    return;
+  }
 
-    loadChallenges(userId);
-  }, [activeGroupId, userId]);
+  if (activeGroupId) {
+    loadGroupDetails(activeGroupId);
+  }
+
+  loadChallenges(userId);
+}, [activeGroupId, userId]);
 
   
 useEffect(() => {
