@@ -1180,7 +1180,9 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
   100: 0.5,
 };
 
+
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
+
 const stopClassicSpinSound = () => {
   const audio = classicSpinAudioRef.current;
   if (!audio) return;
@@ -1188,8 +1190,6 @@ const stopClassicSpinSound = () => {
   audio.pause();
   audio.currentTime = 0;
 };
-
-const classicSpinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 const playClassicSpinSound = () => {
   try {
@@ -1200,23 +1200,11 @@ const playClassicSpinSound = () => {
 
     const audio = classicSpinAudioRef.current;
 
-    audio.pause();
-    audio.currentTime = 1.5;
+    audio.currentTime = 0;
     audio.volume = 1;
 
-    // 🧠 WICHTIG: alten Timer löschen
-    if (classicSpinTimeoutRef.current) {
-      clearTimeout(classicSpinTimeoutRef.current);
-    }
-
-    // ⏱️ HIER kommt der Delay rein
-    classicSpinTimeoutRef.current = setTimeout(() => {
-      audio.play().catch(() => {});
-    }, 1000); // <- hier einstellen (z.B. 1000 = 1 Sekunde)
-
-  } catch {
-    // absichtlich leer
-  }
+    audio.play().catch(() => {});
+  } catch {}
 };
 const parsedStake = Number(betStake) || 0;
 const potentialBetWin =
