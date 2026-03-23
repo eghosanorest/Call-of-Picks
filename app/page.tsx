@@ -624,7 +624,7 @@ function SectionTitle({
 function TeamMini({ name }: { name: string }) {
   const icon = teamIcons[name];
   return (
-    <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-sm">
+    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-sm">
       {icon ? (
         <img src={icon} alt={name} className="h-full w-full object-contain" />
       ) : (
@@ -1095,7 +1095,7 @@ const [friendSearch, setFriendSearch] = useState("");
 const [friendSearchResults, setFriendSearchResults] = useState<any[]>([]);
 const [friends, setFriends] = useState<any[]>([]);
 const [friendRequests, setFriendRequests] = useState<any[]>([]);
-
+const [showAdminItemList, setShowAdminItemList] = useState(false);
 const [chatPosition, setChatPosition] = useState({ x: 24, y: 24 });
 const [chatDragging, setChatDragging] = useState(false);
 const chatDragOffsetRef = useRef({ x: 0, y: 0 });
@@ -6079,74 +6079,86 @@ setChatList([]);
         />
 
         <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-          <div className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 className="h-4 w-4" />
-            Alle Items
-          </div>
+  <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center gap-2 font-semibold">
+      <CheckCircle2 className="h-4 w-4" />
+      Alle Items
+    </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {allItemCatalog.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-white/10 bg-black/30 p-3"
-              >
-                <ItemCard
-                  item={{
-                    name: item.name,
-                    rarity: item.rarity,
-                    image_path: item.image_path,
-                    slug: item.slug,
-                    category: item.category,
-                  }}
-                />
+    <Button
+      onClick={() => setShowAdminItemList((prev) => !prev)}
+      variant="ghost"
+      className="px-3 py-2 text-sm"
+    >
+      {showAdminItemList ? "Item-Liste schließen" : "Item-Liste"}
+    </Button>
+  </div>
 
-                <div className="mt-3 space-y-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={item.slot_enabled !== false}
-                      onChange={async (e) => {
-                        const { error } = await supabase
-                          .from("items")
-                          .update({ slot_enabled: e.target.checked })
-                          .eq("id", item.id);
+  {showAdminItemList && (
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      {allItemCatalog.map((item) => (
+        <div
+          key={item.id}
+          className="rounded-2xl border border-white/10 bg-black/30 p-3"
+        >
+          <ItemCard
+            item={{
+              name: item.name,
+              rarity: item.rarity,
+              image_path: item.image_path,
+              slug: item.slug,
+              category: item.category,
+            }}
+          />
 
-                        if (error) {
-                          setMessage(error.message);
-                          return;
-                        }
+          <div className="mt-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.slot_enabled !== false}
+                onChange={async (e) => {
+                  const { error } = await supabase
+                    .from("items")
+                    .update({ slot_enabled: e.target.checked })
+                    .eq("id", item.id);
 
-                        await loadAllItems();
-                      }}
-                    />
-                    Für Slots aktiv
-                  </label>
+                  if (error) {
+                    setMessage(error.message);
+                    return;
+                  }
 
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={item.multiline_enabled === true}
-                      onChange={async (e) => {
-                        const { error } = await supabase
-                          .from("items")
-                          .update({ multiline_enabled: e.target.checked })
-                          .eq("id", item.id);
+                  await loadAllItems();
+                }}
+              />
+              Für Slots aktiv
+            </label>
 
-                        if (error) {
-                          setMessage(error.message);
-                          return;
-                        }
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.multiline_enabled === true}
+                onChange={async (e) => {
+                  const { error } = await supabase
+                    .from("items")
+                    .update({ multiline_enabled: e.target.checked })
+                    .eq("id", item.id);
 
-                        await loadAllItems();
-                      }}
-                    />
-                    Für Multi-Line Slots aktiv
-                  </label>
-                </div>
-              </div>
-            ))}
+                  if (error) {
+                    setMessage(error.message);
+                    return;
+                  }
+
+                  await loadAllItems();
+                }}
+              />
+              Für Multi-Line Slots aktiv
+            </label>
           </div>
         </div>
+      ))}
+    </div>
+  )}
+</div>
 
                 <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
                   <div className="space-y-3">
@@ -6200,55 +6212,57 @@ setChatList([]);
                 >
                   <div className="text-lg font-bold">Match hinzufügen</div>
 
-                  <div>
-                    <div className="mb-2 text-sm text-zinc-400">Team A</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {allTeams.map((team) => (
-                        <button
-                          key={`A-${team}`}
-                          type="button"
-                          onClick={() =>
-                            setAdminDraft((prev) => ({ ...prev, teamA: team }))
-                          }
-                          className={`rounded-2xl border px-3 py-3 text-left text-sm ${
-                            adminDraft.teamA === team
-                              ? "border-violet-400 bg-violet-500/20"
-                              : "border-white/10 bg-black/40"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <TeamMini name={team} />
-                            <span>{team}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+  <div>
+    <div className="mb-2 text-sm text-zinc-400">Team A</div>
+    <div className="space-y-2">
+      {allTeams.map((team) => (
+        <button
+          key={`A-${team}`}
+          type="button"
+          onClick={() =>
+            setAdminDraft((prev) => ({ ...prev, teamA: team }))
+          }
+          className={`w-full rounded-xl border px-3 py-2 text-left text-xs ${
+            adminDraft.teamA === team
+              ? "border-violet-400 bg-violet-500/20"
+              : "border-white/10 bg-black/40"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <TeamMini name={team} />
+            <span className="truncate">{team}</span>
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>
 
-                  <div>
-                    <div className="mb-2 text-sm text-zinc-400">Team B</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {allTeams.map((team) => (
-                        <button
-                          key={`B-${team}`}
-                          type="button"
-                          onClick={() =>
-                            setAdminDraft((prev) => ({ ...prev, teamB: team }))
-                          }
-                          className={`rounded-2xl border px-3 py-3 text-left text-sm ${
-                            adminDraft.teamB === team
-                              ? "border-cyan-400 bg-cyan-500/20"
-                              : "border-white/10 bg-black/40"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <TeamMini name={team} />
-                            <span>{team}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+  <div>
+    <div className="mb-2 text-sm text-zinc-400">Team B</div>
+    <div className="space-y-2">
+      {allTeams.map((team) => (
+        <button
+          key={`B-${team}`}
+          type="button"
+          onClick={() =>
+            setAdminDraft((prev) => ({ ...prev, teamB: team }))
+          }
+          className={`w-full rounded-xl border px-3 py-2 text-left text-xs ${
+            adminDraft.teamB === team
+              ? "border-cyan-400 bg-cyan-500/20"
+              : "border-white/10 bg-black/40"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <TeamMini name={team} />
+            <span className="truncate">{team}</span>
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>
+</div>
 
                   <div className="grid grid-cols-2 gap-3">
   <div>
