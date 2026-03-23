@@ -69,7 +69,7 @@ type LocalSymbol = {
   slug: string;
   name: string;
   rarity: "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
-  image_path: string;
+  image_path: string | null;
   weight: number;
 };
 type LocalData = { 
@@ -908,7 +908,13 @@ setLastMultiLinePayout(0);
 setLastMultiLineWinningIndexes([]);
 
   const randomFromMultiLine = (): LocalSymbol => {
-  const picked = multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
+  if (!multilineSymbols.length) {
+    return symbolPool[0]!;
+  }
+
+  const picked =
+    multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
+
   return picked ?? symbolPool[0]!;
 };
 
