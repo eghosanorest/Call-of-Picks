@@ -3244,25 +3244,11 @@ if (isClassicSingleSlot) {
   setMultiReels(finalGrid);
 
   const winningRows = finalGrid.filter(isWinningRow);
-  const wonSymbols = winningRows.map((row) => row[0]);
-  const hitCount = winningRows.length;
+const wonSymbols = winningRows.map((row) => row[0]);
+const hitCount = winningRows.length;
 
-  const multiplier =
-    hitCount === 1 ? 2 :
-    hitCount === 2 ? 5 :
-    hitCount >= 3 ? 12 :
-    0;
-
-  const payout = hitCount > 0 ? slotStake * multiplier : 0;
-  const finalTokens = nextTokens + payout;
-
-  if (payout > 0) {
-    const tokenSaved = await updateTokensOnline(finalTokens);
-    if (!tokenSaved) {
-      setSpinning(false);
-      return;
-    }
-  }
+const payout = 0;
+const finalTokens = nextTokens;
 
   const spinRecord = {
     at: Date.now(),
@@ -3298,12 +3284,12 @@ if (isClassicSingleSlot) {
   }
 
   if (wonSymbols.length > 0) {
-    setLastWins(wonSymbols);
-    setLastWin(wonSymbols[0]);
-    setMessage(`${hitCount} Treffer! +${payout} Tokens`);
-  } else {
-    setMessage("Kein Treffer.");
-  }
+  setLastWins(wonSymbols);
+  setLastWin(wonSymbols[0]);
+  setMessage(`${hitCount} Treffer! ${wonSymbols.length} Item(s) gewonnen.`);
+} else {
+  setMessage("Kein Treffer.");
+}
 
   await loadRemoteUserGameState(userId);
   setSpinning(false);
