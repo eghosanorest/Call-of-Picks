@@ -7102,6 +7102,56 @@ setProfileTab("profile");
               </motion.div>
             </motion.div>
           )}
+          {chatOpen && activeChat && (
+  <div className="fixed bottom-4 right-4 z-[90] w-[360px] rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl">
+    <div className="flex items-center justify-between border-b border-white/10 p-3">
+      <div className="font-bold text-white">Chat</div>
+      <button
+        onClick={() => setChatOpen(false)}
+        className="rounded-lg bg-white/10 px-2 py-1 text-xs text-white"
+      >
+        X
+      </button>
+    </div>
+
+    <div className="h-80 overflow-y-auto space-y-2 p-3">
+      {chatMessages.length === 0 ? (
+        <div className="text-sm text-zinc-400">Noch keine Nachrichten.</div>
+      ) : (
+        chatMessages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`rounded-xl p-2 text-sm ${
+              msg.sender_id === userId
+                ? "bg-blue-600 text-white"
+                : "bg-white/10 text-white"
+            }`}
+          >
+            {msg.message}
+          </div>
+        ))
+      )}
+    </div>
+
+    <div className="flex gap-2 border-t border-white/10 p-3">
+      <input
+        value={chatInput}
+        onChange={(e) => setChatInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") sendMessage();
+        }}
+        className="flex-1 rounded-xl bg-white/5 px-3 py-2 text-white outline-none"
+        placeholder="Nachricht..."
+      />
+      <button
+        onClick={sendMessage}
+        className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white"
+      >
+        Senden
+      </button>
+    </div>
+  </div>
+)}
         </AnimatePresence>
       </div>
     </div>
