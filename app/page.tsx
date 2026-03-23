@@ -108,6 +108,7 @@ type GroupType = {
 type MemberType = {
   user_id: string;
   username: string;
+  avatar_url?: string;
 };
 
 type MemberInventoryItem = {
@@ -122,6 +123,7 @@ type MemberInventoryItem = {
 type MemberInventory = {
   user_id: string;
   username: string;
+  avatar_url?: string;
   items: MemberInventoryItem[];
 };
 
@@ -1086,7 +1088,7 @@ const placeBet = async () => {
 }, [data.weeks, userId]);
 const [profileOpen, setProfileOpen] = useState(false);
 const [profileTab, setProfileTab] = useState<"profile" | "friends" | "chat" | "inventory">("profile");
-
+const [chatImageUploading, setChatImageUploading] = useState(false);
 const [displayName, setDisplayName] = useState("");
 const [avatarUrl, setAvatarUrl] = useState("");
 const [friendSearch, setFriendSearch] = useState("");
@@ -1446,6 +1448,49 @@ const sendMessage = async () => {
   }
 
   await loadMessages(activeChat.id);
+};
+const sendChatImage = async (file: File) => {
+  if (!userId || !activeChat || !file) return;
+
+  try {
+    setChatImageUploading(true);
+
+    const ext = file.name.split(".").pop() || "png";
+    const filePath = `${activeChat.id}/${userId}-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("chat-images")
+      .upload(filePath, file, { upsert: false });
+
+    if (uploadError) {
+      console.error(uploadError);
+      setMessage(uploadError.message);
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("chat-images")
+      .getPublicUrl(filePath);
+
+    const imageUrl = data.publicUrl;
+
+    const { error } = await supabase.from("direct_messages").insert({
+      chat_id: activeChat.id,
+      sender_id: userId,
+      message: "",
+      image_url: imageUrl,
+    });
+
+    if (error) {
+      console.error(error);
+      setMessage(error.message);
+      return;
+    }
+
+    await loadMessages(activeChat.id);
+  } finally {
+    setChatImageUploading(false);
+  }
 };
 const chatBottomRef = useRef<HTMLDivElement | null>(null);
 useEffect(() => {
@@ -3137,18 +3182,25 @@ setNeedsUsername(!nextName);
     }
 
     const profileMap = new Map(
-      ((profileRows || []) as any[]).map((p) => [p.id, p.username || p.id])
-    );
+  ((profileRows || []) as any[]).map((p) => [
+    p.id,
+    {
+      username: p.username || p.display_name || p.id,
+      avatar_url: p.avatar_url || "",
+    },
+  ])
+);
 
     const grouped = new Map<string, MemberInventory>();
 
     groupUserIds.forEach((uid) => {
-      grouped.set(uid, {
-        user_id: uid,
-        username: profileMap.get(uid) || uid,
-        items: [],
-      });
-    });
+  grouped.set(uid, {
+    user_id: uid,
+    username: profileMap.get(uid)?.username || uid,
+    avatar_url: profileMap.get(uid)?.avatar_url || "",
+    items: [],
+  });
+});
 
     ((invRows || []) as any[]).forEach((row) => {
       const entry = grouped.get(row.owner_id);
@@ -5613,27 +5665,34 @@ setProfileTab("profile");
                             >
                               <div className="flex items-center justify-between gap-3">
                                 <button
-                                  onClick={() => {
-                                    const inventory = memberInventories.find(
-                                      (entry) => entry.user_id === member.user_id
-                                    );
-                                    if (inventory) setSelectedMember(inventory);
-                                  }}
-                                  className="flex flex-1 items-center gap-3 text-left"
-                                >
-                                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-sm font-bold">
-                                    #{index + 1}
-                                  </div>
-                                  <div>
-                                    <div className="font-bold">
-                                      {member.username}
-                                      {member.isMe ? " (Du)" : ""}
-                                    </div>
-                                    <div className="text-sm text-zinc-400">
-                                      {member.correct} richtige Tipps
-                                    </div>
-                                  </div>
-                                </button>
+  onClick={() => {
+    const inventory = memberInventories.find(
+      (entry) => entry.user_id === member.user_id
+    );
+    if (inventory) setSelectedMember(inventory);
+  }}
+  className="flex flex-1 items-center gap-3 text-left"
+>
+  <img
+    src={member.avatar_url || "/default-avatar.png"}
+    alt={member.username}
+    className="h-10 w-10 rounded-full border border-white/10 object-cover"
+  />
+
+  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-sm font-bold">
+    #{index + 1}
+  </div>
+
+  <div>
+    <div className="font-bold">
+      {member.username}
+      {member.isMe ? " (Du)" : ""}
+    </div>
+    <div className="text-sm text-zinc-400">
+      {member.correct} richtige Tipps
+    </div>
+  </div>
+</button>
 
                                 <div className="flex items-center gap-2">
                                   <div className="text-right">
@@ -6304,10 +6363,24 @@ setProfileTab("profile");
                 className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.96),rgba(9,9,11,0.98))] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-zinc-400">Inventar</div>
-                    <div className="text-2xl font-black">{selectedMember.username}</div>
-                  </div>
+                  <div className="flex items-center gap-3">
+  <img
+    src={selectedMember.avatar_url || "/default-avatar.png"}
+    alt={selectedMember.username}
+    className="h-12 w-12 rounded-full border border-white/10 object-cover"
+  />
+  <div className="flex items-center gap-3">
+  <img
+    src={selectedMember.avatar_url || "/default-avatar.png"}
+    alt={selectedMember.username}
+    className="h-12 w-12 rounded-full border border-white/10 object-cover"
+  />
+  <div>
+    <div className="text-sm text-zinc-400">Inventar</div>
+    <div className="text-2xl font-black">{selectedMember.username}</div>
+  </div>
+</div>
+</div>
                   <button
                     onClick={() => setSelectedMember(null)}
                     className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
@@ -7213,7 +7286,17 @@ setProfileTab("profile");
                 {otherName}
               </div>
             )}
-            <div>{msg.message}</div>
+            <div className="space-y-2">
+  {msg.message ? <div>{msg.message}</div> : null}
+
+  {msg.image_url ? (
+    <img
+      src={msg.image_url}
+      alt="Chat Bild"
+      className="max-h-64 rounded-xl border border-white/10 object-cover"
+    />
+  ) : null}
+</div>
           </div>
 
           {isMe && (
@@ -7231,22 +7314,40 @@ setProfileTab("profile");
 </div>
 
     <div className="flex gap-2 border-t border-white/10 p-3">
-      <input
-        value={chatInput}
-        onChange={(e) => setChatInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") sendMessage();
-        }}
-        className="flex-1 rounded-xl bg-white/5 px-3 py-2 text-white outline-none"
-        placeholder="Nachricht..."
-      />
-      <button
-        onClick={sendMessage}
-        className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white"
-      >
-        Senden
-      </button>
-    </div>
+  <label className="flex cursor-pointer items-center justify-center rounded-xl bg-white/10 px-3 py-2 text-sm font-bold text-white">
+    Bild
+    <input
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          await sendChatImage(file);
+          e.currentTarget.value = "";
+        }
+      }}
+    />
+  </label>
+
+  <input
+    value={chatInput}
+    onChange={(e) => setChatInput(e.target.value)}
+    onKeyDown={(e) => {
+      if (e.key === "Enter") sendMessage();
+    }}
+    className="flex-1 rounded-xl bg-white/5 px-3 py-2 text-white outline-none"
+    placeholder="Nachricht..."
+  />
+
+  <button
+    onClick={sendMessage}
+    disabled={chatImageUploading}
+    className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+  >
+    {chatImageUploading ? "..." : "Senden"}
+  </button>
+</div>
   </div>
 )}
         </AnimatePresence>
