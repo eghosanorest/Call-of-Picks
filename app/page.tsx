@@ -7598,7 +7598,7 @@ setChatList([]);
     </motion.div>
   )}
 </AnimatePresence>
-<AnimatePresence>
+
           {selectedChallengeFresh && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -8266,7 +8266,7 @@ setChatList([]);
       playsInline
       className="absolute left-1/2 top-1/2 w-[900px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-70 mix-blend-screen grayscale brightness-125 contrast-125"
     >
-      <source src="/smoke.burst.webm" type="video/webm" />
+      <source src="/effects/smoke.burst.webm" type="video/webm" />
     </video>
   )}
 </div>
@@ -8367,7 +8367,7 @@ setChatList([]);
     </motion.div>
   )}
 </AnimatePresence>
-        </AnimatePresence>
+        
       </div>
     </div>
   );
