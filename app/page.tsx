@@ -481,6 +481,10 @@ const slugMap: Record<string, string> = {
   "champsringlat-epic": "/items/champsringlat-epic.png",
 };
 
+function getMysteryBoxImagePath(rarity?: string | null) {
+  const normalized = normalizeRarity(rarity).toLowerCase();
+  return `/items/mysterybox-${normalized}.png`;
+}
 function getSafeItemImagePath(
   slug?: string | null,
   imagePath?: string | null
@@ -6300,12 +6304,19 @@ setChatList([]);
             <div className="text-lg font-black text-zinc-400">=</div>
 
             <div
-              className={`flex h-16 w-16 items-center justify-center rounded-2xl border text-[11px] font-black ${
-                rewardBoxStyles[challenge.rewardRarity] || rewardBoxStyles.Common
-              }`}
-            >
-              BOX
-            </div>
+  className={`flex h-16 w-16 items-center justify-center rounded-2xl border p-2 ${
+    rewardBoxStyles[challenge.rewardRarity] || rewardBoxStyles.Common
+  }`}
+>
+  <img
+    src={getMysteryBoxImagePath(challenge.rewardRarity)}
+    alt={`${challenge.rewardRarity} Mystery Box`}
+    className="max-h-full max-w-full object-contain"
+    onError={(e) => {
+      e.currentTarget.src = "/items/fallback.png";
+    }}
+  />
+</div>
           </div>
 
           <div className="min-w-[120px] text-right">
