@@ -5584,20 +5584,15 @@ setChatList([]);
 
 {/* 👉 Content Layer */}
 <div className="relative z-10"></div>
-                    <div className="relative z-20 mb-3 grid grid-cols-6 gap-2">
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`h-3 rounded-full ${
-                            i % 3 === 0
-                              ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,1)]"
-                              : i % 3 === 1
-                                ? "bg-fuchsia-400 shadow-[0_0_18px_rgba(217,70,239,0.95)]"
-                                : "bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.95)]"
-                          }`}
-                        />
-                      ))}
-                    </div>
+                    <div className="relative z-20 mb-3 h-4 w-full overflow-hidden rounded-full border border-white/10">
+
+  {/* 🌈 Farbverlauf wie vorher */}
+  <div className="absolute inset-0 bg-gradient-to-r from-amber-300 via-fuchsia-400 to-cyan-300 opacity-80" />
+
+  {/* ✨ Glow */}
+  <div className="absolute inset-0 shadow-[0_0_25px_rgba(252,211,77,0.6),0_0_35px_rgba(217,70,239,0.5),0_0_30px_rgba(103,232,249,0.5)]" />
+
+</div>
 
                     {slotViewMode === "classic" && (
   <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
