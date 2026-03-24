@@ -5593,7 +5593,7 @@ setChatList([]);
     loop
     muted
     playsInline
-    className="absolute left-1/2 top-1/2 h-[1000%] w-[120%] -translate-x-1/2 -translate-y-1/2 object-cover"
+    className="absolute left-1/2 top-1/2 h-[1400%] w-[120%] -translate-x-1/2 -translate-y-1/2 object-cover"
   />
 
   {/* ✨ optionaler Glow darüber */}
