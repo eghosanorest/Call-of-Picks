@@ -6914,16 +6914,17 @@ setChatList([]);
     />
 
     <select
-      value={newItemRarity}
-      onChange={(e) => setNewItemRarity(e.target.value as any)}
-      className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
-    >
-      <option>Common</option>
-      <option>Rare</option>
-      <option>Epic</option>
-      <option>Legendary</option>
-      <option>Ultra</option>
-    </select>
+  value={newItemRarity}
+  onChange={(e) => setNewItemRarity(e.target.value as LocalSymbol["rarity"])}
+  className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+>
+  <option value="Common">Common</option>
+  <option value="Rare">Rare</option>
+  <option value="Epic">Epic</option>
+  <option value="Super">Super</option>
+  <option value="Legendary">Legendary</option>
+  <option value="Ultra">Ultra</option>
+</select>
   </div>
 
   <input
