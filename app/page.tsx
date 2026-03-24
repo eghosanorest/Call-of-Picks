@@ -6278,13 +6278,15 @@ setChatList([]);
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/30 p-2">
               {requiredItem ? (
                 <img
-                  src={getSafeItemImagePath(requiredItem.slug, requiredItem.image_path)}
-                  alt={requiredItem.name}
-                  className="max-h-full max-w-full object-contain"
-                  onError={(e) => {
-                    e.currentTarget.src = "/items/fallback.png";
-                  }}
-                />
+  src={getSafeItemImagePath(requiredItem.slug, requiredItem.image_path)}
+  alt={requiredItem.name}
+  className={`max-h-full max-w-full object-contain transition ${
+    ownedCount > 0 ? "opacity-100" : "grayscale opacity-35"
+  }`}
+  onError={(e) => {
+    e.currentTarget.src = "/items/fallback.png";
+  }}
+/>
               ) : null}
             </div>
 
