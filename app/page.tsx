@@ -6700,8 +6700,8 @@ setChatList([]);
     { id: "picks", label: "Picks", icon: Target },
     { id: "slot", label: "Slot", icon: Zap },
     { id: "profile", label: "Profil", icon: Package },
-    { id: "group", label: "Gruppe", icon: Users },
-    { id: "admin", label: isAdmin ? "Admin" : "Lobby", icon: isAdmin ? Shield : Package },
+    { id: "group", label: "Lobby", icon: Users },
+    { id: "admin", label: isAdmin ? "Admin" : "Prestige", icon: isAdmin ? Shield : Package },
   ].map((item) => {
     const Icon = item.icon;
     const active = screen === (item.id as typeof screen);
