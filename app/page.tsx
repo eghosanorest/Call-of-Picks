@@ -1097,7 +1097,7 @@ setLastMultiLineWinningIndexes(winningIndexes);
     setSpinning(false);
   }, 1800);
 };
-
+const [insertImpact, setInsertImpact] = useState(false);
 const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
   "home" | "picks" | "slot" | "profile" | "group" | "admin"
@@ -1974,6 +1974,12 @@ const fadeOutAudio = (
         insert.currentTime = 0;
         insert.volume = 1;
         insert.play().catch(() => {});
+
+        setInsertImpact(true);
+
+setTimeout(() => {
+  setInsertImpact(false);
+}, 220);
       }
 
       if (waterbomb) {
@@ -8572,7 +8578,9 @@ setChatList([]);
             initial={{ scale: 0.88, rotate: -4 }}
             animate={{ scale: [0.9, 1.04, 1], rotate: [0, 2, 0] }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className={`flex h-56 w-56 items-center justify-center rounded-[34px] border border-white/10 bg-black/30 p-5 ${getRarityGlowClasses(openingReward.rarity)}`}
+            className={`flex h-56 w-56 items-center justify-center rounded-[34px] border border-white/10 bg-black/30 p-5 ${getRarityGlowClasses(openingReward.rarity)} ${
+  insertImpact ? "scale-110 brightness-150" : ""
+}`}
           >
             <img
               src={getSafeItemImagePath(openingReward.slug, openingReward.image_path)}
