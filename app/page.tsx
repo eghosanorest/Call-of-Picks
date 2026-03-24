@@ -678,6 +678,7 @@ function ItemCard({
   let rarityClass = rarityStyles.Common;
   if (normalizedRarity === "Rare") rarityClass = rarityStyles.Rare;
   if (normalizedRarity === "Epic") rarityClass = rarityStyles.Epic;
+  if (normalizedRarity === "Super") rarityClass = rarityStyles.Super;
   if (normalizedRarity === "Legendary") rarityClass = rarityStyles.Legendary;
   if (normalizedRarity === "Ultra") rarityClass = rarityStyles.Ultra;
 
@@ -814,6 +815,32 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 
   return true;
 }  
+const PRESTIGE_CHALLENGES = [
+  {
+    id: "mwfamas-common-5-super",
+    requiredSlug: "mwfamas-common",
+    requiredCount: 5,
+    rewardRarity: "Super",
+    title: "Famas Meister",
+  },
+  {
+    id: "magnum-common-10-legendary",
+    requiredSlug: "magnum-common",
+    requiredCount: 10,
+    rewardRarity: "Legendary",
+    title: "Magnum Sammler",
+  },
+] as const;
+
+const rewardBoxStyles: Record<string, string> = {
+  Common: "border-zinc-600 bg-zinc-900 text-zinc-200",
+  Rare: "border-green-500/40 bg-green-500/10 text-green-200",
+  Epic: "border-blue-500/40 bg-blue-500/10 text-blue-200",
+  Super: "border-purple-500/40 bg-purple-500/10 text-purple-200",
+  Legendary: "border-amber-500/40 bg-amber-500/10 text-amber-200",
+  Ultra: "border-red-500/40 bg-red-500/10 text-red-200",
+};
+
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
   {
@@ -2402,6 +2429,16 @@ const totalPicked = useMemo(
 
   const ownedItemSlugs = useMemo(() => {
   return new Set(data.inventory.map((item) => item.slug));
+}, [data.inventory]);
+
+const inventoryCountMap = useMemo(() => {
+  const map = new Map<string, number>();
+
+  data.inventory.forEach((item) => {
+    map.set(item.slug, (map.get(item.slug) || 0) + 1);
+  });
+
+  return map;
 }, [data.inventory]);
 
 const inventoryCounts = useMemo(() => {
@@ -6218,6 +6255,70 @@ setChatList([]);
         />
       </div>
     </div>
+
+<div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+  <div className="text-sm text-zinc-400">Herausforderungen</div>
+  <div className="mt-1 text-2xl font-black">Sammelziele</div>
+
+  <div className="mt-4 space-y-3">
+    {PRESTIGE_CHALLENGES.map((challenge) => {
+      const ownedCount = inventoryCountMap.get(challenge.requiredSlug) || 0;
+      const completed = ownedCount >= challenge.requiredCount;
+
+      const requiredItem = allItemCatalog.find(
+        (item) => item.slug === challenge.requiredSlug
+      );
+
+      return (
+        <div
+          key={challenge.id}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 p-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-black/30 p-2">
+              {requiredItem ? (
+                <img
+                  src={getSafeItemImagePath(requiredItem.slug, requiredItem.image_path)}
+                  alt={requiredItem.name}
+                  className="max-h-full max-w-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.src = "/items/fallback.png";
+                  }}
+                />
+              ) : null}
+            </div>
+
+            <div className="text-lg font-black text-zinc-400">×</div>
+
+            <div className="min-w-[52px] text-center">
+              <div className="text-lg font-black">{challenge.requiredCount}</div>
+              <div className="text-[11px] text-zinc-500">benötigt</div>
+            </div>
+
+            <div className="text-lg font-black text-zinc-400">=</div>
+
+            <div
+              className={`flex h-16 w-16 items-center justify-center rounded-2xl border text-[11px] font-black ${
+                rewardBoxStyles[challenge.rewardRarity] || rewardBoxStyles.Common
+              }`}
+            >
+              BOX
+            </div>
+          </div>
+
+          <div className="min-w-[120px] text-right">
+            <div className="text-sm font-semibold text-white">
+              {ownedCount} / {challenge.requiredCount}
+            </div>
+            <div className={`text-xs ${completed ? "text-emerald-300" : "text-zinc-500"}`}>
+              {completed ? "Bereit" : challenge.rewardRarity}
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
 
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {allItemCatalog.map((item) => {
