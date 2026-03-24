@@ -25,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
-
+import HomeMediaPlayer from "@/components/HomeMediaPlayer";
 type MatchResult = "A" | "B" | null;
 type PickSide = "A" | "B";
 
@@ -809,7 +809,6 @@ function isValidMatchScore(scoreA: number, scoreB: number) {
 
   return true;
 }  
-
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
   {
@@ -4525,13 +4524,14 @@ setChatList([]);
         <div className="flex-1 overflow-y-auto px-4 pb-40 pt-4">
           <AnimatePresence mode="wait">
             {screen === "home" && (
-              <motion.div
-                key="home"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
-              >
+  <motion.div
+    key="home"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
+  >
+    <HomeMediaPlayer />
                 {!userEmail ? (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl">
                     <div className="text-sm text-zinc-400">Online Funktionen</div>
