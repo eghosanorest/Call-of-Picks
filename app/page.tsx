@@ -4799,7 +4799,7 @@ setChatList([]);
     variant="violet"
     className="w-full"
   >
-    Wettschein
+    Jetzt wetten!
   </Button>
 
   <Button
@@ -4807,7 +4807,7 @@ setChatList([]);
     variant="ghost"
     className="w-full"
   >
-    Meine Wetten
+    Meine Wettscheine
   </Button>
 </div>
               </motion.div>
@@ -6904,7 +6904,9 @@ setChatList([]);
                   }`}
                 >
                   <div className="font-semibold">{match.teamA}</div>
-                  <div className="text-sm text-zinc-400">{formatOdd(match.oddA)}</div>
+                  <div className="text-sm font-semibold text-yellow-400">
+  {formatOdd(match.oddA)}
+</div>
                 </button>
 
                 <button
@@ -6917,7 +6919,9 @@ setChatList([]);
                   }`}
                 >
                   <div className="font-semibold">{match.teamB}</div>
-                  <div className="text-sm text-zinc-400">{formatOdd(match.oddB)}</div>
+                  <div className="text-sm font-semibold text-yellow-400">
+  {formatOdd(match.oddB)}
+</div>
                 </button>
               </div>
             </div>
