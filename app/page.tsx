@@ -5900,7 +5900,7 @@ setChatList([]);
       ))}
     </div>
   ) : (
-  <div className="grid grid-cols-3 gap-1 justify-items-center md:gap-2 xl:gap-2 2xl:gap-3">
+  <div className="grid grid-cols-3 gap-0 justify-items-center md:gap-1 xl:gap-1 2xl:gap-2">
     {reels.map((symbol, idx) => (
       <Reel
         key={idx}
