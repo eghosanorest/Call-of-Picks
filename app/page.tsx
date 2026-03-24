@@ -8317,12 +8317,12 @@ setChatList([]);
     <>
       <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
   <div
-    className="absolute left-1/2 top-[60%] h-[700px] w-[1100px] -translate-x-1/2 -translate-y-1/2"
+    className="absolute left-1/2 top-[65%] h-[650px] w-[1000px] -translate-x-1/2 -translate-y-1/2"
     style={{
       maskImage:
-        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.72) 55%, rgba(0,0,0,0.28) 72%, rgba(0,0,0,0) 100%)",
+        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.45) 65%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
       WebkitMaskImage:
-        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.72) 55%, rgba(0,0,0,0.28) 72%, rgba(0,0,0,0) 100%)",
+        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.45) 65%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
     }}
   >
     <video
@@ -8331,7 +8331,7 @@ setChatList([]);
       muted
       playsInline
       preload="auto"
-      className="absolute inset-0 h-full w-full scale-125 object-cover opacity-90 mix-blend-screen grayscale brightness-200 contrast-200"
+      className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 mix-blend-screen grayscale brightness-110 contrast-110 blur-[2px]"
     >
       <source src="/effects/smoke-burst.webm" type="video/webm" />
     </video>
