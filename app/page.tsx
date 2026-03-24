@@ -4512,9 +4512,9 @@ setChatList([]);
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="text-xs uppercase tracking-[0.35em] text-violet-300/80">
-                Call of Picks
+                Call of Duty
               </div>
-              <h1 className="mt-1 text-2xl font-black tracking-tight">Prototype Plus</h1>
+              <h1 className="mt-1 text-2xl font-black tracking-tight">PickStar</h1>
             </div>
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-200">
               {data.tokens} Tokens
