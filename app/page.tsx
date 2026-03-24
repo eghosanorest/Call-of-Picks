@@ -582,8 +582,7 @@ function Reel({
       <img
   src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
   alt={symbol.name}
-  className="relative z-10 max-h-[85%] max-w-[85%] object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
-        onError={(e) => {
+className="relative z-10 max-h-[92%] max-w-[92%] object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.65)]"        onError={(e) => {
           e.currentTarget.src = "/items/fallback.png";
         }}
       />
