@@ -8314,56 +8314,56 @@ setChatList([]);
   )}
 
   {openingPhase === "reveal" && (
-    <>
-      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-  <div
-    className="absolute left-1/2 top-[65%] h-[650px] w-[1000px] -translate-x-1/2 -translate-y-1/2"
-    style={{
-      maskImage:
-        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.45) 65%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
-      WebkitMaskImage:
-        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.45) 65%, rgba(0,0,0,0.15) 80%, rgba(0,0,0,0) 100%)",
-    }}
-  >
-    <video
-      key={`smoke-${openingReward?.rarity || openingBox.rarity}`}
-      autoPlay
-      muted
-      playsInline
-      preload="auto"
-      className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 mix-blend-screen grayscale brightness-110 contrast-110 blur-[2px]"
-    >
-      <source src="/effects/smoke-burst.webm" type="video/webm" />
-    </video>
-  </div>
-</div>
-
-      <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
-        {Array.from({ length: 16 }).map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{
-              opacity: 0,
-              x: 0,
-              y: 0,
-              scale: 0.6,
-            }}
-            animate={{
-              opacity: [0, 1, 0],
-              x: [0, (i % 2 === 0 ? 1 : -1) * (60 + i * 12)],
-              y: [0, -40 - i * 10],
-              scale: [0.6, 1, 0.4],
-            }}
-            transition={{
-              duration: 0.75 + i * 0.03,
-              ease: "easeOut",
-            }}
-            className={`absolute left-1/2 top-1/2 h-3 w-3 rounded-full blur-[1px] ${getRarityParticleClasses(openingReward?.rarity || openingBox.rarity)}`}
-          />
-        ))}
+  <>
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+      <div
+        className="absolute left-1/2 top-[46%] h-[620px] w-[980px] -translate-x-1/2 -translate-y-1/2"
+        style={{
+          maskImage:
+            "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.88) 38%, rgba(0,0,0,0.5) 62%, rgba(0,0,0,0.18) 80%, rgba(0,0,0,0) 100%)",
+          WebkitMaskImage:
+            "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.88) 38%, rgba(0,0,0,0.5) 62%, rgba(0,0,0,0.18) 80%, rgba(0,0,0,0) 100%)",
+        }}
+      >
+        <video
+          key={`smoke-${openingReward?.rarity || openingBox.rarity}`}
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-22 mix-blend-screen grayscale brightness-105 contrast-110 blur-[3px]"
+        >
+          <source src="/effects/smoke-burst.webm" type="video/webm" />
+        </video>
       </div>
-    </>
-  )}
+    </div>
+
+    <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      {Array.from({ length: 16 }).map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{
+            opacity: 0,
+            x: 0,
+            y: 0,
+            scale: 0.6,
+          }}
+          animate={{
+            opacity: [0, 1, 0],
+            x: [0, (i % 2 === 0 ? 1 : -1) * (60 + i * 12)],
+            y: [0, -40 - i * 10],
+            scale: [0.6, 1, 0.4],
+          }}
+          transition={{
+            duration: 0.75 + i * 0.03,
+            ease: "easeOut",
+          }}
+          className={`absolute left-1/2 top-1/2 h-3 w-3 rounded-full blur-[1px] ${getRarityParticleClasses(openingReward?.rarity || openingBox.rarity)}`}
+        />
+      ))}
+    </div>
+  </>
+)}
 
   <div className="relative z-30 text-center">
     <div className="text-sm uppercase tracking-[0.35em] text-zinc-500">
