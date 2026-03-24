@@ -8258,7 +8258,40 @@ setChatList([]);
           <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
           <div className="absolute bottom-0 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-fuchsia-500/10 blur-3xl" />
         </div>
+<div className="pointer-events-none absolute inset-0 overflow-hidden">
+  <motion.div
+    initial={{ opacity: 0, scale: 0.7, y: 40 }}
+    animate={
+      openingPhase === "build" || openingPhase === "flash" || openingPhase === "reveal"
+        ? { opacity: [0.12, 0.22, 0.14], scale: [0.9, 1.15, 1.05], y: [30, 10, 0] }
+        : { opacity: 0, scale: 0.8, y: 40 }
+    }
+    transition={{ duration: 1.8, repeat: openingPhase !== "idle" ? Infinity : 0, ease: "easeInOut" }}
+    className="absolute bottom-8 left-1/2 h-32 w-72 -translate-x-1/2 rounded-full bg-white/10 blur-3xl"
+  />
 
+  <motion.div
+    initial={{ opacity: 0, x: -40, y: 20, scale: 0.8 }}
+    animate={
+      openingPhase === "flash" || openingPhase === "reveal"
+        ? { opacity: [0.08, 0.18, 0.1], x: [-30, -55, -40], y: [20, 0, -10], scale: [0.9, 1.15, 1.05] }
+        : { opacity: 0, x: -40, y: 20, scale: 0.8 }
+    }
+    transition={{ duration: 1.2, repeat: openingPhase === "flash" ? 1 : 0, ease: "easeOut" }}
+    className="absolute bottom-20 left-1/4 h-28 w-40 rounded-full bg-zinc-200/10 blur-3xl"
+  />
+
+  <motion.div
+    initial={{ opacity: 0, x: 40, y: 20, scale: 0.8 }}
+    animate={
+      openingPhase === "flash" || openingPhase === "reveal"
+        ? { opacity: [0.08, 0.18, 0.1], x: [30, 55, 40], y: [20, 0, -10], scale: [0.9, 1.15, 1.05] }
+        : { opacity: 0, x: 40, y: 20, scale: 0.8 }
+    }
+    transition={{ duration: 1.2, repeat: openingPhase === "flash" ? 1 : 0, ease: "easeOut" }}
+    className="absolute bottom-20 right-1/4 h-28 w-40 rounded-full bg-zinc-200/10 blur-3xl"
+  />
+</div>
         <div className="relative z-10 text-center">
           <div className="text-sm uppercase tracking-[0.35em] text-zinc-500">
             Mystery Box
