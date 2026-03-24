@@ -4531,7 +4531,7 @@ setChatList([]);
     exit={{ opacity: 0, y: -10 }}
     className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
   >
-    <HomeMediaPlayer />
+    
                 {!userEmail ? (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl">
                     <div className="text-sm text-zinc-400">Online Funktionen</div>
@@ -4602,80 +4602,9 @@ setChatList([]);
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-zinc-400">Aktiver Major</div>
-                        <div className="text-lg font-bold">{currentMajor.label}</div>
-                      </div>
-                      <div className="text-sm text-zinc-400">
-                        Week {getDisplayWeek(currentWeek)}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {majorStructure.map((major) => (
-                        <button
-                          key={major.id}
-                          onClick={() => changeMajor(major.id)}
-                          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-                            major.id === data.currentMajor
-                              ? "bg-violet-500 text-white"
-                              : "bg-white/5 text-zinc-300"
-                          }`}
-                        >
-                          {major.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto">
-                      {visibleWeeks.map((week) => (
-  <button
-    key={week.id}
-    onClick={() => changeWeek(week.id)}
-    className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-      week.id === currentWeek
-        ? "bg-violet-500 text-white"
-        : "bg-white/5 text-zinc-300"
-    }`}
-  >
-    {week.label}
-  </button>
-))}
-                    </div>
-                  </div>
-                </div>
+                
 
-                <div className="grid grid-cols-2 gap-3">
-                  <StatCard
-                    icon={Coins}
-                    label="Tokens"
-                    value={data.tokens}
-                    glow="border-amber-500/20 bg-gradient-to-br from-zinc-950 to-amber-950/20"
-                    sub="Online gespeichert"
-                  />
-                  <StatCard
-                    icon={Target}
-                    label="Richtige Picks"
-                    value={correctCount}
-                    glow="border-cyan-500/20 bg-gradient-to-br from-zinc-950 to-cyan-950/20"
-                    sub={`${currentMajor.label} ${getDisplayWeek(currentWeek)}`}
-                  />
-                  <StatCard
-                    icon={Package}
-                    label="Inventar"
-                    value={data.inventory.length}
-                    glow="border-violet-500/20 bg-gradient-to-br from-zinc-950 to-violet-950/20"
-                    sub="Online Sammlung"
-                  />
-                  <StatCard
-                    icon={Users}
-                    label="Gruppen"
-                    value={myGroups.length}
-                    glow="border-emerald-500/20 bg-gradient-to-br from-zinc-950 to-emerald-950/20"
-                    sub={activeGroup ? activeGroup.name : "Keine aktiv"}
-                  />
-                </div>
+                
 
                 <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
   <div className="mb-4 flex items-center justify-between gap-3">
@@ -4737,6 +4666,7 @@ setChatList([]);
     )}
   </div>
 </div>
+<HomeMediaPlayer />
               </motion.div>
             )}
 
