@@ -8258,65 +8258,19 @@ setChatList([]);
           <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
           <div className="absolute bottom-0 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-fuchsia-500/10 blur-3xl" />
         </div>
-
-        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.7, y: 80 }}
-            animate={
-              openingPhase === "build" || openingPhase === "flash"
-                ? {
-                    opacity: [0.18, 0.38, 0.24],
-                    scale: [0.9, 1.25, 1.1],
-                    y: [70, 30, 10],
-                  }
-                : openingPhase === "reveal"
-                  ? {
-                      opacity: [0.35, 0.22, 0.12],
-                      scale: [1.1, 1.4, 1.5],
-                      y: [20, -10, -30],
-                    }
-                  : { opacity: 0, scale: 0.7, y: 80 }
-            }
-            transition={{
-              duration: openingPhase === "reveal" ? 1.4 : 1.8,
-              repeat: openingPhase === "build" ? Infinity : 0,
-              ease: "easeInOut",
-            }}
-            className="absolute bottom-0 left-1/2 h-56 w-[34rem] -translate-x-1/2 rounded-full bg-white/20 blur-3xl"
-          />
-
-          <motion.div
-            initial={{ opacity: 0, x: -40, y: 40, scale: 0.8 }}
-            animate={
-              openingPhase === "flash" || openingPhase === "reveal"
-                ? {
-                    opacity: [0.08, 0.28, 0.12],
-                    x: [-20, -90, -120],
-                    y: [30, 0, -20],
-                    scale: [0.9, 1.25, 1.35],
-                  }
-                : { opacity: 0, x: -40, y: 40, scale: 0.8 }
-            }
-            transition={{ duration: 1.25, ease: "easeOut" }}
-            className="absolute bottom-16 left-1/3 h-40 w-56 rounded-full bg-zinc-200/20 blur-3xl"
-          />
-
-          <motion.div
-            initial={{ opacity: 0, x: 40, y: 40, scale: 0.8 }}
-            animate={
-              openingPhase === "flash" || openingPhase === "reveal"
-                ? {
-                    opacity: [0.08, 0.28, 0.12],
-                    x: [20, 90, 120],
-                    y: [30, 0, -20],
-                    scale: [0.9, 1.25, 1.35],
-                  }
-                : { opacity: 0, x: 40, y: 40, scale: 0.8 }
-            }
-            transition={{ duration: 1.25, ease: "easeOut" }}
-            className="absolute bottom-16 right-1/3 h-40 w-56 rounded-full bg-zinc-200/20 blur-3xl"
-          />
-        </div>
+<div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+  {(openingPhase === "build" || openingPhase === "flash" || openingPhase === "reveal") && (
+    <video
+      autoPlay
+      muted
+      playsInline
+      className="absolute left-1/2 top-1/2 w-[900px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-70 mix-blend-screen grayscale brightness-125 contrast-125"
+    >
+      <source src="/smoke.burst.webm" type="video/webm" />
+    </video>
+  )}
+</div>
+        
 
         <div className="relative z-20 text-center">
           
