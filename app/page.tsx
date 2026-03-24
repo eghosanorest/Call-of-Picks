@@ -1112,7 +1112,7 @@ const [mounted, setMounted] = useState(false);
   };
 }, []);
   const [lastWin, setLastWin] = useState<LocalSymbol | null>(null);
-
+const [insertImpactKey, setInsertImpactKey] = useState(0);
   const [message, setMessage] = useState("");
   const [, setNowTick] = useState(0);
   
@@ -1970,11 +1970,13 @@ const fadeOutAudio = (
 
     mysteryInsertTimeoutRef.current = setTimeout(() => {
       if (insert) {
-        insert.pause();
-        insert.currentTime = 0;
-        insert.volume = 1;
-        insert.play().catch(() => {});
-      }
+  insert.pause();
+  insert.currentTime = 0;
+  insert.volume = 1;
+  insert.play().catch(() => {});
+
+  setInsertImpactKey((prev) => prev + 1);
+}
 
       if (waterbomb) {
         const fadeStep = 0.12;
@@ -8574,14 +8576,18 @@ setChatList([]);
             transition={{ duration: 0.6, ease: "easeOut" }}
             className={`flex h-56 w-56 items-center justify-center rounded-[34px] border border-white/10 bg-black/30 p-5 ${getRarityGlowClasses(openingReward.rarity)}`}
           >
-            <img
-              src={getSafeItemImagePath(openingReward.slug, openingReward.image_path)}
-              alt={openingReward.name}
-              className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.65)]"
-              onError={(e) => {
-                e.currentTarget.src = "/items/fallback.png";
-              }}
-            />
+            <motion.img
+  key={`reward-icon-${openingReward.slug}-${insertImpactKey}`}
+  src={getSafeItemImagePath(openingReward.slug, openingReward.image_path)}
+  alt={openingReward.name}
+  className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.65)]"
+  initial={{ y: 0, scale: 1 }}
+  animate={{ y: [0, -18, 0], scale: [1, 1.04, 1] }}
+  transition={{ duration: 0.3, ease: "easeOut" }}
+  onError={(e) => {
+    e.currentTarget.src = "/items/fallback.png";
+  }}
+/>
           </motion.div>
         </div>
 
