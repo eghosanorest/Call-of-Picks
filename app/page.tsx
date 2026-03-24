@@ -2395,7 +2395,11 @@ const totalPicked = useMemo(
 
   
 
-  const inventoryCounts = useMemo(() => {
+  const ownedItemSlugs = useMemo(() => {
+  return new Set(data.inventory.map((item) => item.slug));
+}, [data.inventory]);
+
+const inventoryCounts = useMemo(() => {
     const map = new Map<string, LocalInventoryItem & { quantity: number }>();
 
     data.inventory.forEach((item) => {
@@ -6175,37 +6179,79 @@ setChatList([]);
     className="mx-auto w-full max-w-md space-y-4 pb-24 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
   >
     {!isAdmin ? (
-      <>
-        <SectionTitle
-          eyebrow="Sammlung"
-          title="Lobby"
-          right={<Package className="h-5 w-5 text-emerald-300" />}
+  <>
+    <SectionTitle
+      eyebrow="Sammlung"
+      title="Prestige"
+      right={<Package className="h-5 w-5 text-emerald-300" />}
+    />
+
+    <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+      <div className="text-sm text-zinc-400">Prestige Sammlung</div>
+      <div className="mt-1 text-2xl font-black">Alle Items</div>
+      <div className="mt-2 text-sm text-zinc-400">
+        {ownedItemSlugs.size} / {allItemCatalog.length} gesammelt
+      </div>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
+          style={{
+            width: `${
+              allItemCatalog.length
+                ? (ownedItemSlugs.size / allItemCatalog.length) * 100
+                : 0
+            }%`,
+          }}
         />
+      </div>
+    </div>
 
-        <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-          <div className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 className="h-4 w-4" />
-            Alle Items
-          </div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+      {allItemCatalog.map((item) => {
+        const owned = ownedItemSlugs.has(item.slug);
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {allItemCatalog.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={{
-                  name: item.name,
-                  rarity: item.rarity,
-                  image_path: item.image_path,
-                  slug: item.slug,
-                  category: item.category,
+        return (
+          <div
+            key={item.id}
+            className={`relative overflow-hidden rounded-3xl border p-4 transition ${
+              owned
+                ? "border-violet-500/30 bg-violet-500/10 shadow-[0_0_24px_rgba(139,92,246,0.22)]"
+                : "border-white/10 bg-black/40"
+            }`}
+          >
+            <div className="flex h-28 items-center justify-center rounded-2xl bg-black/20 p-3">
+              <img
+                src={getSafeItemImagePath(item.slug, item.image_path)}
+                alt={item.name}
+                className={`max-h-full max-w-full object-contain transition ${
+                  owned ? "opacity-100" : "grayscale opacity-35"
+                }`}
+                onError={(e) => {
+                  e.currentTarget.src = "/items/fallback.png";
                 }}
               />
-            ))}
-            
+            </div>
+
+            <div className={`mt-3 text-sm font-bold ${owned ? "text-white" : "text-zinc-400"}`}>
+              {item.name}
+            </div>
+
+            <div className={`text-xs ${owned ? "text-zinc-300" : "text-zinc-500"}`}>
+              {normalizeRarity(item.rarity)}
+            </div>
+
+            {!owned && (
+              <div className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/60 px-2 py-1 text-[10px] font-bold text-zinc-400">
+                NICHT ENTDECKT
+              </div>
+            )}
           </div>
-        </div>
-      </>
-    ) : (
+        );
+      })}
+    </div>
+  </>
+) : (
       <>
         <SectionTitle
   eyebrow="Verwaltung"
