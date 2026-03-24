@@ -2613,7 +2613,14 @@ const payload = {
   odd_b: oddB,
 };
 
-  const { error } = await supabase.from("matches").insert(payload);
+  const { data: insertedMatch, error } = await supabase
+  .from("matches")
+  .insert(payload)
+  .select()
+  .single();
+
+console.log("INSERTED MATCH:", insertedMatch);
+console.log("INSERT PAYLOAD:", payload);
 
   if (error) {
     console.error("MATCH INSERT ERROR:", error);
@@ -3577,8 +3584,6 @@ const nextMembers = memberIds.map((id: string) => ({
   };
 
   useEffect(() => {
-  if (isAdmin) return;
-
   const currentMatches = data.weeks[data.currentMajor]?.[data.currentWeek] || [];
   if (currentMatches.length > 0) return;
 
@@ -3599,7 +3604,7 @@ const nextMembers = memberIds.map((id: string) => ({
       return;
     }
   }
-}, [data.weeks, data.currentMajor, data.currentWeek, isAdmin]);
+}, [data.weeks, data.currentMajor, data.currentWeek]);
 
 useEffect(() => {
   const init = async () => {
@@ -6556,7 +6561,9 @@ setChatList([]);
     Match speichern
   </Button>
 </form>
-
+<div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+  DEBUG → currentMajor: {data.currentMajor} | currentWeek: {currentWeek} | matches: {matches.length}
+</div>
                 <div className="space-y-3">
                   {matches.map((match) => (
                     <div
@@ -6645,7 +6652,9 @@ setChatList([]);
                     </div>
                   ))}
                 </div>
-
+<div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-200">
+  RAW WEEK MATCHES → {(data.weeks[data.currentMajor]?.[currentWeek] || []).length}
+</div>
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={exportData}
