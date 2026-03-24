@@ -557,8 +557,8 @@ function Reel({
   spinning: boolean;
   delay?: number;
 }) {
-  const glow = getRarityGlowClasses(symbol.rarity);
-  const border = getRarityBorderClasses(symbol.rarity);
+  const normalized = normalizeRarity(symbol.rarity);
+  const rarityClass = rarityStyles[normalized] || rarityStyles.Common;
 
   return (
     <motion.div
@@ -572,18 +572,9 @@ function Reel({
           : { y: 0, scale: 1, rotateX: 0 }
       }
       transition={{ duration: 0.42, repeat: spinning ? 6 : 0, delay }}
-      className={`relative flex h-32 w-36 items-center justify-center overflow-hidden rounded-[28px] border ${border} bg-black/40 p-2 ${glow} shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)] md:h-52 md:w-56 xl:h-64 xl:w-64 2xl:h-72 2xl:w-72`}
+      className={`relative flex h-32 w-36 items-center justify-center overflow-hidden rounded-[28px] border p-2 ${rarityClass} md:h-52 md:w-56 xl:h-64 xl:w-64 2xl:h-72 2xl:w-72`}
       style={{ transformStyle: "preserve-3d" }}
     >
-      <video
-        src="/effects/slothintergrund.webm"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover opacity-30"
-      />
-
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_35%)]" />
       <div className="pointer-events-none absolute inset-x-2 top-2 h-7 rounded-full bg-white/12 blur-md" />
       <div className="pointer-events-none absolute inset-x-2 bottom-2 h-6 rounded-full bg-black/40 blur-md" />
@@ -594,7 +585,7 @@ function Reel({
       <img
         src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
         alt={symbol.name}
-        className="relative z-10 max-h-[92%] max-w-[92%] object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.65)]"
+        className="relative z-10 max-h-[90%] max-w-[90%] object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.65)]"
         onError={(e) => {
           e.currentTarget.src = "/items/fallback.png";
         }}
@@ -5577,7 +5568,22 @@ setChatList([]);
     )}
   </div>
 )}
-<div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,39,0.95),rgba(7,7,9,1))] p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
+<div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
+{/* 🎥 SLOT VIDEO BACKGROUND */}
+<video
+  src="/effects/slothintergrund.webm"
+  autoPlay
+  loop
+  muted
+  playsInline
+  className="absolute inset-0 h-full w-full object-cover opacity-40"
+/>
+
+{/* 🔥 dunkler Overlay */}
+<div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+
+{/* 👉 Content Layer */}
+<div className="relative z-10"></div>
                     <div className="mb-3 grid grid-cols-6 gap-2">
                       {Array.from({ length: 12 }).map((_, i) => (
                         <div
