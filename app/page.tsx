@@ -5900,17 +5900,17 @@ setChatList([]);
       ))}
     </div>
   ) : (
-    <div className="grid grid-cols-3 gap-3 justify-items-center md:gap-10 xl:gap-16 2xl:gap-20">
-      {reels.map((symbol, idx) => (
-        <Reel
-          key={idx}
-          symbol={symbol}
-          spinning={spinning}
-          delay={idx * 0.08}
-        />
-      ))}
-    </div>
-  )}
+  <div className="grid grid-cols-3 gap-1 justify-items-center md:gap-2 xl:gap-2 2xl:gap-3">
+    {reels.map((symbol, idx) => (
+      <Reel
+        key={idx}
+        symbol={symbol}
+        spinning={spinning}
+        delay={idx * 0.08}
+      />
+    ))}
+  </div>
+)}
 </div>
 
                     <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
