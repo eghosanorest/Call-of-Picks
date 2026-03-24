@@ -68,7 +68,7 @@ type LocalSymbol = {
   id: string;
   slug: string;
   name: string;
-  rarity: "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
+  rarity: "Common" | "Rare" | "Epic" | "Super" | "Legendary" | "Ultra";
   image_path: string | null;
   weight: number;
 };
@@ -93,7 +93,7 @@ type LocalInventoryItem = {
   id: string;
   slug: string;
   name: string;
-  rarity: "Common" | "Rare" | "Epic" | "Legendary" | "Ultra";
+  rarity: "Common" | "Rare" | "Epic" | "Super" | "Legendary" | "Ultra";
   image_path: string | null;
   weight: number;
 };
