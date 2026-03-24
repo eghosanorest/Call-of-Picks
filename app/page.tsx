@@ -4582,6 +4582,20 @@ setChatList([]);
 </div>
                 )}
 
+                <div className="mx-auto w-full max-w-md md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px] px-4">
+  <div className="relative overflow-hidden rounded-3xl border border-violet-500/20 shadow-[0_0_40px_rgba(168,85,247,0.25)]">
+    
+    {/* Glow Effekt */}
+    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-cyan-500/10 pointer-events-none" />
+
+    <img
+      src="/hintergrund/banneroben.png"
+      alt="PickStar Banneroben"
+      className="w-full h-auto object-cover"
+    />
+  </div>
+</div>
+                
                 <div className="relative overflow-hidden rounded-[30px] border border-violet-500/20 bg-[linear-gradient(135deg,rgba(91,33,182,0.32),rgba(217,70,239,0.10),rgba(6,182,212,0.12))] p-5 shadow-[0_20px_80px_rgba(76,29,149,0.28)]">
                   <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-violet-400/20 blur-3xl" />
                   <div className="pointer-events-none absolute -bottom-8 left-10 h-24 w-24 rounded-full bg-cyan-400/20 blur-3xl" />
