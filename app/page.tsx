@@ -569,7 +569,7 @@ function Reel({
           : { y: 0, scale: 1, rotateX: 0 }
       }
       transition={{ duration: 0.42, repeat: spinning ? 6 : 0, delay }}
-      className="relative flex h-32 w-20 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-[linear-gradient(180deg,rgba(50,50,56,0.98),rgba(10,10,12,1))] p-3 shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)] md:h-52 md:w-36 xl:h-64 xl:w-44 2xl:h-72 2xl:w-48"
+      className="relative flex h-32 w-20 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-[linear-gradient(180deg,rgba(50,50,56,0.98),rgba(10,10,12,1))] p-2 shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)] md:h-52 md:w-36 xl:h-64 xl:w-44 2xl:h-72 2xl:w-48"
       style={{ transformStyle: "preserve-3d" }}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_35%)]" />
@@ -578,14 +578,15 @@ function Reel({
       <div className="pointer-events-none absolute inset-y-3 left-0 w-px bg-white/15" />
       <div className="pointer-events-none absolute inset-y-3 right-0 w-px bg-white/15" />
       <div className="absolute inset-0 rounded-[28px] ring-1 ring-white/10" />
+
       <img
-  src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
-  alt={symbol.name}
-  className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,0.6)]"
-  onError={(e) => {
-    e.currentTarget.src = "/items/fallback.png";
-  }}
-/>
+        src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
+        alt={symbol.name}
+        className="relative z-10 h-full w-full scale-[1.45] object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,0.6)]"
+        onError={(e) => {
+          e.currentTarget.src = "/items/fallback.png";
+        }}
+      />
     </motion.div>
   );
 }
