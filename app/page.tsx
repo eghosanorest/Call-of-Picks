@@ -485,6 +485,10 @@ function getMysteryBoxImagePath(rarity?: string | null) {
   const normalized = normalizeRarity(rarity).toLowerCase();
   return `/items/mysterybox-${normalized}.png`;
 }
+function getMysteryBoxSlugByRarity(rarity?: string | null) {
+  const normalized = normalizeRarity(rarity).toLowerCase();
+  return `mysterybox-${normalized}`;
+}
 function getSafeItemImagePath(
   slug?: string | null,
   imagePath?: string | null
@@ -1946,7 +1950,7 @@ const [riskRunning, setRiskRunning] = useState(false);
 const [riskSelectedItem, setRiskSelectedItem] = useState<LocalSymbol | null>(null);
 const [riskGameOver, setRiskGameOver] = useState(false);
 const [riskCashedOut, setRiskCashedOut] = useState(false);
-const [lastWonItem, setLastWonItem] = useState<LocalSymbol | null>(null);
+const [lastWonItem, setLastWonItem] = useState<LocalInventoryItem | null>(null);
 const [riskGiftRarity, setRiskGiftRarity] = useState<LocalSymbol["rarity"] | null>(null);
 const [riskOffset, setRiskOffset] = useState(0);
 
@@ -2961,7 +2965,55 @@ if (!userId) {
     URL.revokeObjectURL(url);
   };
 
-  const grantServerInventoryItem = async (symbol: LocalSymbol) => {
+  const grantServerMysteryBoxByRarity = async (
+  rarity: LocalSymbol["rarity"]
+) => {
+  if (!userId) return null;
+
+  const slug = getMysteryBoxSlugByRarity(rarity);
+
+  const { data: itemRow, error } = await supabase
+    .from("items")
+    .select("id, slug, name, rarity, image_path, weight")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error || !itemRow?.id) {
+    setMessage("Mystery Box konnte nicht gefunden werden.");
+    return null;
+  }
+
+  const { error: insertError } = await supabase.from("inventory_items").insert({
+    owner_id: userId,
+    item_id: itemRow.id,
+    status: "owned",
+  });
+
+  if (insertError) {
+    setMessage(insertError.message);
+    return null;
+  }
+
+  const boxItem = {
+    inventory_id: `mysterybox-${Date.now()}`,
+    id: itemRow.slug,
+    slug: itemRow.slug,
+    name: itemRow.name,
+    rarity: normalizeRarity(itemRow.rarity) as LocalInventoryItem["rarity"],
+    image_path: itemRow.image_path,
+    weight: itemRow.weight ?? 1,
+  };
+
+  updateData((prev) => ({
+    ...prev,
+    inventory: [boxItem, ...prev.inventory],
+  }));
+
+  await loadRemoteUserGameState(userId);
+
+  return boxItem;
+};
+const grantServerInventoryItem = async (symbol: LocalSymbol) => {
     if (!userId) return;
 
     const { data: itemRow, error } = await supabase
@@ -3014,12 +3066,13 @@ const getRiskTokenReward = (symbol: LocalSymbol, stake: number) => {
   if (symbol.slug === "zombieteddy-ultra") return 0;
 
   const baseByRarity: Record<LocalSymbol["rarity"], number> = {
-    Common: 1,
-    Rare: 2,
-    Epic: 4,
-    Legendary: 7,
-    Ultra: 0,
-  };
+  Common: 1,
+  Rare: 2,
+  Epic: 4,
+  Super: 5,
+  Legendary: 7,
+  Ultra: 0,
+};
 
   return baseByRarity[symbol.rarity] * stake;
 };
@@ -3087,33 +3140,15 @@ const cashoutRiskGame = async () => {
     tokens: nextTokens,
   }));
 
-  let wonGift: LocalSymbol | null = null;
+  let wonGift: LocalInventoryItem | null = null;
 
-  if (nextGiftRarity) {
-    const symbol = await grantServerInventoryItemByRarity(nextGiftRarity);
-    setRiskGiftRarity(nextGiftRarity);
-    wonGift = symbol || null;
-
-    if (symbol) {
-      updateData((prev) => ({
-        ...prev,
-        inventory: [
-          {
-            inventory_id: `risk-gift-${Date.now()}`,
-            id: symbol.id,
-            slug: symbol.slug,
-            name: symbol.name,
-            rarity: symbol.rarity,
-            image_path: symbol.image_path,
-            weight: symbol.weight,
-          },
-          ...prev.inventory,
-        ],
-      }));
-    }
-  } else {
-    setRiskGiftRarity(null);
-  }
+if (nextGiftRarity) {
+  const box = await grantServerMysteryBoxByRarity(nextGiftRarity);
+  setRiskGiftRarity(nextGiftRarity);
+  wonGift = box || null;
+} else {
+  setRiskGiftRarity(null);
+}
 
   setRiskCashedOut(true);
   setLastWonItem(wonGift);
