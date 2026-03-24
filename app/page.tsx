@@ -4617,7 +4617,19 @@ setChatList([]);
                   </div>
                 </div>
 
-                
+                <div className="mx-auto w-full max-w-md md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px] px-4">
+  <div className="relative overflow-hidden rounded-3xl border border-violet-500/20 shadow-[0_0_40px_rgba(168,85,247,0.25)]">
+    
+    {/* Glow Effekt */}
+    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-cyan-500/10 pointer-events-none" />
+
+    <img
+      src="/hintergrund/bannercasino.png"
+      alt="PickStar Banner"
+      className="w-full h-auto object-cover"
+    />
+  </div>
+</div>
 
                 
 
@@ -4702,7 +4714,21 @@ setChatList([]);
                     </div>
                   }
                 />
-
+<div className="flex gap-2 overflow-x-auto pb-1">
+  {majorStructure.map((major) => (
+    <button
+      key={major.id}
+      onClick={() => changeMajor(major.id)}
+      className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+        major.id === data.currentMajor
+          ? "bg-violet-500 text-white"
+          : "bg-white/5 text-zinc-300"
+      }`}
+    >
+      {major.label}
+    </button>
+  ))}
+</div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {visibleWeeks.map((week) => (
   <button
