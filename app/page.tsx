@@ -86,6 +86,7 @@ type LocalData = {
   inventory: LocalInventoryItem[];
   spinHistory: { at: number; reels: string[]; won: boolean }[];
   bets: BetType[];
+  firelineProgress: number;
   
 };
 type LocalInventoryItem = {
@@ -394,6 +395,7 @@ const defaultData: LocalData = {
   inventory: [],
   spinHistory: [],
   bets: [],
+  firelineProgress: 0,
 };
 
 
@@ -518,7 +520,22 @@ function getSafeItemImagePath(
   return data?.publicUrl || "/items/fallback.png";
 }
 
-  
+ function getWeightedFirelineBoxRarity(): LocalSymbol["rarity"] {
+  const pool: LocalSymbol["rarity"][] = [
+    "Common",
+    "Common",
+    "Common",
+    "Common",
+    "Rare",
+    "Rare",
+    "Rare",
+    "Epic",
+    "Epic",
+    "Super",
+  ];
+
+  return pool[Math.floor(Math.random() * pool.length)] || "Common";
+} 
 function StatCard({
   icon: Icon,
   label,
@@ -3391,7 +3408,18 @@ const grantServerMysteryBoxByRarity = async (
     return null;
   }
 
-  const { error: insertError } = await supabase.from("inventory_items").insert({
+  const rewardFirelineBox = async () => {
+  const rarity = getWeightedFirelineBoxRarity();
+  const box = await grantServerMysteryBoxByRarity(rarity);
+
+  if (box) {
+    setMessage(`Fireline voll! Du hast eine ${rarity}-Mystery Box erhalten.`);
+    setLastWonItem(box);
+  } else {
+    setMessage("Fireline voll, aber die Mystery Box konnte nicht vergeben werden.");
+  }
+};
+const { error: insertError } = await supabase.from("inventory_items").insert({
     owner_id: userId,
     item_id: itemRow.id,
     status: "owned",
@@ -3818,7 +3846,20 @@ const finalTokens = nextTokens;
 }
 
   await loadRemoteUserGameState(userId);
-  setSpinning(false);
+
+let nextFirelineProgress = data.firelineProgress + 1;
+
+if (nextFirelineProgress >= 5) {
+  await rewardFirelineBox();
+  nextFirelineProgress = 0;
+}
+
+updateData((prev) => ({
+  ...prev,
+  firelineProgress: nextFirelineProgress,
+}));
+
+setSpinning(false);
   return;
 }
 
@@ -5584,21 +5625,24 @@ setChatList([]);
 
 {/* 👉 Content Layer */}
 <div className="relative z-10"></div>
-                    <div className="relative z-20 mb-3 h-4 w-full overflow-hidden rounded-full border border-white/10">
+                    <div className="relative z-20 mb-3 h-4 w-full overflow-hidden rounded-full border border-white/10 bg-black/40">
+  <div
+    className="absolute inset-y-0 left-0 overflow-hidden rounded-full transition-all duration-500"
+    style={{ width: `${(data.firelineProgress / 5) * 100}%` }}
+  >
+    <video
+      src="/effects/fireline.webm"
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="absolute left-1/2 top-1/2 h-[1400%] w-[120%] -translate-x-1/2 -translate-y-1/2 object-cover"
+    />
 
-  {/* 🔥 FIRELINE VIDEO */}
-  <video
-    src="/effects/fireline.webm"
-    autoPlay
-    loop
-    muted
-    playsInline
-    className="absolute left-1/2 top-1/2 h-[1400%] w-[120%] -translate-x-1/2 -translate-y-1/2 object-cover"
-  />
+    <div className="absolute inset-0 shadow-[0_0_25px_rgba(255,120,0,0.6),0_0_40px_rgba(255,60,0,0.5)]" />
+  </div>
 
-  {/* ✨ optionaler Glow darüber */}
-  <div className="absolute inset-0 shadow-[0_0_25px_rgba(255,120,0,0.6),0_0_40px_rgba(255,60,0,0.5)]" />
-
+  <div className="absolute inset-0 rounded-full ring-1 ring-white/10" />
 </div>
 
                     {slotViewMode === "classic" && (
