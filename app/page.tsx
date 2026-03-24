@@ -8259,7 +8259,7 @@ setChatList([]);
           <div className="absolute bottom-0 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-fuchsia-500/10 blur-3xl" />
         </div>
 <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-  {(openingPhase === "build" || openingPhase === "flash" || openingPhase === "reveal") && (
+  {openingPhase === "reveal" && (
     <video
       autoPlay
       muted
