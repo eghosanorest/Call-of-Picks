@@ -1932,8 +1932,34 @@ const playMysteryRevealSounds = () => {
     const loadup = mysteryLoadupAudioRef.current;
     const waterbomb = mysteryWaterbombAudioRef.current;
     const insert = mysteryInsertAudioRef.current;
+const fadeOutAudio = (
+  audio: HTMLAudioElement | null,
+  duration = 280
+) => {
+  if (!audio) return;
 
-    stopAndResetAudio(loadup);
+  const startVolume = audio.volume;
+  const steps = 10;
+  const stepTime = duration / steps;
+  let currentStep = 0;
+
+  const fade = setInterval(() => {
+    currentStep++;
+
+    const nextVolume =
+      startVolume * (1 - currentStep / steps);
+
+    audio.volume = Math.max(0, nextVolume);
+
+    if (currentStep >= steps) {
+      clearInterval(fade);
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 1; // reset für nächstes Mal
+    }
+  }, stepTime);
+};
+    fadeOutAudio(loadup, 280);
 
     if (waterbomb) {
       waterbomb.pause();
