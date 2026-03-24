@@ -1097,7 +1097,7 @@ setLastMultiLineWinningIndexes(winningIndexes);
     setSpinning(false);
   }, 1800);
 };
-const [insertImpact, setInsertImpact] = useState(false);
+
 const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<
   "home" | "picks" | "slot" | "profile" | "group" | "admin"
@@ -1974,12 +1974,6 @@ const fadeOutAudio = (
         insert.currentTime = 0;
         insert.volume = 1;
         insert.play().catch(() => {});
-
-        setInsertImpact(true);
-
-setTimeout(() => {
-  setInsertImpact(false);
-}, 220);
       }
 
       if (waterbomb) {
@@ -8565,63 +8559,53 @@ setChatList([]);
           Die Box wird geöffnet...
         </div>
       </>
-   ) : openingReward ? (
-  <motion.div
-    initial={{ opacity: 0, y: 28, scale: 0.82, filter: "blur(12px)" }}
-    animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-    transition={{ duration: 0.55, ease: "easeOut" }}
-  >
-    <div className="mt-3 text-3xl font-black">Du hast erhalten</div>
-
-    <div className="mt-8 flex justify-center">
+    ) : openingReward ? (
       <motion.div
-        initial={{ scale: 0.88, rotate: -4 }}
-        animate={{ scale: [0.96, 1.01, 1], rotate: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className={`relative flex h-56 w-56 items-center justify-center rounded-[34px] border border-white/10 bg-black/30 p-5 ${getRarityGlowClasses(openingReward.rarity)}`}
+        initial={{ opacity: 0, y: 28, scale: 0.82, filter: "blur(12px)" }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+        transition={{ duration: 0.55, ease: "easeOut" }}
       >
-        {insertImpact && (
+        <div className="mt-3 text-3xl font-black">Du hast erhalten</div>
+
+        <div className="mt-8 flex justify-center">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.75, 0] }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className={`pointer-events-none absolute -inset-2 rounded-[38px] blur-md ${getRarityFlashClasses(openingReward.rarity)}`}
-          />
-        )}
+            initial={{ scale: 0.88, rotate: -4 }}
+            animate={{ scale: [0.9, 1.04, 1], rotate: [0, 2, 0] }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className={`flex h-56 w-56 items-center justify-center rounded-[34px] border border-white/10 bg-black/30 p-5 ${getRarityGlowClasses(openingReward.rarity)}`}
+          >
+            <img
+              src={getSafeItemImagePath(openingReward.slug, openingReward.image_path)}
+              alt={openingReward.name}
+              className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.65)]"
+              onError={(e) => {
+                e.currentTarget.src = "/items/fallback.png";
+              }}
+            />
+          </motion.div>
+        </div>
 
-        <img
-          src={getSafeItemImagePath(openingReward.slug, openingReward.image_path)}
-          alt={openingReward.name}
-          className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.65)]"
-          onError={(e) => {
-            e.currentTarget.src = "/items/fallback.png";
-          }}
-        />
+        <div className="mt-6 text-2xl font-black">{openingReward.name}</div>
+        <div className="mt-2 text-sm uppercase tracking-[0.25em] text-zinc-400">
+          {openingReward.rarity}
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <Button
+            variant="violet"
+            className="min-w-[180px]"
+            onClick={() => {
+  stopMysteryBoxSounds();
+  setOpeningBox(null);
+  setOpeningReward(null);
+  setOpeningPhase("idle");
+}}
+          >
+            Weiter
+          </Button>
+        </div>
       </motion.div>
-    </div>
-
-    <div className="mt-6 text-2xl font-black">{openingReward.name}</div>
-    <div className="mt-2 text-sm uppercase tracking-[0.25em] text-zinc-400">
-      {openingReward.rarity}
-    </div>
-
-    <div className="mt-8 flex justify-center">
-      <Button
-        variant="violet"
-        className="min-w-[180px]"
-        onClick={() => {
-          stopMysteryBoxSounds();
-          setOpeningBox(null);
-          setOpeningReward(null);
-          setOpeningPhase("idle");
-          setInsertImpact(false);
-        }}
-      >
-        Weiter
-      </Button>
-    </div>
-  </motion.div>
-) : null}
+    ) : null}
   </div>
 </motion.div>
     </motion.div>
