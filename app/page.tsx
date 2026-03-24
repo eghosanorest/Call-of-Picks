@@ -5584,7 +5584,7 @@ setChatList([]);
 
 {/* 👉 Content Layer */}
 <div className="relative z-10"></div>
-                    <div className="mb-3 grid grid-cols-6 gap-2">
+                    <div className="relative z-20 mb-3 grid grid-cols-6 gap-2">
                       {Array.from({ length: 12 }).map((_, i) => (
                         <div
                           key={i}
