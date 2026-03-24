@@ -8258,15 +8258,17 @@ setChatList([]);
           <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
           <div className="absolute bottom-0 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-fuchsia-500/10 blur-3xl" />
         </div>
-<div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+<div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
   {(openingPhase === "build" || openingPhase === "flash" || openingPhase === "reveal") && (
     <video
       autoPlay
       muted
       playsInline
-      className="absolute left-1/2 top-1/2 w-[900px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-70 mix-blend-screen grayscale brightness-125 contrast-125"
+      loop
+      preload="auto"
+      className="absolute left-1/2 top-1/2 w-[700px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-100"
     >
-      <source src="/effects/smoke.burst.webm" type="video/webm" />
+      <source src="/effects/smoke-burst.webm" type="video/webm" />
     </video>
   )}
 </div>
