@@ -5931,7 +5931,7 @@ setChatList([]);
 )}
 </div>
 
-                    <div className="mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
+                    <div className="relative z-20 mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-center">
                       <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
                         Status
                       </div>
