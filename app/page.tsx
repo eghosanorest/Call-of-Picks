@@ -2411,9 +2411,6 @@ const totalPicked = useMemo(
     );
   }, [data.inventory]);
 
-  const ownedItemSlugs = useMemo(() => {
-  return new Set(data.inventory.map((item) => item.slug));
-}, [data.inventory]);
   const topItem = inventoryCounts[0];
 
   const myOnlineInventory = data.inventory.map((item) => ({
@@ -6175,282 +6172,518 @@ setChatList([]);
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
-    className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
+    className="mx-auto w-full max-w-md space-y-4 pb-24 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
   >
-    {isAdmin ? (
+    {!isAdmin ? (
       <>
         <SectionTitle
-          eyebrow="Verwaltung"
-          title="Admin"
-          right={
-            <div className="text-sm text-zinc-400">
-              {currentMajor.label} · {getDisplayWeek(currentWeek)}
-            </div>
-          }
+          eyebrow="Sammlung"
+          title="Lobby"
+          right={<Package className="h-5 w-5 text-emerald-300" />}
         />
 
-        <form
-          onSubmit={addMatch}
-          className="space-y-4 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-        >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <div className="mb-2 text-sm text-zinc-400">Team A</div>
-              <input
-                value={adminDraft.teamA}
-                onChange={(e) =>
-                  setAdminDraft((prev) => ({
-                    ...prev,
-                    teamA: e.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-              />
-            </div>
-
-            <div>
-              <div className="mb-2 text-sm text-zinc-400">Team B</div>
-              <input
-                value={adminDraft.teamB}
-                onChange={(e) =>
-                  setAdminDraft((prev) => ({
-                    ...prev,
-                    teamB: e.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-              />
-            </div>
-
-            <div>
-              <div className="mb-2 text-sm text-zinc-400">Datum</div>
-              <input
-                type="date"
-                value={adminDraft.date}
-                onChange={(e) =>
-                  setAdminDraft((prev) => ({
-                    ...prev,
-                    date: e.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-              />
-            </div>
-
-            <div>
-              <div className="mb-2 text-sm text-zinc-400">Uhrzeit</div>
-              <input
-                type="time"
-                value={adminDraft.startsAt}
-                onChange={(e) =>
-                  setAdminDraft((prev) => ({
-                    ...prev,
-                    startsAt: e.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
-              />
-            </div>
+        <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <div className="flex items-center gap-2 font-semibold">
+            <CheckCircle2 className="h-4 w-4" />
+            Alle Items
           </div>
 
-          <Button
-            type="submit"
-            variant="violet"
-            className="flex w-full items-center justify-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Match speichern
-          </Button>
-        </form>
-
-        <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
-          DEBUG → currentMajor: {data.currentMajor} | currentWeek: {currentWeek} | matches: {matches.length}
-        </div>
-
-        <div className="space-y-3">
-          {matches.map((match) => (
-            <div
-              key={match.id}
-              className="space-y-3 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap items-center gap-2 font-bold">
-                  <TeamLabel name={match.teamA} />
-                  <span className="text-zinc-500">vs</span>
-                  <TeamLabel name={match.teamB} />
-                </div>
-                <button
-                  onClick={() => deleteMatch(match.id)}
-                  className="rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-red-200"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-
-              <Button
-                onClick={() => updateMatch(match.id, "locked", !match.locked)}
-                variant="ghost"
-                className="w-full"
-              >
-                {match.locked ? "Entsperren" : "Sperren"}
-              </Button>
-
-              <div className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
-                <div className="mb-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  Ergebnis
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    max={9}
-                    value={adminScores[match.id]?.scoreA ?? (match.scoreA ?? "")}
-                    onChange={(e) =>
-                      setAdminScores((prev) => ({
-                        ...prev,
-                        [match.id]: {
-                          scoreA: e.target.value,
-                          scoreB: prev[match.id]?.scoreB ?? String(match.scoreB ?? ""),
-                        },
-                      }))
-                    }
-                    className="w-20 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-center text-white outline-none"
-                    placeholder="A"
-                  />
-
-                  <span className="text-zinc-400">:</span>
-
-                  <input
-                    type="number"
-                    min={0}
-                    max={9}
-                    value={adminScores[match.id]?.scoreB ?? (match.scoreB ?? "")}
-                    onChange={(e) =>
-                      setAdminScores((prev) => ({
-                        ...prev,
-                        [match.id]: {
-                          scoreA: prev[match.id]?.scoreA ?? String(match.scoreA ?? ""),
-                          scoreB: e.target.value,
-                        },
-                      }))
-                    }
-                    className="w-20 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-center text-white outline-none"
-                    placeholder="B"
-                  />
-
-                  <Button
-                    onClick={() => saveMatchResult(match.id)}
-                    variant="violet"
-                    className="ml-2"
-                  >
-                    Ergebnis eintragen
-                  </Button>
-                </div>
-
-                {hasSavedScore(match) ? (
-                  <div className="mt-2 text-sm text-emerald-300">
-                    Gespeichert: {match.scoreA}:{match.scoreB}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-200">
-          RAW WEEK MATCHES → {(data.weeks[data.currentMajor]?.[currentWeek] || []).length}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={exportData}
-            variant="ghost"
-            className="flex items-center justify-center gap-2"
-          >
-            <Save className="h-4 w-4" />
-            Export
-          </Button>
-          <Button
-            onClick={resetAll}
-            variant="danger"
-            className="flex items-center justify-center gap-2"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset
-          </Button>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {allItemCatalog.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={{
+                  name: item.name,
+                  rarity: item.rarity,
+                  image_path: item.image_path,
+                  slug: item.slug,
+                  category: item.category,
+                }}
+              />
+            ))}
+            
+          </div>
         </div>
       </>
     ) : (
       <>
-        <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-          <div className="text-sm text-zinc-400">Prestige Sammlung</div>
-          <div className="mt-1 text-2xl font-black">Alle Items</div>
-          <div className="mt-2 text-sm text-zinc-400">
-            {ownedItemSlugs.size} / {allItemCatalog.length} gesammelt
-          </div>
+        <SectionTitle
+  eyebrow="Verwaltung"
+  title="Admin-Bereich"
+  right={<Settings2 className="h-5 w-5 text-violet-300" />}
+/>
 
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
-              style={{
-                width: `${
-                  allItemCatalog.length
-                    ? (ownedItemSlugs.size / allItemCatalog.length) * 100
-                    : 0
-                }%`,
-              }}
-            />
+{/* 🔥 ITEM UPLOADER START */}
+<div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+  <div className="text-lg font-bold">Item hochladen</div>
+
+  <div className="mt-3">
+    <input
+      type="file"
+      accept="image/png"
+      onChange={(e) => {
+        const file = e.target.files?.[0] || null;
+        setNewItemFile(file);
+      }}
+      className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+    />
+  </div>
+
+  <div className="mt-3 grid grid-cols-2 gap-2">
+    <input
+      type="text"
+      placeholder="Name"
+      value={newItemName}
+      onChange={(e) => setNewItemName(e.target.value)}
+      className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+    />
+
+    <select
+      value={newItemRarity}
+      onChange={(e) => setNewItemRarity(e.target.value as any)}
+      className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+    >
+      <option>Common</option>
+      <option>Rare</option>
+      <option>Epic</option>
+      <option>Legendary</option>
+      <option>Ultra</option>
+    </select>
+  </div>
+
+  <input
+    type="text"
+    placeholder="Kategorie"
+    value={newItemCategory}
+    onChange={(e) => setNewItemCategory(e.target.value)}
+    className="mt-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+  />
+
+  <textarea
+    placeholder="Detailtext"
+    value={newItemDetailText}
+    onChange={(e) => setNewItemDetailText(e.target.value)}
+    className="mt-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
+  />
+
+  <Button
+    onClick={uploadAdminItem}
+    className="mt-3 w-full"
+    variant="violet"
+  >
+    Item hochladen
+  </Button>
+</div>
+{/* 🔥 ITEM UPLOADER END */}
+
+        {showItemList && (
+  <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+    <div className="flex items-center gap-2 font-semibold">
+      <CheckCircle2 className="h-4 w-4" />
+      Alle Items
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      {allItemCatalog.map((item) => (
+        <div
+          key={item.id}
+          className="rounded-2xl border border-white/10 bg-black/30 p-3"
+        >
+          <ItemCard
+            item={{
+              name: item.name,
+              rarity: item.rarity,
+              image_path: item.image_path,
+              slug: item.slug,
+              category: item.category,
+            }}
+          />
+
+          <div className="mt-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.slot_enabled !== false}
+                onChange={async (e) => {
+                  const { error } = await supabase
+                    .from("items")
+                    .update({ slot_enabled: e.target.checked })
+                    .eq("id", item.id);
+
+                  if (error) {
+                    setMessage(error.message);
+                    return;
+                  }
+
+                  await loadAllItems();
+                }}
+              />
+              Für Slots aktiv
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.multiline_enabled === true}
+                onChange={async (e) => {
+                  const { error } = await supabase
+                    .from("items")
+                    .update({ multiline_enabled: e.target.checked })
+                    .eq("id", item.id);
+
+                  if (error) {
+                    setMessage(error.message);
+                    return;
+                  }
+
+                  await loadAllItems();
+                }}
+              />
+              Für Multi-Line Slots aktiv
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+  <input
+    type="checkbox"
+    checked={item.risk_enabled === true}
+    onChange={async (e) => {
+      const { error } = await supabase
+        .from("items")
+        .update({ risk_enabled: e.target.checked })
+        .eq("id", item.id);
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      await loadAllItems();
+    }}
+  />
+  Für Risk Game aktiv
+</label>
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {allItemCatalog.map((item) => {
-            const owned = ownedItemSlugs.has(item.slug);
-
-            return (
-              <div
-                key={item.slug}
-                className={`relative overflow-hidden rounded-3xl border p-4 transition ${
-                  owned
-                    ? "border-violet-500/30 bg-violet-500/10 shadow-[0_0_24px_rgba(139,92,246,0.22)]"
-                    : "border-white/10 bg-black/40"
-                }`}
-              >
-                <div className="flex h-28 items-center justify-center rounded-2xl bg-black/20 p-3">
-                  <img
-                    src={getSafeItemImagePath(item.slug, item.image_path)}
-                    alt={item.name}
-                    className={`max-h-full max-w-full object-contain transition ${
-                      owned ? "opacity-100" : "grayscale opacity-35"
-                    }`}
-                    onError={(e) => {
-                      e.currentTarget.src = "/items/fallback.png";
-                    }}
-                  />
-                </div>
-
-                <div className={`mt-3 text-sm font-bold ${owned ? "text-white" : "text-zinc-400"}`}>
-                  {item.name}
-                </div>
-
-                <div className={`text-xs ${owned ? "text-zinc-300" : "text-zinc-500"}`}>
-                  {normalizeRarity(item.rarity)}
-                </div>
-
-                {!owned && (
-                  <div className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/60 px-2 py-1 text-[10px] font-bold text-zinc-400">
-                    NICHT ENTDECKT
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </>
-    )}
-  </motion.div>
+      ))}
+    </div>
+  </div>
 )}
+
+                <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm text-zinc-400">Turnierbereich</div>
+                        <div className="text-lg font-bold">
+                          {currentMajor.label} · Week {getDisplayWeek(currentWeek)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {majorStructure.map((major) => (
+                        <button
+                          key={major.id}
+                          onClick={() => changeMajor(major.id)}
+                          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+                            major.id === data.currentMajor
+                              ? "bg-violet-500 text-white"
+                              : "bg-white/5 text-zinc-300"
+                          }`}
+                        >
+                          {major.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto">
+                      {visibleWeeks.map((week) => (
+  <button
+    key={week.id}
+    onClick={() => changeWeek(week.id)}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+      week.id === currentWeek
+        ? "bg-violet-500 text-white"
+        : "bg-white/5 text-zinc-300"
+    }`}
+  >
+    {week.label}
+  </button>
+))}
+                      
+                    </div>
+                  </div>
+                </div>
+
+                <form
+  onSubmit={addMatch}
+  className="space-y-4 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+>
+  <div className="flex items-center justify-between gap-3">
+    <div className="text-lg font-bold">Match hinzufügen</div>
+
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={() => setShowItemList((prev) => !prev)}
+      className="px-4 py-2"
+    >
+      {showItemList ? "Item-Liste schließen" : "Item-Liste"}
+    </Button>
+  </div>
+
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Team A</div>
+      <div className="grid grid-cols-1 gap-2">
+        {allTeams.map((team) => (
+          <button
+            key={`A-${team}`}
+            type="button"
+            onClick={() =>
+              setAdminDraft((prev) => ({ ...prev, teamA: team }))
+            }
+            className={`h-6 rounded-lg border px-2 text-left text-[11px] flex items-center ${
+  adminDraft.teamA === team
+    ? "border-violet-400 bg-violet-500/20"
+    : "border-white/10 bg-black/40"
+}`}
+            
+          >
+            <div className="flex items-center gap-2">
+  <span className="scale-[0.5] origin-left">
+    <TeamMini name={team} />
+  </span>
+  <span className="truncate leading-none">{team}</span>
+</div>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Team B</div>
+      <div className="grid grid-cols-1 gap-2">
+        {allTeams.map((team) => (
+          <button
+            key={`B-${team}`}
+            type="button"
+            onClick={() =>
+              setAdminDraft((prev) => ({ ...prev, teamB: team }))
+            }
+            className={`h-6 rounded-lg border px-2 text-left text-[11px] flex items-center ${
+  adminDraft.teamB === team
+    ? "border-cyan-400 bg-cyan-500/20"
+    : "border-white/10 bg-black/40"
+}`}
+          >
+            <div className="flex items-center gap-2">
+  <span className="scale-[0.5] origin-left">
+    <TeamMini name={team} />
+  </span>
+  <span className="truncate leading-none">{team}</span>
+</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Quote Team A</div>
+      <input
+        type="number"
+        step="0.01"
+        min="1.01"
+        value={adminDraft.oddA}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            oddA: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Quote Team B</div>
+      <input
+        type="number"
+        step="0.01"
+        min="1.01"
+        value={adminDraft.oddB}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            oddB: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+  </div>
+
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Datum</div>
+      <input
+        type="date"
+        value={adminDraft.date}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            date: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+
+    <div>
+      <div className="mb-2 text-sm text-zinc-400">Uhrzeit</div>
+      <input
+        type="time"
+        value={adminDraft.startsAt}
+        onChange={(e) =>
+          setAdminDraft((prev) => ({
+            ...prev,
+            startsAt: e.target.value,
+          }))
+        }
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none"
+      />
+    </div>
+  </div>
+
+  <Button
+    type="submit"
+    variant="violet"
+    className="flex w-full items-center justify-center gap-2"
+  >
+    <Plus className="h-4 w-4" />
+    Match speichern
+  </Button>
+</form>
+<div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+  DEBUG → currentMajor: {data.currentMajor} | currentWeek: {currentWeek} | matches: {matches.length}
+</div>
+                <div className="space-y-3">
+                  {matches.map((match) => (
+                    <div
+                      key={match.id}
+                      className="space-y-3 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center gap-2 font-bold">
+                          <TeamLabel name={match.teamA} />
+                          <span className="text-zinc-500">vs</span>
+                          <TeamLabel name={match.teamB} />
+                        </div>
+                        <button
+                          onClick={() => deleteMatch(match.id)}
+                          className="rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-red-200"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+<Button
+  onClick={() => updateMatch(match.id, "locked", !match.locked)}
+  variant="ghost"
+  className="w-full"
+>
+  {match.locked ? "Entsperren" : "Sperren"}
+</Button>
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+  <div className="mb-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
+    Ergebnis
+  </div>
+
+  <div className="flex flex-wrap items-center gap-2">
+    <input
+      type="number"
+      min={0}
+      max={9}
+      value={adminScores[match.id]?.scoreA ?? (match.scoreA ?? "")}
+      onChange={(e) =>
+        setAdminScores((prev) => ({
+          ...prev,
+          [match.id]: {
+            scoreA: e.target.value,
+            scoreB: prev[match.id]?.scoreB ?? String(match.scoreB ?? ""),
+          },
+        }))
+      }
+      className="w-20 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-center text-white outline-none"
+      placeholder="A"
+    />
+
+    <span className="text-zinc-400">:</span>
+
+    <input
+      type="number"
+      min={0}
+      max={9}
+      value={adminScores[match.id]?.scoreB ?? (match.scoreB ?? "")}
+      onChange={(e) =>
+        setAdminScores((prev) => ({
+          ...prev,
+          [match.id]: {
+            scoreA: prev[match.id]?.scoreA ?? String(match.scoreA ?? ""),
+            scoreB: e.target.value,
+          },
+        }))
+      }
+      className="w-20 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-center text-white outline-none"
+      placeholder="B"
+    />
+
+    <Button
+      onClick={() => saveMatchResult(match.id)}
+      variant="violet"
+      className="ml-2"
+    >
+      Ergebnis eintragen
+    </Button>
+  </div>
+
+  {hasSavedScore(match) ? (
+    <div className="mt-2 text-sm text-emerald-300">
+      Gespeichert: {match.scoreA}:{match.scoreB}
+    </div>
+  ) : null}
+</div>
+                    </div>
+                  ))}
+                </div>
+<div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-200">
+  RAW WEEK MATCHES → {(data.weeks[data.currentMajor]?.[currentWeek] || []).length}
+</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={exportData}
+                    variant="ghost"
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    Export
+                  </Button>
+                  <Button
+                    onClick={resetAll}
+                    variant="danger"
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset
+                  </Button>
+                </div>
+
+                
+              </>
+            )}
+          </motion.div>
+        )}
           </AnimatePresence>
 
           {message ? (
