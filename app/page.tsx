@@ -4549,22 +4549,37 @@ setChatList([]);
                   </div>
                 ) : (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-sm text-zinc-400">Online verbunden</div>
-                        <div className="font-bold">{profileName || userEmail}</div>
-                        <div className="text-xs text-zinc-500">{userEmail}</div>
-                      </div>
-                      <Button
-                        onClick={signOut}
-                        variant="ghost"
-                        className="flex items-center gap-2 px-3 py-2"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Logout
-                      </Button>
-                    </div>
-                  </div>
+  <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center gap-4">
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={profileName || userEmail || "Profilbild"}
+          className="h-16 w-16 rounded-full border border-white/10 object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg font-black uppercase text-white">
+          {(profileName || userEmail || "U").charAt(0)}
+        </div>
+      )}
+
+      <div>
+        <div className="text-sm text-zinc-400">Online verbunden</div>
+        <div className="font-bold">{profileName || userEmail}</div>
+        <div className="text-xs text-zinc-500">{userEmail}</div>
+      </div>
+    </div>
+
+    <Button
+      onClick={signOut}
+      variant="ghost"
+      className="flex items-center gap-2 px-3 py-2"
+    >
+      <LogOut className="h-4 w-4" />
+      Logout
+    </Button>
+  </div>
+</div>
                 )}
 
                 <div className="relative overflow-hidden rounded-[30px] border border-violet-500/20 bg-[linear-gradient(135deg,rgba(91,33,182,0.32),rgba(217,70,239,0.10),rgba(6,182,212,0.12))] p-5 shadow-[0_20px_80px_rgba(76,29,149,0.28)]">
