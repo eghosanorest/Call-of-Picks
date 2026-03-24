@@ -1992,7 +1992,7 @@ const fadeOutAudio = (
           }
         }, fadeInterval);
       }
-    }, 1300);
+    }, 1550);
   } catch {}
 };
 
