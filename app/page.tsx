@@ -1850,7 +1850,12 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
 
 
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
+  const mysteryLoadupAudioRef = useRef<HTMLAudioElement | null>(null);
+  const mysteryWaterbombAudioRef = useRef<HTMLAudioElement | null>(null);
+  const mysteryInsertAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const mysteryAudioFadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mysteryInsertTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const stopClassicSpinSound = () => {
   const audio = classicSpinAudioRef.current;
   if (!audio) return;
@@ -1859,6 +1864,124 @@ const stopClassicSpinSound = () => {
   audio.currentTime = 0;
 };
 
+const stopMysteryAudioFade = () => {
+  if (mysteryAudioFadeRef.current) {
+    clearInterval(mysteryAudioFadeRef.current);
+    mysteryAudioFadeRef.current = null;
+  }
+};
+
+const stopMysteryInsertTimeout = () => {
+  if (mysteryInsertTimeoutRef.current) {
+    clearTimeout(mysteryInsertTimeoutRef.current);
+    mysteryInsertTimeoutRef.current = null;
+  }
+};
+
+const stopAndResetAudio = (audio: HTMLAudioElement | null) => {
+  if (!audio) return;
+  audio.pause();
+  audio.currentTime = 0;
+};
+
+const ensureMysteryAudio = () => {
+  if (!mysteryLoadupAudioRef.current) {
+    mysteryLoadupAudioRef.current = new Audio("/sounds/loadup.mp3");
+    mysteryLoadupAudioRef.current.preload = "auto";
+  }
+
+  if (!mysteryWaterbombAudioRef.current) {
+    mysteryWaterbombAudioRef.current = new Audio("/sounds/wasserbomb.mp3");
+    mysteryWaterbombAudioRef.current.preload = "auto";
+  }
+
+  if (!mysteryInsertAudioRef.current) {
+    mysteryInsertAudioRef.current = new Audio("/sounds/insertsound.mp3");
+    mysteryInsertAudioRef.current.preload = "auto";
+  }
+};
+
+const playMysteryLoadupSound = () => {
+  try {
+    ensureMysteryAudio();
+    stopMysteryAudioFade();
+    stopMysteryInsertTimeout();
+
+    const loadup = mysteryLoadupAudioRef.current;
+    const waterbomb = mysteryWaterbombAudioRef.current;
+    const insert = mysteryInsertAudioRef.current;
+
+    stopAndResetAudio(waterbomb);
+    stopAndResetAudio(insert);
+
+    if (!loadup) return;
+
+    loadup.pause();
+    loadup.currentTime = 0;
+    loadup.volume = 1;
+    loadup.play().catch(() => {});
+  } catch {}
+};
+
+const playMysteryRevealSounds = () => {
+  try {
+    ensureMysteryAudio();
+    stopMysteryAudioFade();
+    stopMysteryInsertTimeout();
+
+    const loadup = mysteryLoadupAudioRef.current;
+    const waterbomb = mysteryWaterbombAudioRef.current;
+    const insert = mysteryInsertAudioRef.current;
+
+    stopAndResetAudio(loadup);
+
+    if (waterbomb) {
+      waterbomb.pause();
+      waterbomb.currentTime = 0;
+      waterbomb.volume = 1;
+      waterbomb.play().catch(() => {});
+    }
+
+    mysteryInsertTimeoutRef.current = setTimeout(() => {
+      if (insert) {
+        insert.pause();
+        insert.currentTime = 0;
+        insert.volume = 1;
+        insert.play().catch(() => {});
+      }
+
+      if (waterbomb) {
+        const fadeStep = 0.12;
+        const fadeInterval = 40;
+
+        mysteryAudioFadeRef.current = setInterval(() => {
+          if (!waterbomb) return;
+
+          waterbomb.volume = Math.max(0, waterbomb.volume - fadeStep);
+
+          if (waterbomb.volume <= 0.02) {
+            stopMysteryAudioFade();
+            stopAndResetAudio(waterbomb);
+            waterbomb.volume = 1;
+          }
+        }, fadeInterval);
+      }
+    }, 1300);
+  } catch {}
+};
+
+const stopMysteryBoxSounds = () => {
+  stopMysteryAudioFade();
+  stopMysteryInsertTimeout();
+
+  stopAndResetAudio(mysteryLoadupAudioRef.current);
+  stopAndResetAudio(mysteryWaterbombAudioRef.current);
+  stopAndResetAudio(mysteryInsertAudioRef.current);
+
+  if (mysteryWaterbombAudioRef.current) {
+    mysteryWaterbombAudioRef.current.volume = 1;
+  }
+};
 const playClassicSpinSound = () => {
   try {
     if (!classicSpinAudioRef.current) {
@@ -3119,7 +3242,7 @@ if (!userId) {
 
   const openMysteryBox = async (box: LocalInventoryItem) => {
   if (!userId || openingBusy) return;
-
+playMysteryLoadupSound();
   setOpeningBusy(true);
   setOpeningBox(box);
   setOpeningReward(null);
@@ -3149,6 +3272,7 @@ setOpeningPhase("flash");
 
 await new Promise((resolve) => setTimeout(resolve, 180));
 setOpeningPhase("reveal");
+playMysteryRevealSounds();
 
   const { error: deleteError } = await supabase
     .from("inventory_items")
@@ -8445,10 +8569,11 @@ setChatList([]);
             variant="violet"
             className="min-w-[180px]"
             onClick={() => {
-              setOpeningBox(null);
-              setOpeningReward(null);
-              setOpeningPhase("idle");
-            }}
+  stopMysteryBoxSounds();
+  setOpeningBox(null);
+  setOpeningReward(null);
+  setOpeningPhase("idle");
+}}
           >
             Weiter
           </Button>
