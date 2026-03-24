@@ -569,7 +569,7 @@ function Reel({
           : { y: 0, scale: 1, rotateX: 0 }
       }
       transition={{ duration: 0.42, repeat: spinning ? 6 : 0, delay }}
-      className="relative flex h-32 w-28 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-[linear-gradient(180deg,rgba(50,50,56,0.98),rgba(10,10,12,1))] p-2 shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)] md:h-52 md:w-44 xl:h-64 xl:w-52 2xl:h-72 2xl:w-56"
+      className="relative flex h-32 w-36 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-[linear-gradient(180deg,rgba(50,50,56,0.98),rgba(10,10,12,1))] p-2 shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)] md:h-52 md:w-56 xl:h-64 xl:w-64 2xl:h-72 2xl:w-72"
       style={{ transformStyle: "preserve-3d" }}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_35%)]" />
@@ -5900,7 +5900,7 @@ setChatList([]);
       ))}
     </div>
   ) : (
-  <div className="grid grid-cols-3 gap-0 justify-items-center md:gap-0 xl:gap-0 2xl:gap-0">
+  <div className="grid grid-cols-3 gap-0 justify-items-stretch">
     {reels.map((symbol, idx) => (
       <Reel
         key={idx}
