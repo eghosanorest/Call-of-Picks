@@ -8316,17 +8316,27 @@ setChatList([]);
   {openingPhase === "reveal" && (
     <>
       <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-        <video
-          key={`smoke-${openingReward?.rarity || openingBox.rarity}`}
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          className="absolute left-1/2 top-[60%] w-[900px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-70 mix-blend-screen grayscale brightness-125 contrast-125"
-        >
-          <source src="/effects/smoke-burst.webm" type="video/webm" />
-        </video>
-      </div>
+  <div
+    className="absolute left-1/2 top-[60%] h-[700px] w-[1100px] -translate-x-1/2 -translate-y-1/2"
+    style={{
+      maskImage:
+        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.72) 55%, rgba(0,0,0,0.28) 72%, rgba(0,0,0,0) 100%)",
+      WebkitMaskImage:
+        "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.72) 55%, rgba(0,0,0,0.28) 72%, rgba(0,0,0,0) 100%)",
+    }}
+  >
+    <video
+      key={`smoke-${openingReward?.rarity || openingBox.rarity}`}
+      autoPlay
+      muted
+      playsInline
+      preload="auto"
+      className="absolute inset-0 h-full w-full scale-125 object-cover opacity-75 mix-blend-screen grayscale brightness-150 contrast-150"
+    >
+      <source src="/effects/smoke-burst.webm" type="video/webm" />
+    </video>
+  </div>
+</div>
 
       <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
         {Array.from({ length: 16 }).map((_, i) => (
