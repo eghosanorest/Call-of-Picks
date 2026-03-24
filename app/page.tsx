@@ -5586,11 +5586,18 @@ setChatList([]);
 <div className="relative z-10"></div>
                     <div className="relative z-20 mb-3 h-4 w-full overflow-hidden rounded-full border border-white/10">
 
-  {/* 🌈 Farbverlauf wie vorher */}
-  <div className="absolute inset-0 bg-gradient-to-r from-amber-300 via-fuchsia-400 to-cyan-300 opacity-80" />
+  {/* 🔥 FIRELINE VIDEO */}
+  <video
+    src="/effects/fireline.webm"
+    autoPlay
+    loop
+    muted
+    playsInline
+    className="absolute inset-0 h-full w-full object-cover"
+  />
 
-  {/* ✨ Glow */}
-  <div className="absolute inset-0 shadow-[0_0_25px_rgba(252,211,77,0.6),0_0_35px_rgba(217,70,239,0.5),0_0_30px_rgba(103,232,249,0.5)]" />
+  {/* ✨ optionaler Glow darüber */}
+  <div className="absolute inset-0 shadow-[0_0_25px_rgba(255,120,0,0.6),0_0_40px_rgba(255,60,0,0.5)]" />
 
 </div>
 
