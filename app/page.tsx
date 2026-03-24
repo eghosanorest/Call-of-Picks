@@ -852,6 +852,27 @@ const rewardBoxStyles: Record<string, string> = {
 function isMysteryBoxSlug(slug?: string | null) {
   return typeof slug === "string" && slug.startsWith("mysterybox-");
 }
+function getRarityGlowClasses(rarity?: string | null) {
+  const normalized = normalizeRarity(rarity);
+
+  if (normalized === "Rare") {
+    return "shadow-[0_0_50px_rgba(34,197,94,0.35)]";
+  }
+  if (normalized === "Epic") {
+    return "shadow-[0_0_55px_rgba(59,130,246,0.35)]";
+  }
+  if (normalized === "Super") {
+    return "shadow-[0_0_60px_rgba(168,85,247,0.42)]";
+  }
+  if (normalized === "Legendary") {
+    return "shadow-[0_0_65px_rgba(245,158,11,0.42)]";
+  }
+  if (normalized === "Ultra") {
+    return "shadow-[0_0_70px_rgba(239,68,68,0.48)]";
+  }
+
+  return "shadow-[0_0_40px_rgba(255,255,255,0.18)]";
+}
 
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
@@ -884,6 +905,10 @@ export default function CallOfPicksPage() {
     }));
 }, [allItemCatalog]);
 
+const [openingBox, setOpeningBox] = useState<LocalInventoryItem | null>(null);
+const [openingReward, setOpeningReward] = useState<LocalInventoryItem | null>(null);
+const [openingPhase, setOpeningPhase] = useState<"idle" | "build" | "flash" | "reveal">("idle");
+const [openingBusy, setOpeningBusy] = useState(false);
 const activeSlotPool = useMemo<LocalSymbol[]>(() => {
   return slotEnabledSymbols.length ? slotEnabledSymbols : symbolPool;
 }, [slotEnabledSymbols]);
@@ -3059,7 +3084,12 @@ if (!userId) {
   };
 
   const openMysteryBox = async (box: LocalInventoryItem) => {
-  if (!userId) return;
+  if (!userId || openingBusy) return;
+
+  setOpeningBusy(true);
+  setOpeningBox(box);
+  setOpeningReward(null);
+  setOpeningPhase("build");
 
   const rarity = normalizeRarity(box.rarity);
 
@@ -3071,10 +3101,20 @@ if (!userId) {
 
   if (!pool.length) {
     setMessage("Keine Items für diese Rarity gefunden.");
+    setOpeningBusy(false);
+    setOpeningBox(null);
+    setOpeningPhase("idle");
     return;
   }
 
   const reward = pool[Math.floor(Math.random() * pool.length)];
+
+  // Build-up Zeit
+  await new Promise((resolve) => setTimeout(resolve, 1800));
+  setOpeningPhase("flash");
+
+  // Flash Übergang
+  await new Promise((resolve) => setTimeout(resolve, 350));
 
   const { error: deleteError } = await supabase
     .from("inventory_items")
@@ -3083,6 +3123,9 @@ if (!userId) {
 
   if (deleteError) {
     setMessage(deleteError.message);
+    setOpeningBusy(false);
+    setOpeningBox(null);
+    setOpeningPhase("idle");
     return;
   }
 
@@ -3094,6 +3137,9 @@ if (!userId) {
 
   if (rewardLookupError || !rewardItemRow?.id) {
     setMessage("Belohnungsitem konnte nicht gefunden werden.");
+    setOpeningBusy(false);
+    setOpeningBox(null);
+    setOpeningPhase("idle");
     return;
   }
 
@@ -3109,26 +3155,34 @@ if (!userId) {
 
   if (insertError) {
     setMessage(insertError.message);
+    setOpeningBusy(false);
+    setOpeningBox(null);
+    setOpeningPhase("idle");
     return;
   }
+
+  const rewardInventoryItem: LocalInventoryItem = {
+    inventory_id: insertedRow.id,
+    id: rewardItemRow.slug,
+    slug: rewardItemRow.slug,
+    name: rewardItemRow.name,
+    rarity: normalizeRarity(rewardItemRow.rarity) as LocalInventoryItem["rarity"],
+    image_path: rewardItemRow.image_path,
+    weight: rewardItemRow.weight ?? 1,
+  };
 
   updateData((prev) => ({
     ...prev,
     inventory: [
-      {
-        inventory_id: insertedRow.id,
-        id: rewardItemRow.slug,
-        slug: rewardItemRow.slug,
-        name: rewardItemRow.name,
-        rarity: normalizeRarity(rewardItemRow.rarity) as LocalInventoryItem["rarity"],
-        image_path: rewardItemRow.image_path,
-        weight: rewardItemRow.weight ?? 1,
-      },
+      rewardInventoryItem,
       ...prev.inventory.filter((i) => i.inventory_id !== box.inventory_id),
     ],
   }));
 
+  setOpeningReward(rewardInventoryItem);
+  setOpeningPhase("reveal");
   setMessage(`🎁 Du hast ${rewardItemRow.name} erhalten!`);
+  setOpeningBusy(false);
 };
 const grantServerMysteryBoxByRarity = async (
   rarity: LocalSymbol["rarity"]
@@ -8184,6 +8238,121 @@ setChatList([]);
 </div>
   </div>
 )}
+        
+        <AnimatePresence>
+  {openingBox && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="relative w-full max-w-2xl overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.16),transparent_30%),linear-gradient(180deg,rgba(18,18,24,0.98),rgba(6,6,10,1))] p-6 shadow-[0_30px_120px_rgba(0,0,0,0.7)]"
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -left-10 top-10 h-40 w-40 rounded-full bg-violet-500/15 blur-3xl" />
+          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="absolute bottom-0 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-fuchsia-500/10 blur-3xl" />
+        </div>
+
+        <div className="relative z-10 text-center">
+          <div className="text-sm uppercase tracking-[0.35em] text-zinc-500">
+            Mystery Box
+          </div>
+
+          {openingPhase !== "reveal" ? (
+            <>
+              <div className="mt-3 text-3xl font-black">Öffnung läuft...</div>
+
+              <div className="mt-8 flex justify-center">
+                <motion.div
+                  animate={{
+                    scale: [1, 1.08, 0.98, 1.12, 1],
+                    rotate: [0, -2, 2, -1, 0],
+                    y: [0, -6, 0, -10, 0],
+                  }}
+                  transition={{
+                    duration: 0.9,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className={`flex h-48 w-48 items-center justify-center rounded-[32px] border border-white/10 bg-black/30 p-5 ${getRarityGlowClasses(openingBox.rarity)}`}
+                >
+                  <motion.img
+                    src={getSafeItemImagePath(openingBox.slug, openingBox.image_path)}
+                    alt={openingBox.name}
+                    className="max-h-full max-w-full object-contain"
+                    animate={
+                      openingPhase === "flash"
+                        ? { scale: [1, 1.2, 0.85], opacity: [1, 1, 0] }
+                        : {}
+                    }
+                    transition={{ duration: 0.3 }}
+                    onError={(e) => {
+                      e.currentTarget.src = "/items/fallback.png";
+                    }}
+                  />
+                </motion.div>
+              </div>
+
+              <div className="mt-6 text-sm text-zinc-400">
+                Die Box wird geöffnet...
+              </div>
+            </>
+          ) : openingReward ? (
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.88, filter: "blur(10px)" }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.55, ease: "easeOut" }}
+              >
+                <div className="mt-3 text-3xl font-black">Du hast erhalten</div>
+
+                <div className="mt-8 flex justify-center">
+                  <div
+                    className={`flex h-56 w-56 items-center justify-center rounded-[34px] border border-white/10 bg-black/30 p-5 ${getRarityGlowClasses(openingReward.rarity)}`}
+                  >
+                    <img
+                      src={getSafeItemImagePath(openingReward.slug, openingReward.image_path)}
+                      alt={openingReward.name}
+                      className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.65)]"
+                      onError={(e) => {
+                        e.currentTarget.src = "/items/fallback.png";
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 text-2xl font-black">{openingReward.name}</div>
+                <div className="mt-2 text-sm uppercase tracking-[0.25em] text-zinc-400">
+                  {openingReward.rarity}
+                </div>
+
+                <div className="mt-8 flex justify-center">
+                  <Button
+                    variant="violet"
+                    className="min-w-[180px]"
+                    onClick={() => {
+                      setOpeningBox(null);
+                      setOpeningReward(null);
+                      setOpeningPhase("idle");
+                    }}
+                  >
+                    Weiter
+                  </Button>
+                </div>
+              </motion.div>
+            </>
+          ) : null}
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
         </AnimatePresence>
       </div>
     </div>
