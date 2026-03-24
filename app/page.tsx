@@ -849,6 +849,10 @@ const rewardBoxStyles: Record<string, string> = {
   Ultra: "border-red-500/40 bg-red-500/10 text-red-200",
 };
 
+function isMysteryBoxSlug(slug?: string | null) {
+  return typeof slug === "string" && slug.startsWith("mysterybox-");
+}
+
 export default function CallOfPicksPage() {
   const [allItemCatalog, setAllItemCatalog] = useState<
   {
@@ -897,6 +901,7 @@ const weightedRandomFromPool = (list: LocalSymbol[]): LocalSymbol => {
 
   return list[list.length - 1] ?? symbolPool[0]!;
 };
+
 
 const getForcedWinSymbol = (): LocalSymbol => {
   return weightedRandomFromPool(activeSlotPool);
@@ -2965,7 +2970,79 @@ if (!userId) {
     URL.revokeObjectURL(url);
   };
 
-  const grantServerMysteryBoxByRarity = async (
+  const openMysteryBox = async (box: LocalInventoryItem) => {
+  if (!userId) return;
+
+  const rarity = normalizeRarity(box.rarity);
+
+  const pool = allItemCatalog.filter(
+    (item) =>
+      normalizeRarity(item.rarity) === rarity &&
+      !item.slug.startsWith("mysterybox")
+  );
+
+  if (!pool.length) {
+    setMessage("Keine Items für diese Rarity gefunden.");
+    return;
+  }
+
+  const reward = pool[Math.floor(Math.random() * pool.length)];
+
+  const { error: deleteError } = await supabase
+    .from("inventory_items")
+    .delete()
+    .eq("id", box.inventory_id);
+
+  if (deleteError) {
+    setMessage(deleteError.message);
+    return;
+  }
+
+  const { data: rewardItemRow, error: rewardLookupError } = await supabase
+    .from("items")
+    .select("id, slug, name, rarity, image_path, weight")
+    .eq("slug", reward.slug)
+    .maybeSingle();
+
+  if (rewardLookupError || !rewardItemRow?.id) {
+    setMessage("Belohnungsitem konnte nicht gefunden werden.");
+    return;
+  }
+
+  const { data: insertedRow, error: insertError } = await supabase
+    .from("inventory_items")
+    .insert({
+      owner_id: userId,
+      item_id: rewardItemRow.id,
+      status: "owned",
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    setMessage(insertError.message);
+    return;
+  }
+
+  updateData((prev) => ({
+    ...prev,
+    inventory: [
+      {
+        inventory_id: insertedRow.id,
+        id: rewardItemRow.slug,
+        slug: rewardItemRow.slug,
+        name: rewardItemRow.name,
+        rarity: normalizeRarity(rewardItemRow.rarity) as LocalInventoryItem["rarity"],
+        image_path: rewardItemRow.image_path,
+        weight: rewardItemRow.weight ?? 1,
+      },
+      ...prev.inventory.filter((i) => i.inventory_id !== box.inventory_id),
+    ],
+  }));
+
+  setMessage(`🎁 Du hast ${rewardItemRow.name} erhalten!`);
+};
+const grantServerMysteryBoxByRarity = async (
   rarity: LocalSymbol["rarity"]
 ) => {
   if (!userId) return null;
@@ -5853,35 +5930,45 @@ setChatList([]);
 )}
 
       {profileTab === "inventory" && (
-        <div className="space-y-3">
-          {inventoryCounts.length === 0 ? (
-            <div className="text-sm text-zinc-400">Noch keine Items im Inventar.</div>
-          ) : (
-            inventoryCounts.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
-              >
-                <div className="flex items-center gap-3"><img
-  src={getSafeItemImagePath(item.slug, item.image_path)}
-  alt={item.name}
-  className="h-12 w-12 rounded-xl object-contain"
-  onError={(e) => {
-    e.currentTarget.src = "/items/fallback.png";
-  }}
-/>
-<div>
-  <div className="font-semibold">{item.name}</div>
-  <div className="text-xs text-zinc-400">
-    {item.rarity} · x{item.quantity}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+  <div className="space-y-3">
+    {data.inventory.length === 0 ? (
+      <div className="text-sm text-zinc-400">Noch keine Items im Inventar.</div>
+    ) : (
+      data.inventory.map((item) => (
+        <div
+          key={item.inventory_id}
+          className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+        >
+          <div className="flex items-center gap-3">
+            <img
+              src={getSafeItemImagePath(item.slug, item.image_path)}
+              alt={item.name}
+              className="h-12 w-12 rounded-xl object-contain"
+              onError={(e) => {
+                e.currentTarget.src = "/items/fallback.png";
+              }}
+            />
+
+            <div>
+              <div className="font-semibold">{item.name}</div>
+              <div className="text-xs text-zinc-400">{item.rarity}</div>
+            </div>
+          </div>
+
+          {isMysteryBoxSlug(item.slug) ? (
+            <Button
+              onClick={() => openMysteryBox(item)}
+              variant="violet"
+              className="px-4 py-2 text-sm"
+            >
+              Öffnen
+            </Button>
+          ) : null}
         </div>
-      )}
+      ))
+    )}
+  </div>
+)}
     </div>
   </div>
 )}
