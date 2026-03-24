@@ -2284,10 +2284,11 @@ const currentMajor =
 
 const visibleWeeks = currentMajor.weeks;
 
-const currentWeekMatches = data.weeks[data.currentMajor]?.[currentWeek];
+const currentWeekMatches = data.weeks[data.currentMajor]?.[currentWeek] || [];
 
-const matches =
-  currentWeekMatches && currentWeekMatches.length > 0
+const matches = isAdmin
+  ? currentWeekMatches
+  : currentWeekMatches.length > 0
     ? currentWeekMatches
     : Object.values(data.weeks[data.currentMajor] || {}).find(
         (list) => Array.isArray(list) && list.length > 0
@@ -2452,7 +2453,14 @@ const totalPicked = useMemo(
 
   const changeMajor = async (majorId: string) => {
   const major = majorStructure.find((entry) => entry.id === majorId);
-  const fallbackWeek = major?.weeks?.[0]?.id || 1;
+
+  const fallbackWeek = isAdmin
+    ? major?.weeks?.[0]?.id || 1
+    : Number(
+        Object.keys(data.weeks[majorId] || {}).find(
+          (weekKey) => (data.weeks[majorId]?.[Number(weekKey)] || []).length > 0
+        )
+      ) || major?.weeks?.[0]?.id || 1;
 
   updateData((prev) => ({
     ...prev,
