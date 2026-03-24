@@ -364,9 +364,11 @@ const rarityStyles: Record<string, string> = {
   Common:
     "bg-gradient-to-br from-zinc-900 to-zinc-950 border-zinc-700 text-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.03)]",
   Rare:
-    "bg-gradient-to-br from-blue-950/80 to-zinc-950 border-blue-500/40 text-blue-200 shadow-[0_0_25px_rgba(59,130,246,0.18)]",
+    "bg-gradient-to-br from-green-950/80 to-zinc-950 border-green-500/40 text-green-200 shadow-[0_0_25px_rgba(34,197,94,0.18)]",
   Epic:
-    "bg-gradient-to-br from-violet-950/80 to-zinc-950 border-violet-500/40 text-violet-200 shadow-[0_0_28px_rgba(139,92,246,0.22)]",
+    "bg-gradient-to-br from-blue-950/80 to-zinc-950 border-blue-500/40 text-blue-200 shadow-[0_0_28px_rgba(59,130,246,0.22)]",
+  Super:
+    "bg-gradient-to-br from-purple-950/80 to-zinc-950 border-purple-500/40 text-purple-200 shadow-[0_0_30px_rgba(168,85,247,0.24)]",
   Legendary:
     "bg-gradient-to-br from-amber-950/80 to-zinc-950 border-amber-500/40 text-amber-200 shadow-[0_0_32px_rgba(245,158,11,0.26)]",
   Ultra:
@@ -451,11 +453,14 @@ function resolveItemImage(path?: string | null) {
 
 function normalizeRarity(rarity?: string | null) {
   const value = (rarity || "").trim().toLowerCase();
+
   if (value === "common") return "Common";
   if (value === "rare") return "Rare";
   if (value === "epic") return "Epic";
+  if (value === "super") return "Super"; // 🔥 DAS FEHLT
   if (value === "legendary") return "Legendary";
   if (value === "ultra") return "Ultra";
+
   return "Common";
 }
 
@@ -2408,7 +2413,14 @@ const inventoryCounts = useMemo(() => {
       else map.set(item.id, { ...item, quantity: 1 });
     });
 
-    const rarityRank = { Ultra: 5, Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
+    const rarityRank = {
+  Ultra: 6,
+  Legendary: 5,
+  Super: 4,
+  Epic: 3,
+  Rare: 2,
+  Common: 1,
+};
 
     return Array.from(map.values()).sort(
       (a, b) => (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0)
