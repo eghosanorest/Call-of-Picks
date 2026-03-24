@@ -2279,21 +2279,23 @@ const resolvedMatchIds = (rewardRows || []).map((r: any) => String(r.match_id));
     ...prev,
     picks: { ...prev.picks, [matchId]: side },
   }));
-};
+};const currentWeek = data.currentWeek;
 
-  const currentWeek = data.currentWeek;
-
-
-  const currentMajor =
+const currentMajor =
   majorStructure.find((m) => m.id === data.currentMajor) || majorStructure[0];
 
 const visibleWeeks = currentMajor.weeks;
 
+const currentWeekMatches = data.weeks[data.currentMajor]?.[currentWeek];
+
 const matches =
-  data.weeks[data.currentMajor]?.[currentWeek] ||
-  Object.values(data.weeks[data.currentMajor] || {}).find((list) => list.length > 0) ||
-  [];
-  const upcomingHomeMatches = matches.filter((match) => !hasSavedScore(match));
+  currentWeekMatches && currentWeekMatches.length > 0
+    ? currentWeekMatches
+    : Object.values(data.weeks[data.currentMajor] || {}).find(
+        (list) => Array.isArray(list) && list.length > 0
+      ) || [];
+
+const upcomingHomeMatches = matches.filter((match) => !hasSavedScore(match));
 const completedHomeMatches = matches.filter((match) => hasSavedScore(match));
 const activeGroup = myGroups.find((g) => g.id === activeGroupId) || null;
 
@@ -2303,8 +2305,8 @@ const pendingRewardMatches = matches.filter((m) =>
 
 const hasPendingRewards = pendingRewardMatches.length > 0;
 
-  const memberNameMap = useMemo(() => {
-    const map = new Map<string, string>();
+const memberNameMap = useMemo(() => {
+  const map = new Map<string, string>();
     members.forEach((m) => map.set(m.user_id, m.username));
     return map;
   }, [members]);
