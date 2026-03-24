@@ -2117,13 +2117,8 @@ const loadMatches = async () => {
     const major = String(row.major || "major1").trim().toLowerCase();
     const week = Number(row.week || 1);
 
-    if (!grouped[major]) {
-      grouped[major] = {};
-    }
-
-    if (!grouped[major][week]) {
-      grouped[major][week] = [];
-    }
+    if (!grouped[major]) grouped[major] = {};
+    if (!grouped[major][week]) grouped[major][week] = [];
 
     const date = new Date(row.starts_at);
     const formatted = date.toLocaleString("de-DE", {
@@ -2135,20 +2130,23 @@ const loadMatches = async () => {
     });
 
     grouped[major][week].push({
-  id: String(row.id),
-  week,
-  teamA: row.team_a,
-  teamB: row.team_b,
-  startsAt: formatted.replace(",", " ·"),
-  startsAtIso: new Date(row.starts_at).toISOString(),
-  locked: !!row.locked,
-  result: row.result as MatchResult,
-  scoreA: typeof row.score_a === "number" ? row.score_a : null,
-  scoreB: typeof row.score_b === "number" ? row.score_b : null,
-  oddA: row.odd_a != null ? Number(row.odd_a) : null,
-  oddB: row.odd_b != null ? Number(row.odd_b) : null,
-});
+      id: String(row.id),
+      week,
+      teamA: row.team_a,
+      teamB: row.team_b,
+      startsAt: formatted.replace(",", " ·"),
+      startsAtIso: new Date(row.starts_at).toISOString(),
+      locked: !!row.locked,
+      result: row.result as MatchResult,
+      scoreA: typeof row.score_a === "number" ? row.score_a : null,
+      scoreB: typeof row.score_b === "number" ? row.score_b : null,
+      oddA: row.odd_a != null ? Number(row.odd_a) : null,
+      oddB: row.odd_b != null ? Number(row.odd_b) : null,
+    });
   });
+
+  console.log("MATCH ROWS RAW:", rows);
+  console.log("GROUPED MATCHES:", grouped);
 
   setData((prev) => ({
     ...prev,
@@ -6560,7 +6558,7 @@ setChatList([]);
 </form>
 
                 <div className="space-y-3">
-                  {(data.weeks[data.currentMajor]?.[currentWeek] || []).map((match) => (
+                  {matches.map((match) => (
                     <div
                       key={match.id}
                       className="space-y-3 rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
