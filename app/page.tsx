@@ -903,6 +903,13 @@ const weightedRandomFromPool = (list: LocalSymbol[]): LocalSymbol => {
 };
 
 
+const [inventoryFilter, setInventoryFilter] = useState<
+  "all" | "Common" | "Rare" | "Epic" | "Super" | "Legendary" | "Ultra" | "boxes"
+>("all");
+
+const [inventorySort, setInventorySort] = useState<
+  "rarity-desc" | "rarity-asc" | "latest"
+>("rarity-desc");
 const getForcedWinSymbol = (): LocalSymbol => {
   return weightedRandomFromPool(activeSlotPool);
 };
@@ -2454,6 +2461,87 @@ const inventoryCountMap = useMemo(() => {
   return map;
 }, [data.inventory]);
 
+const inventoryDisplayItems = useMemo(() => {
+  const rarityRank = {
+    Common: 1,
+    Rare: 2,
+    Epic: 3,
+    Super: 4,
+    Legendary: 5,
+    Ultra: 6,
+  };
+
+  const normalMap = new Map<
+    string,
+    LocalInventoryItem & { quantity: number; newestAt: number; isBox: false }
+  >();
+
+  const boxItems: (LocalInventoryItem & {
+    quantity: number;
+    newestAt: number;
+    isBox: true;
+  })[] = [];
+
+  data.inventory.forEach((item, index) => {
+    const newestAt = data.inventory.length - index;
+
+    if (isMysteryBoxSlug(item.slug)) {
+      boxItems.push({
+        ...item,
+        quantity: 1,
+        newestAt,
+        isBox: true,
+      });
+      return;
+    }
+
+    const existing = normalMap.get(item.slug);
+    if (existing) {
+      existing.quantity += 1;
+      if (newestAt > existing.newestAt) {
+        existing.newestAt = newestAt;
+      }
+    } else {
+      normalMap.set(item.slug, {
+        ...item,
+        quantity: 1,
+        newestAt,
+        isBox: false,
+      });
+    }
+  });
+
+  let items = [...Array.from(normalMap.values()), ...boxItems];
+
+  if (inventoryFilter === "boxes") {
+    items = items.filter((item) => item.isBox);
+  } else if (inventoryFilter !== "all") {
+    items = items.filter((item) => normalizeRarity(item.rarity) === inventoryFilter);
+  }
+
+  items.sort((a, b) => {
+    if (inventorySort === "latest") {
+      return b.newestAt - a.newestAt;
+    }
+
+    const aRank = rarityRank[normalizeRarity(a.rarity) as keyof typeof rarityRank] || 0;
+    const bRank = rarityRank[normalizeRarity(b.rarity) as keyof typeof rarityRank] || 0;
+
+    if (inventorySort === "rarity-asc") {
+      if (aRank !== bRank) return aRank - bRank;
+    } else {
+      if (aRank !== bRank) return bRank - aRank;
+    }
+
+    if (a.isBox !== b.isBox) {
+      return a.isBox ? 1 : -1;
+    }
+
+    return a.name.localeCompare(b.name, "de");
+  });
+
+  return items;
+}, [data.inventory, inventoryFilter, inventorySort]);
 const inventoryCounts = useMemo(() => {
     const map = new Map<string, LocalInventoryItem & { quantity: number }>();
 
@@ -5931,12 +6019,39 @@ setChatList([]);
 
       {profileTab === "inventory" && (
   <div className="space-y-3">
-    {data.inventory.length === 0 ? (
-      <div className="text-sm text-zinc-400">Noch keine Items im Inventar.</div>
+    <div className="grid grid-cols-2 gap-2">
+      <select
+        value={inventoryFilter}
+        onChange={(e) => setInventoryFilter(e.target.value as typeof inventoryFilter)}
+        className="rounded-2xl border border-white/10 bg-black/40 px-3 py-3 text-sm outline-none"
+      >
+        <option value="all">Alle Items</option>
+        <option value="boxes">Nur Mysteryboxen</option>
+        <option value="Common">Nur Common</option>
+        <option value="Rare">Nur Rare</option>
+        <option value="Epic">Nur Epic</option>
+        <option value="Super">Nur Super</option>
+        <option value="Legendary">Nur Legendary</option>
+        <option value="Ultra">Nur Ultra</option>
+      </select>
+
+      <select
+        value={inventorySort}
+        onChange={(e) => setInventorySort(e.target.value as typeof inventorySort)}
+        className="rounded-2xl border border-white/10 bg-black/40 px-3 py-3 text-sm outline-none"
+      >
+        <option value="rarity-desc">Rarity absteigend</option>
+        <option value="rarity-asc">Rarity aufsteigend</option>
+        <option value="latest">Zuletzt hinzugefügt</option>
+      </select>
+    </div>
+
+    {inventoryDisplayItems.length === 0 ? (
+      <div className="text-sm text-zinc-400">Keine passenden Items gefunden.</div>
     ) : (
-      data.inventory.map((item) => (
+      inventoryDisplayItems.map((item) => (
         <div
-          key={item.inventory_id}
+          key={item.isBox ? item.inventory_id : item.slug}
           className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
         >
           <div className="flex items-center gap-3">
@@ -5951,13 +6066,26 @@ setChatList([]);
 
             <div>
               <div className="font-semibold">{item.name}</div>
-              <div className="text-xs text-zinc-400">{item.rarity}</div>
+              <div className="text-xs text-zinc-400">
+                {item.rarity}
+                {!item.isBox ? ` · x${item.quantity}` : ""}
+              </div>
             </div>
           </div>
 
-          {isMysteryBoxSlug(item.slug) ? (
+          {item.isBox ? (
             <Button
-              onClick={() => openMysteryBox(item)}
+              onClick={() =>
+                openMysteryBox({
+                  inventory_id: item.inventory_id,
+                  id: item.id,
+                  slug: item.slug,
+                  name: item.name,
+                  rarity: item.rarity as LocalInventoryItem["rarity"],
+                  image_path: item.image_path,
+                  weight: item.weight,
+                })
+              }
               variant="violet"
               className="px-4 py-2 text-sm"
             >
