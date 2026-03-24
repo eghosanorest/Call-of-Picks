@@ -5760,19 +5760,18 @@ setChatList([]);
                 key={item.id}
                 className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
               >
-                <div className="flex items-center gap-3">
-                  <img
-  src={item.image_path || "/items/fallback.png"}
+                <div className="flex items-center gap-3"><img
+  src={getSafeItemImagePath(item.slug, item.image_path)}
   alt={item.name}
-  className="h-12 w-12 rounded-xl object-cover"
+  className="h-12 w-12 rounded-xl object-contain"
   onError={(e) => {
     e.currentTarget.src = "/items/fallback.png";
   }}
 />
-                  <div>
-                    <div className="font-semibold">{item.name}</div>
-                    <div className="text-xs text-zinc-400">
-                      {item.rarity} · x{item.quantity}
+<div>
+  <div className="font-semibold">{item.name}</div>
+  <div className="text-xs text-zinc-400">
+    {item.rarity} · x{item.quantity}
                     </div>
                   </div>
                 </div>
