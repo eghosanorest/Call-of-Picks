@@ -2068,16 +2068,16 @@ const loadAppConfig = async () => {
     return;
   }
 
-  if (row) {
-    setData((prev) => ({
-      ...prev,
-      currentWeek: row.current_week ?? 1,
-      currentMajor: row.current_major ?? "major1",
-      stageLabel: row.stage_label ?? "Major I",
-      sourceLabel: row.source_label ?? "Supabase",
-      lastSyncLabel: row.last_sync_label ?? "Online",
-    }));
-  }
+  if (!row) return;
+
+  setData((prev) => ({
+    ...prev,
+    currentWeek: isAdmin ? prev.currentWeek : row.current_week ?? 1,
+    currentMajor: isAdmin ? prev.currentMajor : row.current_major ?? "major1",
+    stageLabel: row.stage_label ?? "Major I",
+    sourceLabel: row.source_label ?? "Supabase",
+    lastSyncLabel: row.last_sync_label ?? "Online",
+  }));
 };
 const autoLockExpiredMatches = async () => {
   const nowIso = new Date().toISOString();
@@ -2453,19 +2453,31 @@ const totalPicked = useMemo(
 
   const changeMajor = async (majorId: string) => {
   const major = majorStructure.find((entry) => entry.id === majorId);
+  if (!major) return;
 
-  const fallbackWeek = isAdmin
-    ? major?.weeks?.[0]?.id || 1
-    : Number(
+  const allowedWeeks = major.weeks.map((w) => w.id);
+
+  let nextWeek = data.currentWeek;
+
+  if (!allowedWeeks.includes(nextWeek)) {
+    nextWeek = major.weeks[0]?.id || 1;
+  }
+
+  if (!isAdmin) {
+    const firstFilledWeek =
+      Number(
         Object.keys(data.weeks[majorId] || {}).find(
           (weekKey) => (data.weeks[majorId]?.[Number(weekKey)] || []).length > 0
         )
-      ) || major?.weeks?.[0]?.id || 1;
+      ) || nextWeek;
+
+    nextWeek = firstFilledWeek;
+  }
 
   updateData((prev) => ({
     ...prev,
     currentMajor: majorId,
-    currentWeek: fallbackWeek,
+    currentWeek: nextWeek,
   }));
 
   if (!isAdmin) return;
@@ -2474,7 +2486,7 @@ const totalPicked = useMemo(
     .from("app_config")
     .update({
       current_major: majorId,
-      current_week: fallbackWeek,
+      current_week: nextWeek,
     })
     .eq("id", 1);
 
