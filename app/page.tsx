@@ -8331,7 +8331,7 @@ setChatList([]);
       muted
       playsInline
       preload="auto"
-      className="absolute inset-0 h-full w-full scale-125 object-cover opacity-75 mix-blend-screen grayscale brightness-150 contrast-150"
+      className="absolute inset-0 h-full w-full scale-125 object-cover opacity-90 mix-blend-screen grayscale brightness-200 contrast-200"
     >
       <source src="/effects/smoke-burst.webm" type="video/webm" />
     </video>
