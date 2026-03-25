@@ -955,7 +955,8 @@ function getRarityParticleClasses(rarity?: string | null) {
 function MemberShowcaseBox({
   member,
   currentUserId,
-  onUpdated,
+  onUpload,
+  uploading,
 }: {
   member: {
     user_id: string;
@@ -963,11 +964,10 @@ function MemberShowcaseBox({
     showcase_image_url?: string | null;
   };
   currentUserId: string;
-  onUpdated: () => Promise<void> | void;
+  onUpload: (file: File) => Promise<void> | void;
+  uploading: boolean;
 }) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [uploading, setUploading] = React.useState(false);
-
   const isOwnBox = currentUserId === member.user_id;
 
   const handlePickImage = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -980,49 +980,13 @@ function MemberShowcaseBox({
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     e.stopPropagation();
-
     const file = e.target.files?.[0];
     if (!file || !isOwnBox) return;
 
-    try {
-      setUploading(true);
+    await onUpload(file);
 
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const filePath = `${member.user_id}/showcase-${Date.now()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("member-showcase")
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) {
-        console.error("SHOWCASE UPLOAD ERROR:", uploadError);
-        return;
-      }
-
-      const { data } = supabase.storage
-        .from("member-showcase")
-        .getPublicUrl(filePath);
-
-      const publicUrl = data.publicUrl;
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ showcase_image_url: publicUrl })
-        .eq("id", currentUserId);
-
-      if (updateError) {
-        console.error("SHOWCASE PROFILE UPDATE ERROR:", updateError);
-        return;
-      }
-
-      await onUpdated();
-    } catch (err) {
-      console.error("SHOWCASE ERROR:", err);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
