@@ -1127,7 +1127,9 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
       setLastMultiLineHitCount(hitCount);
       setLastMultiLinePayout(payout);
       setLastMultiLineWinningIndexes(winningIndexes);
-
+if (hitCount > 0) {
+  playHitSound();
+}
       setMessage(
         hitCount > 0 ? `${hitCount} Treffer! +${payout} Tokens` : "Kein Treffer."
       );
@@ -1928,7 +1930,7 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
   100: 0.5,
 };
 
-
+const hitSoundRef = useRef<HTMLAudioElement | null>(null);
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryLoadupAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryWaterbombAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1979,6 +1981,21 @@ const ensureMysteryAudio = () => {
     mysteryInsertAudioRef.current = new Audio("/sounds/insertsound.mp3");
     mysteryInsertAudioRef.current.preload = "auto";
   }
+};
+
+const playHitSound = () => {
+  try {
+    if (!hitSoundRef.current) {
+      hitSoundRef.current = new Audio("/sounds/hitsound1.mp3");
+      hitSoundRef.current.preload = "auto";
+    }
+
+    const audio = hitSoundRef.current;
+
+    audio.currentTime = 0; // 🔥 wichtig → immer neu starten
+    audio.volume = 0.4;    // kannst du anpassen
+    audio.play().catch(() => {});
+  } catch {}
 };
 const playCasinoBackground = () => {
   try {
@@ -4082,6 +4099,10 @@ const spin = async (): Promise<AutoSpinResult> => {
       setReels(finalReels);
 
       const win = isWinningRow(finalReels);
+
+      if (win) {
+  playHitSound();
+}
       const spinRecord = {
         at: Date.now(),
         reels: finalReels.map((r) => r.id),
