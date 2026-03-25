@@ -1980,7 +1980,7 @@ const ensureMysteryAudio = () => {
     mysteryInsertAudioRef.current.preload = "auto";
   }
 };
-
+const impactSoundRef = useRef<HTMLAudioElement | null>(null);
 const playHitSound = () => {
   try {
     if (!hitSoundRef.current) {
@@ -1992,6 +1992,20 @@ const playHitSound = () => {
 
     audio.currentTime = 0; // 🔥 wichtig → immer neu starten
     audio.volume = 1;    // kannst du anpassen
+    audio.play().catch(() => {});
+  } catch {}
+};
+const playImpactSound = () => {
+  try {
+    if (!impactSoundRef.current) {
+      impactSoundRef.current = new Audio("/sounds/impactsound.mp3");
+      impactSoundRef.current.preload = "auto";
+    }
+
+    const audio = impactSoundRef.current;
+
+    audio.currentTime = 0;
+    audio.volume = 0.8; // 🔥 schön knackig
     audio.play().catch(() => {});
   } catch {}
 };
@@ -2037,7 +2051,19 @@ const fadeOutAudio = (
     }
   }, stepTime);
 };
+const lastFirelineRef = useRef(0);
 
+useEffect(() => {
+  const current = data.firelineProgress;
+  const previous = lastFirelineRef.current;
+
+  // 🔥 nur bei Fortschritt + nur 1–4
+  if (current > previous && current >= 1 && current <= 4) {
+    playImpactSound();
+  }
+
+  lastFirelineRef.current = current;
+}, [data.firelineProgress]);
 const stopClassicSpinSound = () => {
   fadeOutAudio(classicSpinAudioRef.current, 500);
 };
