@@ -4840,7 +4840,7 @@ setNeedsUsername(!nextName);
 
   const { data: memberRows, error: memberRowsError } = await supabase
     .from("group_members")
-    .select("user_id, showcase_image_url")
+.select("user_id")
     .eq("group_id", groupId);
 
   if (memberRowsError) {
@@ -7736,7 +7736,8 @@ if (!mounted) {
       <MemberShowcaseBox
   member={member}
   currentUserId={userId}
-  onUpdated={() => loadGroupDetails(activeGroup.id)}
+  onUpload={uploadShowcaseImage}
+  uploading={showcaseUploading}
 />
     </div>
   </button>
