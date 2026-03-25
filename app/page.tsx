@@ -3592,8 +3592,11 @@ setOpeningPhase("flash");
 
 await new Promise((resolve) => setTimeout(resolve, 180));
 setOpeningPhase("reveal");
-playAlienSound();
 playMysteryRevealSounds();
+
+setTimeout(() => {
+  playAlienSound();
+}, 120);
 
   const { error: deleteError } = await supabase
     .from("inventory_items")
