@@ -2138,7 +2138,7 @@ const stopMysteryBoxSounds = () => {
 const playClassicSpinSound = () => {
   try {
     if (!classicSpinAudioRef.current) {
-      classicSpinAudioRef.current = new Audio("/sounds/mystery-box-jingle-full.mp3");
+      classicSpinAudioRef.current = new Audio("/sounds/spinsound2.mp3");
       classicSpinAudioRef.current.preload = "auto";
     }
 
