@@ -1149,6 +1149,8 @@ const [mounted, setMounted] = useState(false);
   "home" | "picks" | "slot" | "profile" | "group" | "admin"
 >("home");
 
+
+
 useEffect(() => {
   if (screen === "slot") {
     playCasinoBackground();
@@ -1936,6 +1938,7 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
 const [firelineFlash, setFirelineFlash] = useState(false);
 const hitSoundRef = useRef<HTMLAudioElement | null>(null);
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
+const classicSpinSoundIdRef = useRef(0);
   const mysteryLoadupAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryWaterbombAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryInsertAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2091,8 +2094,18 @@ useEffect(() => {
 
   lastFirelineRef.current = current;
 }, [data.firelineProgress]);
-const stopClassicSpinSound = () => {
-  fadeOutAudio(classicSpinAudioRef.current, 500);
+const stopClassicSpinSound = (soundIdAtSpinStart?: number) => {
+  const audio = classicSpinAudioRef.current;
+  if (!audio) return;
+
+  if (
+    typeof soundIdAtSpinStart === "number" &&
+    soundIdAtSpinStart !== classicSpinSoundIdRef.current
+  ) {
+    return;
+  }
+
+  fadeOutAudio(audio, 500);
 };
 const stopCasinoBackground = () => {
   const audio = casinoBackgroundAudioRef.current;
@@ -2210,11 +2223,23 @@ const stopMysteryBoxSounds = () => {
     mysteryWaterbombAudioRef.current.volume = 1;
   }
 };
+
+
+
 const playClassicSpinSound = () => {
   try {
+    classicSpinSoundIdRef.current += 1;
+
+    if (classicSpinAudioRef.current) {
+      classicSpinAudioRef.current.pause();
+      classicSpinAudioRef.current.currentTime = 0;
+    }
+
     const audio = new Audio("/sounds/spinsound2.mp3");
     audio.preload = "auto";
     audio.volume = 1;
+
+    classicSpinAudioRef.current = audio;
 
     audio.play().catch(() => {});
   } catch {}
@@ -4072,12 +4097,14 @@ const spin = async (): Promise<AutoSpinResult> => {
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
 
   const isClassicSingleSlot = slotViewMode === "classic" && !multiSlotMode;
+let currentSpinSoundId: number | undefined = undefined;
 
-  if (isClassicSingleSlot) {
-    playClassicSpinSound();
-  } else {
-    stopClassicSpinSound();
-  }
+if (isClassicSingleSlot) {
+  playClassicSpinSound();
+  currentSpinSoundId = classicSpinSoundIdRef.current;
+} else {
+  stopClassicSpinSound();
+}
 
   setSpinning(true);
 
@@ -4095,7 +4122,7 @@ const spin = async (): Promise<AutoSpinResult> => {
     setTimeout(async () => {
       clearInterval(rolling);
 
-      if (multiSlotMode) {
+if (multiSlotMode) {
         let finalGrid = [buildRandomRow(), buildRandomRow(), buildRandomRow()];
 finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
 
@@ -4220,7 +4247,7 @@ setReels(finalReels);
       await loadRemoteUserGameState(userId);
 
       setSpinning(false);
-stopClassicSpinSound();
+stopClassicSpinSound(currentSpinSoundId);
       resolve({
         success: true,
         stopAutoSpin: shouldStopBecauseHighRarity,
