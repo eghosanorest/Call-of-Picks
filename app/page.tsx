@@ -3451,28 +3451,29 @@ const rewardFirelineBox = async () => {
 const FIRELINE_MAX = 5;
 
 const increaseFirelineProgress = async () => {
-  let reachedMax = false;
+  let nextProgress = 0;
+  let shouldReward = false;
 
   updateData((prev) => {
     const current = Number(prev.firelineProgress || 0);
-    const next = current + 1;
-
-    if (next >= FIRELINE_MAX) {
-      reachedMax = true;
-      return {
-        ...prev,
-        firelineProgress: 0,
-      };
-    }
+    nextProgress = Math.min(current + 1, FIRELINE_MAX);
+    shouldReward = nextProgress >= FIRELINE_MAX;
 
     return {
       ...prev,
-      firelineProgress: next,
+      firelineProgress: nextProgress,
     };
   });
 
-  if (reachedMax) {
+  if (shouldReward) {
     await rewardFirelineBox();
+
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    updateData((prev) => ({
+      ...prev,
+      firelineProgress: 0,
+    }));
   }
 };
 const grantServerInventoryItem = async (symbol: LocalSymbol) => {
@@ -3769,7 +3770,11 @@ useEffect(() => {
     }
   };
 }, []);
-  const spin = async () => {
+  
+const firelineProgressValue = Number(data.firelineProgress || 0);
+const firelinePercent = Math.min((firelineProgressValue / FIRELINE_MAX) * 100, 100);
+
+const spin = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
     return;
@@ -5644,7 +5649,7 @@ setChatList([]);
                     <div className="relative z-20 mb-3 h-4 w-full overflow-hidden rounded-full border border-white/10 bg-black/40">
   <div
     className="absolute inset-y-0 left-0 overflow-hidden rounded-full transition-all duration-500"
-    style={{ width: `${(data.firelineProgress / 5) * 100}%` }}
+    style={{ width: `${firelinePercent}%` }}
   >
     <video
       src="/effects/fireline.webm"
@@ -5664,7 +5669,20 @@ setChatList([]);
                     {slotViewMode === "classic" && (
   <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
 )}
-
+<div className="relative z-20 mt-3 flex items-center justify-center gap-3">
+  {[1, 2, 3, 4, 5].map((step) => (
+    <img
+      key={step}
+      src={`/zeichen/zahl${step}gelb.png`}
+      alt={`Fireline Stufe ${step}`}
+      className={`h-10 w-auto object-contain transition-all duration-300 ${
+        firelineProgressValue >= step
+          ? "scale-100 opacity-100"
+          : "scale-90 opacity-20 grayscale"
+      }`}
+    />
+  ))}
+</div>
                     <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
   {slotViewMode === "multiline" ? (
     <div className="relative mx-auto w-fit">
