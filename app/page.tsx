@@ -1010,10 +1010,8 @@ function MemberShowcaseBox({
 
       const publicUrl = data.publicUrl;
 
-const publicUrl = data.publicUrl;
 
-console.log("SHOWCASE URL:", publicUrl); // 👈 HIER
-
+      
       const { error: updateError } = await supabase
         .from("group_members")
         .update({ showcase_image_url: publicUrl })
