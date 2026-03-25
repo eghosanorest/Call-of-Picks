@@ -1085,7 +1085,7 @@ const [inventorySort, setInventorySort] = useState<
 const getForcedWinSymbol = (): LocalSymbol => {
   return weightedRandomFromPool(activeSlotPool);
 };
-
+const [expandedInventoryStackSlug, setExpandedInventoryStackSlug] = useState<string | null>(null);
 const buildWinningRow = (symbol?: LocalSymbol): LocalSymbol[] => {
   const winSymbol = symbol || getForcedWinSymbol();
   return [winSymbol, winSymbol, winSymbol];
@@ -5554,25 +5554,34 @@ scheduleNextFirstshotSignal(0);
         setRoundFeedback("Unentschieden. Beide behalten ihre Items.");
       } else {
         const winnerId =
-          firstTime < secondTime
-            ? refreshedChallenge.first_player_id
-            : refreshedChallenge.second_player_id;
+  firstTime < secondTime
+    ? refreshedChallenge.first_player_id
+    : refreshedChallenge.second_player_id;
 
-        if (!winnerId) {
-          throw new Error("Gewinner konnte nicht bestimmt werden.");
-        }
+if (!winnerId) {
+  throw new Error("Gewinner konnte nicht bestimmt werden.");
+}
 
-        const losingItemId =
-          winnerId === refreshedChallenge.from_user_id
-            ? refreshedChallenge.requested_inventory_item_id
-            : refreshedChallenge.offered_inventory_item_id;
+const loserId =
+  winnerId === refreshedChallenge.from_user_id
+    ? refreshedChallenge.to_user_id
+    : refreshedChallenge.from_user_id;
 
-        const { error: transferError } = await supabase
-          .from("inventory_items")
-          .update({ owner_id: winnerId })
-          .eq("id", losingItemId);
+const losingItemId =
+  winnerId === refreshedChallenge.from_user_id
+    ? refreshedChallenge.requested_inventory_item_id
+    : refreshedChallenge.offered_inventory_item_id;
 
-          await supabase.from("inventory_item_history").insert({
+const { error: transferError } = await supabase
+  .from("inventory_items")
+  .update({ owner_id: winnerId })
+  .eq("id", losingItemId);
+
+if (transferError) {
+  throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
+}
+
+await supabase.from("inventory_item_history").insert({
   inventory_item_id: losingItemId,
   owner_id: winnerId,
   action: "transferred",
@@ -8255,29 +8264,39 @@ if (!mounted) {
     <div className="grid grid-cols-2 gap-3">
       {selectedMember.items.map((item) => (
         <ItemCard
-          key={item.inventory_id}
-          item={item}
-          action={
-            selectedMember.user_id !== userId ? (
-              <button
-                onClick={() => {
-                  if (isInventoryItemLocked(item.inventory_id)) return;
-                  setChallengeTargetItem(item);
-                  setChallengeTargetUser(selectedMember);
-                  setShowChallengePicker(true);
-                }}
-                disabled={isInventoryItemLocked(item.inventory_id)}
-                className={`w-full rounded-xl px-3 py-2 text-sm font-semibold text-white transition ${
-                  isInventoryItemLocked(item.inventory_id)
-                    ? "bg-zinc-700 opacity-50"
-                    : "bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-[0_8px_24px_rgba(139,92,246,0.28)]"
-                }`}
-              >
-                {isInventoryItemLocked(item.inventory_id) ? "Gebunden" : "Challenge"}
-              </button>
-            ) : null
-          }
-        />
+  key={item.inventory_id}
+  item={item}
+  onClick={() =>
+    openItemDetail({
+      inventory_id: item.inventory_id,
+      slug: item.slug,
+      name: item.name,
+      rarity: item.rarity,
+      image_path: item.image_path,
+    })
+  }
+  action={
+    selectedMember.user_id !== userId ? (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isInventoryItemLocked(item.inventory_id)) return;
+          setChallengeTargetItem(item);
+          setChallengeTargetUser(selectedMember);
+          setShowChallengePicker(true);
+        }}
+        disabled={isInventoryItemLocked(item.inventory_id)}
+        className={`w-full rounded-xl px-3 py-2 text-sm font-semibold text-white transition ${
+          isInventoryItemLocked(item.inventory_id)
+            ? "bg-zinc-700 opacity-50"
+            : "bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-[0_8px_24px_rgba(139,92,246,0.28)]"
+        }`}
+      >
+        {isInventoryItemLocked(item.inventory_id) ? "Gebunden" : "Challenge"}
+      </button>
+    ) : null
+  }
+/>
       ))}
     </div>
   )}
