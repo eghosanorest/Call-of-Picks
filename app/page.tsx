@@ -5978,7 +5978,7 @@ setChatList([]);
 {/* 👉 Content Layer */}
 <div className="relative z-10"></div>
                     
-                    {slotViewMode === "classic" && !multiSlotMode && (
+                    {slotViewMode === "classic" && (
   <div className="relative z-20 mb-3 w-full">
     {firelineRewardNotice && (
       <div className="mb-3 rounded-2xl border border-amber-400/30 bg-amber-500/15 px-4 py-3 text-center text-sm font-bold text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.2)]">
