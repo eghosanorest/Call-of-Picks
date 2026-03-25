@@ -6089,42 +6089,60 @@ setChatList([]);
                   </div>
 
 {slotViewMode !== "risk" && (
-  <Button
-    onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
-    variant="violet"
-    disabled={
-      slotViewMode === "multiline"
-        ? data.tokens < multiLineStake || spinning
-        : data.tokens < effectiveSlotCost || spinning
-    }
-    className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
-  >
-    {spinning
-      ? "Dreht..."
-      : slotViewMode === "multiline"
-        ? `${multiLineStake} Token einsetzen`
-        : `${effectiveSlotCost} Token einsetzen`}
-  </Button>
+  <div className="relative z-10 mt-4 grid grid-cols-2 gap-3">
+    <Button
+      onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
+      variant="violet"
+      disabled={
+        slotViewMode === "multiline"
+          ? data.tokens < multiLineStake || spinning || autoSpinRunning
+          : data.tokens < effectiveSlotCost || spinning || autoSpinRunning
+      }
+      className="w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.12em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
+    >
+      {spinning
+        ? "Dreht..."
+        : slotViewMode === "multiline"
+          ? `${multiLineStake} Token einsetzen`
+          : `${effectiveSlotCost} Token einsetzen`}
+    </Button>
+
+    <Button
+      onClick={() => {
+        const mode = slotViewMode === "multiline" ? "multiline-slot" : "slot";
+
+        if (autoSpinRunning && autoSpinMode === mode) {
+          stopAutoSpin();
+        } else {
+          startAutoSpin(mode);
+        }
+      }}
+      variant={
+        autoSpinRunning &&
+        autoSpinMode === (slotViewMode === "multiline" ? "multiline-slot" : "slot")
+          ? "danger"
+          : "ghost"
+      }
+      disabled={
+        !autoSpinRunning &&
+        (
+          spinning ||
+          (slotViewMode === "multiline"
+            ? data.tokens < multiLineStake
+            : data.tokens < effectiveSlotCost)
+        )
+      }
+      className="w-full py-4 text-base font-black uppercase tracking-[0.12em]"
+    >
+      {autoSpinRunning &&
+      autoSpinMode === (slotViewMode === "multiline" ? "multiline-slot" : "slot")
+        ? "Stop"
+        : "Auto-Start"}
+    </Button>
+  </div>
 )}
                   
-{slotViewMode !== "risk" && (
-  <Button
-    onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
-    variant="violet"
-    disabled={
-      slotViewMode === "multiline"
-        ? data.tokens < multiLineStake || spinning
-        : data.tokens < effectiveSlotCost || spinning
-    }
-    className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
-  >
-    {spinning
-      ? "Dreht..."
-      : slotViewMode === "multiline"
-        ? `${multiLineStake} Token einsetzen`
-        : `${effectiveSlotCost} Token einsetzen`}
-  </Button>
-)}
+
                 </div>
 
                 <AnimatePresence>
