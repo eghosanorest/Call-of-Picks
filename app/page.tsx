@@ -4730,19 +4730,35 @@ useEffect(() => {
       .channel(`cop-live-${userId}`)
       
 .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "firstshot_challenges",
-        },
-        async () => {
-          await loadChallenges(userId);
-          if (activeGroupId) {
-            await loadGroupDetails(activeGroupId);
-          }
-        }
-      )
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "firstshot_challenges",
+    filter: `from_user_id=eq.${userId}`,
+  },
+  async () => {
+    await loadChallenges(userId);
+    if (activeGroupId) {
+      await loadGroupDetails(activeGroupId);
+    }
+  }
+)
+.on(
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "firstshot_challenges",
+    filter: `to_user_id=eq.${userId}`,
+  },
+  async () => {
+    await loadChallenges(userId);
+    if (activeGroupId) {
+      await loadGroupDetails(activeGroupId);
+    }
+  }
+)
       .on(
         "postgres_changes",
         {
