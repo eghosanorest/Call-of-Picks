@@ -2212,15 +2212,8 @@ const stopMysteryBoxSounds = () => {
 };
 const playClassicSpinSound = () => {
   try {
-    if (!classicSpinAudioRef.current) {
-      classicSpinAudioRef.current = new Audio("/sounds/spinsound2.mp3");
-      classicSpinAudioRef.current.preload = "auto";
-    }
-
-    const audio = classicSpinAudioRef.current;
-
-    audio.pause();
-    audio.currentTime = 0;
+    const audio = new Audio("/sounds/spinsound2.mp3");
+    audio.preload = "auto";
     audio.volume = 1;
 
     audio.play().catch(() => {});
