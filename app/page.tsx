@@ -9356,93 +9356,121 @@ if (!mounted) {
 )}
         
         <AnimatePresence>
-  {itemDetailOpen && selectedItemDetail && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4"
-    >
+  {itemDetailOpen && selectedItemDetail && (() => {
+    const detailRarity = normalizeRarity(selectedItemDetail.rarity);
+
+    let detailCardBg = "bg-black/30";
+    let detailInnerBg = "bg-black/20";
+
+    if (detailRarity === "Rare") {
+      detailCardBg = "bg-green-950/30";
+      detailInnerBg = "bg-green-500/10 shadow-[0_0_12px_rgba(34,197,94,0.25)]";
+    }
+    if (detailRarity === "Epic") {
+      detailCardBg = "bg-blue-950/30";
+      detailInnerBg = "bg-blue-500/10 shadow-[0_0_14px_rgba(59,130,246,0.3)]";
+    }
+    if (detailRarity === "Super") {
+      detailCardBg = "bg-purple-950/30";
+      detailInnerBg = "bg-purple-500/10 shadow-[0_0_16px_rgba(168,85,247,0.35)]";
+    }
+    if (detailRarity === "Legendary") {
+      detailCardBg = "bg-amber-950/30";
+      detailInnerBg = "bg-amber-500/10 shadow-[0_0_18px_rgba(245,158,11,0.4)]";
+    }
+    if (detailRarity === "Ultra") {
+      detailCardBg = "bg-red-950/30";
+      detailInnerBg = "bg-red-500/10 shadow-[0_0_22px_rgba(239,68,68,0.5)]";
+    }
+
+    return (
       <motion.div
-        initial={{ scale: 0.96, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.96, opacity: 0 }}
-        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-sm text-zinc-400">Item-Profil</div>
-            <div className="text-3xl font-black">{selectedItemDetail.name}</div>
-          </div>
-
-          <button
-            onClick={() => {
-              setItemDetailOpen(false);
-              setSelectedItemDetail(null);
-              setSelectedItemHistory([]);
-            }}
-            className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="mt-5 grid gap-4 md:grid-cols-[220px_1fr]">
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
-            <div className="flex h-48 items-center justify-center rounded-2xl bg-black/20 p-3">
-              <img
-                src={getSafeItemImagePath(selectedItemDetail.slug, selectedItemDetail.image_path)}
-                alt={selectedItemDetail.name}
-                className="max-h-full max-w-full object-contain"
-              />
+        <motion.div
+          initial={{ scale: 0.96, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.96, opacity: 0 }}
+          className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm text-zinc-400">Item-Profil</div>
+              <div className="text-3xl font-black">{selectedItemDetail.name}</div>
             </div>
-            <div className="mt-3 text-sm text-zinc-400">{selectedItemDetail.rarity}</div>
+
+            <button
+              onClick={() => {
+                setItemDetailOpen(false);
+                setSelectedItemDetail(null);
+                setSelectedItemHistory([]);
+              }}
+              className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
-            <div className="text-sm text-zinc-400">Bio</div>
-            <div className="mt-2 text-sm leading-6 text-zinc-200">
-              {selectedItemDetail.detail_text || "Für dieses Item wurde keine Bio hinterlegt."}
+          <div className="mt-5 grid gap-4 md:grid-cols-[220px_1fr]">
+            <div className={`rounded-3xl border border-white/10 p-4 ${detailCardBg}`}>
+              <div className={`flex h-48 items-center justify-center rounded-2xl p-3 ${detailInnerBg}`}>
+                <img
+                  src={getSafeItemImagePath(selectedItemDetail.slug, selectedItemDetail.image_path)}
+                  alt={selectedItemDetail.name}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+              <div className="mt-3 text-sm text-zinc-400">{selectedItemDetail.rarity}</div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+              <div className="text-sm text-zinc-400">Bio</div>
+              <div className="mt-2 text-sm leading-6 text-zinc-200">
+                {selectedItemDetail.detail_text || "Für dieses Item wurde keine Bio hinterlegt."}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-5 rounded-3xl border border-white/10 bg-black/30 p-4">
-          <div className="text-lg font-bold">Item-Verlauf</div>
-          <div className="mt-3 space-y-3">
-            {selectedItemHistory.length ? (
-              selectedItemHistory.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-white">
-                        {entry.owner_name}
+          <div className="mt-5 rounded-3xl border border-white/10 bg-black/30 p-4">
+            <div className="text-lg font-bold">Item-Verlauf</div>
+            <div className="mt-3 space-y-3">
+              {selectedItemHistory.length ? (
+                selectedItemHistory.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-white">
+                          {entry.owner_name}
+                        </div>
+                        <div className="text-sm text-zinc-400">
+                          {entry.action}
+                          {entry.source_name ? ` · von ${entry.source_name}` : ""}
+                          {entry.note ? ` · ${entry.note}` : ""}
+                        </div>
                       </div>
-                      <div className="text-sm text-zinc-400">
-                        {entry.action}
-                        {entry.source_name ? ` · von ${entry.source_name}` : ""}
-                        {entry.note ? ` · ${entry.note}` : ""}
+                      <div className="text-xs text-zinc-500">
+                        {new Date(entry.created_at).toLocaleString("de-DE")}
                       </div>
-                    </div>
-                    <div className="text-xs text-zinc-500">
-                      {new Date(entry.created_at).toLocaleString("de-DE")}
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="rounded-2xl bg-black/40 px-4 py-3 text-sm text-zinc-500">
+                  Noch kein Verlauf vorhanden.
                 </div>
-              ))
-            ) : (
-              <div className="rounded-2xl bg-black/40 px-4 py-3 text-sm text-zinc-500">
-                Noch kein Verlauf vorhanden.
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
-  )}
+    );
+  })()}
 </AnimatePresence>
 
 <AnimatePresence>
