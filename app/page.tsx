@@ -1032,11 +1032,7 @@ const multilineSymbols = useMemo(() => {
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
-type AutoSpinResult = {
-  success: boolean;
-  stopAutoSpin?: boolean;
-  stopReason?: string;
-};
+
 
 const spinMultiLine = async (): Promise<AutoSpinResult> => {
   if (!userId) {
@@ -1057,18 +1053,17 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
     return {
       success: false,
       stopAutoSpin: true,
-      stopReason: "Zu wenig Tokens oder Spin läuft bereits",
+      stopReason: "Nicht genug Tokens oder Spin läuft bereits.",
     };
   }
 
   const nextTokensBeforePayout = data.tokens - multiLineStake;
   const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
-
   if (!tokenSaved) {
     return {
       success: false,
       stopAutoSpin: true,
-      stopReason: "Tokens konnten nicht aktualisiert werden",
+      stopReason: "Tokens konnten nicht aktualisiert werden.",
     };
   }
 
@@ -1079,13 +1074,8 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
   setLastMultiLineWinningIndexes([]);
 
   const randomFromMultiLine = (): LocalSymbol => {
-    if (!multilineSymbols.length) {
-      return symbolPool[0]!;
-    }
-
-    const picked =
-      multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
-
+    if (!multilineSymbols.length) return symbolPool[0]!;
+    const picked = multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
     return picked ?? symbolPool[0]!;
   };
 
@@ -1143,7 +1133,7 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
       );
 
       setSpinning(false);
-      resolve({ success: true, stopAutoSpin: false });
+      resolve({ success: true });
     }, 1800);
   });
 };
@@ -2102,7 +2092,11 @@ const rarityRank: Record<string, number> = {
   Legendary: 5,
   Ultra: 6,
 };
-
+type AutoSpinResult = {
+  success: boolean;
+  stopAutoSpin?: boolean;
+  stopReason?: string;
+};
 const isSuperOrHigher = (rarity?: string | null) => {
   if (!rarity) return false;
   return (rarityRank[rarity] || 0) >= rarityRank["Super"];
@@ -2216,6 +2210,58 @@ const riskStake = slotStake;
 const [riskPot, setRiskPot] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
 const [riskRunning, setRiskRunning] = useState(false);
+
+useEffect(() => {
+  if (!autoSpinRunning || !autoSpinMode) return;
+
+  if (autoSpinRemaining <= 0) {
+    stopAutoSpin();
+    return;
+  }
+
+  if (spinning || riskRunning || openingBusy) return;
+
+  autoSpinTimeoutRef.current = setTimeout(async () => {
+    let result: AutoSpinResult = { success: false };
+
+    if (autoSpinMode === "slot") {
+      result = await spin();
+    } else if (autoSpinMode === "multiline-slot") {
+      result = await spinMultiLine();
+    } else if (autoSpinMode === "risk") {
+      result = await spinRiskGame();
+    }
+
+    if (result.stopAutoSpin) {
+      stopAutoSpin();
+      if (result.stopReason) {
+        setMessage(result.stopReason);
+      }
+      return;
+    }
+
+    if (result.success) {
+      setAutoSpinRemaining((prev) => {
+        const next = prev - 1;
+        if (next <= 0) {
+          stopAutoSpin();
+          return 0;
+        }
+        return next;
+      });
+    } else {
+      stopAutoSpin();
+    }
+  }, 1000);
+
+  return () => {
+    if (autoSpinTimeoutRef.current) {
+      clearTimeout(autoSpinTimeoutRef.current);
+      autoSpinTimeoutRef.current = null;
+    }
+  };
+}, [autoSpinRunning, autoSpinMode, autoSpinRemaining, spinning, riskRunning, openingBusy, data.tokens]);
+
 const [riskSelectedItem, setRiskSelectedItem] = useState<LocalSymbol | null>(null);
 const [riskGameOver, setRiskGameOver] = useState(false);
 const [riskCashedOut, setRiskCashedOut] = useState(false);
@@ -3696,27 +3742,45 @@ const getNearestRiskIndex = (
 
   return nearestIndex;
 };
-const spinRiskGame = async () => {
+const spinRiskGame = async (): Promise<AutoSpinResult> => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
-    return;
+    return { success: false, stopAutoSpin: true, stopReason: "Kein Login" };
   }
 
-  if (riskRunning || spinning) return;
+  if (riskRunning || spinning) {
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Spin läuft bereits.",
+    };
+  }
 
   if (riskStake <= 0) {
     setMessage("Bitte einen gültigen Einsatz wählen.");
-    return;
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Ungültiger Einsatz.",
+    };
   }
 
   if (data.tokens < riskStake) {
     setMessage("Nicht genug Tokens.");
-    return;
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Nicht genug Tokens.",
+    };
   }
 
   if (!riskSafePool.length) {
     setMessage("Keine gültigen Alles-Spitze-Items gefunden.");
-    return;
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Keine Risk-Items gefunden.",
+    };
   }
 
   if (riskLoopRef.current) {
@@ -3726,17 +3790,23 @@ const spinRiskGame = async () => {
 
   const nextTokens = data.tokens - riskStake;
   const tokenSaved = await updateTokensOnline(nextTokens);
-  if (!tokenSaved) return;
+  if (!tokenSaved) {
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Tokens konnten nicht aktualisiert werden.",
+    };
+  }
 
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
 
   setRiskRunning(true);
-setRiskGameOver(false);
-setRiskCashedOut(false);
-setLastWonItem(null);
-setRiskGiftRarity(null);
-setRiskSelectedItem(null);
-setRiskSelectedIndex(null);
+  setRiskGameOver(false);
+  setRiskCashedOut(false);
+  setLastWonItem(null);
+  setRiskGiftRarity(null);
+  setRiskSelectedItem(null);
+  setRiskSelectedIndex(null);
 
   const shouldBust = Math.random() < RISK_BUST_CHANCE;
   const landingSymbol = shouldBust
@@ -3764,34 +3834,45 @@ setRiskSelectedIndex(null);
 
   setRiskOffset(targetOffset);
 
-  riskLoopRef.current = setTimeout(() => {
-    const finalIndex = getNearestRiskIndex(
-      targetOffset,
-      visibleWidth,
-      workingStrip.length
-    );
+  return new Promise<AutoSpinResult>((resolve) => {
+    riskLoopRef.current = setTimeout(() => {
+      const finalIndex = getNearestRiskIndex(
+        targetOffset,
+        visibleWidth,
+        workingStrip.length
+      );
 
-    const selected = workingStrip[finalIndex];
-    setRiskSelectedItem(selected);
-    setRiskSelectedIndex(finalIndex);
+      const selected = workingStrip[finalIndex];
+      setRiskSelectedItem(selected);
+      setRiskSelectedIndex(finalIndex);
+      riskSpinCursorRef.current = finalIndex;
 
-    riskSpinCursorRef.current = finalIndex;
+      if (selected.slug === zombieTeddySymbol.slug) {
+        setRiskPot(0);
+        setRiskStreak(0);
+        setRiskGameOver(true);
+        setMessage("Zombie Teddy getroffen. Alles verloren.");
+        setRiskRunning(false);
+        riskLoopRef.current = null;
 
-    if (selected.slug === zombieTeddySymbol.slug) {
-      setRiskPot(0);
-      setRiskStreak(0);
-      setRiskGameOver(true);
-      setMessage("Zombie Teddy getroffen. Alles verloren.");
-    } else {
+        resolve({
+          success: true,
+          stopAutoSpin: true,
+          stopReason: "Zombie Teddy getroffen.",
+        });
+        return;
+      }
+
       const reward = getRiskTokenReward(selected, riskStake);
       setRiskPot((prev) => prev + reward);
       setRiskStreak((prev) => prev + 1);
       setMessage(`${selected.name} erkannt. +${reward} Tokens in den Pot.`);
-    }
 
-    setRiskRunning(false);
-    riskLoopRef.current = null;
-  }, 2350);
+      setRiskRunning(false);
+      riskLoopRef.current = null;
+      resolve({ success: true });
+    }, 2350);
+  });
 };
   
 
@@ -3807,158 +3888,186 @@ useEffect(() => {
 const firelineProgressValue = Number(data.firelineProgress || 0);
 const firelinePercent = Math.min((firelineProgressValue / FIRELINE_MAX) * 100, 100);
 
-const spin = async () => {
+const spin = async (): Promise<AutoSpinResult> => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
-    return;
+    return { success: false, stopAutoSpin: true, stopReason: "Kein Login" };
   }
 
-  if (data.tokens < effectiveSlotCost || spinning) return;
+  if (data.tokens < effectiveSlotCost || spinning) {
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Nicht genug Tokens oder Spin läuft bereits.",
+    };
+  }
 
   setLastWin(null);
   setLastWins([]);
 
   const nextTokens = data.tokens - effectiveSlotCost;
   const tokenSaved = await updateTokensOnline(nextTokens);
-  if (!tokenSaved) return;
+  if (!tokenSaved) {
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Tokens konnten nicht aktualisiert werden.",
+    };
+  }
 
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
-const isClassicSingleSlot = slotViewMode === "classic" && !multiSlotMode;
 
-if (isClassicSingleSlot) {
-  playClassicSpinSound();
-} else {
-  stopClassicSpinSound();
-}
+  const isClassicSingleSlot = slotViewMode === "classic" && !multiSlotMode;
+
+  if (isClassicSingleSlot) {
+    playClassicSpinSound();
+  } else {
+    stopClassicSpinSound();
+  }
 
   setSpinning(true);
 
   const bonusChance = SLOT_BONUS_CHANCE[slotStake] || 0;
 
-  const rolling = setInterval(() => {
-    if (multiSlotMode) {
-      setMultiReels([
-        buildRandomRow(),
-        buildRandomRow(),
-        buildRandomRow(),
-      ]);
-    } else {
-      setReels(buildRandomRow());
-    }
-  }, 100);
+  return new Promise<AutoSpinResult>((resolve) => {
+    const rolling = setInterval(() => {
+      if (multiSlotMode) {
+        setMultiReels([buildRandomRow(), buildRandomRow(), buildRandomRow()]);
+      } else {
+        setReels(buildRandomRow());
+      }
+    }, 100);
 
-  setTimeout(async () => {
-    clearInterval(rolling);
+    setTimeout(async () => {
+      clearInterval(rolling);
 
-    if (multiSlotMode) {
-  let finalGrid = [
-    buildRandomRow(),
-    buildRandomRow(),
-    buildRandomRow(),
-  ];
+      if (multiSlotMode) {
+        let finalGrid = [buildRandomRow(), buildRandomRow(), buildRandomRow()];
+        finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
 
-  finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
+        setMultiReels(finalGrid);
 
-  setMultiReels(finalGrid);
+        const winningRows = finalGrid.filter(isWinningRow);
+        const wonSymbols = winningRows.map((row) => row[0]);
+        const hitCount = winningRows.length;
 
-  const winningRows = finalGrid.filter(isWinningRow);
-const wonSymbols = winningRows.map((row) => row[0]);
-const hitCount = winningRows.length;
+        const spinRecord = {
+          at: Date.now(),
+          reels: finalGrid.flat().map((r) => r.id),
+          won: winningRows.length > 0,
+        };
 
-const payout = 0;
-const finalTokens = nextTokens;
+        await pushSpinHistoryOnline(spinRecord.reels, spinRecord.won);
 
-  const spinRecord = {
-    at: Date.now(),
-    reels: finalGrid.flat().map((r) => r.id),
-    won: winningRows.length > 0,
-  };
+        updateData((prev) => ({
+          ...prev,
+          tokens: nextTokens,
+          inventory:
+            winningRows.length > 0
+              ? [
+                  ...prev.inventory,
+                  ...wonSymbols.map((symbol, index) => ({
+                    inventory_id: `local-${Date.now()}-${index}`,
+                    id: symbol.id,
+                    slug: symbol.slug,
+                    name: symbol.name,
+                    rarity: symbol.rarity,
+                    image_path: symbol.image_path,
+                    weight: symbol.weight,
+                  })),
+                ]
+              : prev.inventory,
+          spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
+        }));
 
-  await pushSpinHistoryOnline(spinRecord.reels, spinRecord.won);
+        for (const symbol of wonSymbols) {
+          await grantServerInventoryItem(symbol);
+        }
 
-  updateData((prev) => ({
-    ...prev,
-    tokens: finalTokens,
-    inventory:
-      winningRows.length > 0
-        ? [
-            ...prev.inventory,
-            ...wonSymbols.map((symbol, index) => ({
-              inventory_id: `local-${Date.now()}-${index}`,
-              id: symbol.id,
-              slug: symbol.slug,
-              name: symbol.name,
-              rarity: symbol.rarity,
-              image_path: symbol.image_path,
-              weight: symbol.weight,
-            })),
-          ]
-        : prev.inventory,
-    spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
-  }));
+        let shouldStopBecauseHighRarity = false;
 
-  for (const symbol of wonSymbols) {
-    await grantServerInventoryItem(symbol);
-  }
+        if (wonSymbols.length > 0) {
+          setLastWins(wonSymbols);
+          setLastWin(wonSymbols[0]);
+          setMessage(`${hitCount} Treffer! ${wonSymbols.length} Item(s) gewonnen.`);
+          shouldStopBecauseHighRarity = wonSymbols.some((symbol) =>
+            isSuperOrHigher(symbol.rarity)
+          );
+        } else {
+          setMessage("Kein Treffer.");
+        }
 
-  if (wonSymbols.length > 0) {
-  setLastWins(wonSymbols);
-  setLastWin(wonSymbols[0]);
-  setMessage(`${hitCount} Treffer! ${wonSymbols.length} Item(s) gewonnen.`);
-} else {
-  setMessage("Kein Treffer.");
-}
+        await increaseFirelineProgress();
+        await loadRemoteUserGameState(userId);
 
-  await increaseFirelineProgress();
-await loadRemoteUserGameState(userId);
+        setSpinning(false);
 
-setSpinning(false);
-return;
-}
+        resolve({
+          success: true,
+          stopAutoSpin: shouldStopBecauseHighRarity,
+          stopReason: shouldStopBecauseHighRarity
+            ? "Super oder höher erhalten."
+            : undefined,
+        });
+        return;
+      }
 
-    let finalReels = buildRandomRow();
-    finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
+      let finalReels = buildRandomRow();
+      finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
 
-    setReels(finalReels);
+      setReels(finalReels);
 
-    const win = isWinningRow(finalReels);
-    const spinRecord = {
-      at: Date.now(),
-      reels: finalReels.map((r) => r.id),
-      won: win,
-    };
+      const win = isWinningRow(finalReels);
+      const spinRecord = {
+        at: Date.now(),
+        reels: finalReels.map((r) => r.id),
+        won: win,
+      };
 
-    await pushSpinHistoryOnline(spinRecord.reels, win);
+      await pushSpinHistoryOnline(spinRecord.reels, win);
 
-    updateData((prev) => ({
-      ...prev,
-      inventory: win
-        ? [
-            ...prev.inventory,
-            {
-              inventory_id: `local-${Date.now()}`,
-              id: finalReels[0].id,
-              slug: finalReels[0].slug,
-              name: finalReels[0].name,
-              rarity: finalReels[0].rarity,
-              image_path: finalReels[0].image_path,
-              weight: finalReels[0].weight,
-            },
-          ]
-        : prev.inventory,
-      spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
-    }));
+      updateData((prev) => ({
+        ...prev,
+        inventory: win
+          ? [
+              ...prev.inventory,
+              {
+                inventory_id: `local-${Date.now()}`,
+                id: finalReels[0].id,
+                slug: finalReels[0].slug,
+                name: finalReels[0].name,
+                rarity: finalReels[0].rarity,
+                image_path: finalReels[0].image_path,
+                weight: finalReels[0].weight,
+              },
+            ]
+          : prev.inventory,
+        spinHistory: [spinRecord, ...prev.spinHistory].slice(0, 12),
+      }));
 
-    if (win) {
-  setLastWin(finalReels[0]);
-  setLastWins([finalReels[0]]);
-  await grantServerInventoryItem(finalReels[0]);
-}
+      let shouldStopBecauseHighRarity = false;
 
-await increaseFirelineProgress();
-await loadRemoteUserGameState(userId);
-setSpinning(false);
-  }, 1800);
+      if (win) {
+        setLastWin(finalReels[0]);
+        setLastWins([finalReels[0]]);
+        await grantServerInventoryItem(finalReels[0]);
+        shouldStopBecauseHighRarity = isSuperOrHigher(finalReels[0].rarity);
+      }
+
+      await increaseFirelineProgress();
+      await loadRemoteUserGameState(userId);
+
+      setSpinning(false);
+
+      resolve({
+        success: true,
+        stopAutoSpin: shouldStopBecauseHighRarity,
+        stopReason: shouldStopBecauseHighRarity
+          ? "Super oder höher erhalten."
+          : undefined,
+      });
+    }, 1800);
+  });
 };
 
   const ensureProfile = async (uid: string, email: string) => {
