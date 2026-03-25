@@ -3596,7 +3596,7 @@ playMysteryRevealSounds();
 
 setTimeout(() => {
   playAlienSound();
-}, 1000);
+}, 1300);
 
   const { error: deleteError } = await supabase
     .from("inventory_items")
