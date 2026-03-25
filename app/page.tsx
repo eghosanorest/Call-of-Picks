@@ -5646,7 +5646,10 @@ setChatList([]);
 
 {/* 👉 Content Layer */}
 <div className="relative z-10"></div>
-                    <div className="relative z-20 mb-3 h-4 w-full overflow-hidden rounded-full border border-white/10 bg-black/40">
+                    
+                    <div className="relative z-20 mb-3 h-6 w-full overflow-hidden rounded-full border border-white/10 bg-black/40">
+
+  {/* 🔥 Fire Progress */}
   <div
     className="absolute inset-y-0 left-0 overflow-hidden rounded-full transition-all duration-500"
     style={{ width: `${firelinePercent}%` }}
@@ -5663,25 +5666,31 @@ setChatList([]);
     <div className="absolute inset-0 shadow-[0_0_25px_rgba(255,120,0,0.6),0_0_40px_rgba(255,60,0,0.5)]" />
   </div>
 
-  <div className="absolute inset-0 rounded-full ring-1 ring-white/10" />
-</div>
+  {/* 🔢 ZAHLEN AUF DEM BALKEN */}
+  {[1, 2, 3, 4, 5].map((step) => {
+    const percent = (step / 5) * 100;
 
-                    {slotViewMode === "classic" && (
-  <div className="pointer-events-none absolute left-3 right-3 top-1/2 z-20 h-[3px] -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-300 to-transparent shadow-[0_0_16px_rgba(252,211,77,0.8)]" />
-)}
-<div className="relative z-20 mt-3 flex items-center justify-center gap-3">
-  {[1, 2, 3, 4, 5].map((step) => (
-    <img
-      key={step}
-      src={`/zeichen/zahl${step}gelb.png`}
-      alt={`Fireline Stufe ${step}`}
-      className={`h-10 w-auto object-contain transition-all duration-300 ${
-        firelineProgressValue >= step
-          ? "scale-100 opacity-100"
-          : "scale-90 opacity-20 grayscale"
-      }`}
-    />
-  ))}
+    return (
+      <div
+        key={step}
+        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
+        style={{ left: `${percent}%` }}
+      >
+        <img
+          src={`/zeichen/zahl${step}gelb.png`}
+          alt={`Stufe ${step}`}
+          className={`h-6 w-auto transition-all duration-300 ${
+            firelineProgressValue >= step
+              ? "opacity-100 scale-110 drop-shadow-[0_0_6px_rgba(255,200,0,0.9)]"
+              : "opacity-30 scale-90 grayscale"
+          }`}
+        />
+      </div>
+    );
+  })}
+
+  {/* Rahmen */}
+  <div className="absolute inset-0 rounded-full ring-1 ring-white/10" />
 </div>
                     <div className="relative z-10 rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-inner shadow-black/50">
   {slotViewMode === "multiline" ? (
