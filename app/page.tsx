@@ -5673,13 +5673,17 @@ setChatList([]);
     2: 40,
     3: 60,
     4: 80,
-    5: 96,
+    5: 100,
   } as const;
+
+  const isLast = step === 5;
 
   return (
     <div
       key={step}
-      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
+      className={`absolute top-1/2 -translate-y-1/2 ${
+        isLast ? "-translate-x-full" : "-translate-x-1/2"
+      }`}
       style={{ left: `${percentMap[step]}%` }}
     >
       <img
