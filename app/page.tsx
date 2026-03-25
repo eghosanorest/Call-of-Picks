@@ -1991,7 +1991,7 @@ const playHitSound = () => {
     const audio = hitSoundRef.current;
 
     audio.currentTime = 0; // 🔥 wichtig → immer neu starten
-    audio.volume = 0.4;    // kannst du anpassen
+    audio.volume = 1;    // kannst du anpassen
     audio.play().catch(() => {});
   } catch {}
 };
