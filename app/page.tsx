@@ -3390,7 +3390,9 @@ playMysteryRevealSounds();
   setMessage(`🎁 Du hast ${rewardItemRow.name} erhalten!`);
   setOpeningBusy(false);
 };
-const grantServerMysteryBoxByRarity = async (rarity: LocalInventoryItem["rarity"]) => {
+const grantServerMysteryBoxByRarity = async (
+  rarity: LocalInventoryItem["rarity"]
+) => {
   if (!userId) return null;
 
   const slug = getMysteryBoxSlugByRarity(rarity);
@@ -3402,7 +3404,7 @@ const grantServerMysteryBoxByRarity = async (rarity: LocalInventoryItem["rarity"
     .maybeSingle();
 
   if (error || !itemRow?.id) {
-    setMessage("Mystery Box konnte nicht gefunden werden.");
+    setMessage(`Mystery Box (${slug}) konnte nicht gefunden werden.`);
     return null;
   }
 
@@ -3432,8 +3434,6 @@ const grantServerMysteryBoxByRarity = async (rarity: LocalInventoryItem["rarity"
     inventory: [boxItem, ...prev.inventory],
   }));
 
-  await loadRemoteUserGameState(userId);
-
   return boxItem;
 };
 
@@ -3444,36 +3444,36 @@ const rewardFirelineBox = async () => {
   if (box) {
     setMessage(`Fireline voll! Du hast eine ${rarity}-Mystery Box erhalten.`);
     setLastWonItem(box);
+    return true;
   } else {
     setMessage("Fireline voll, aber die Mystery Box konnte nicht vergeben werden.");
+    return false;
   }
 };
 const FIRELINE_MAX = 5;
 
 const increaseFirelineProgress = async () => {
-  let nextProgress = 0;
-  let shouldReward = false;
+  const currentProgress = Number(data.firelineProgress || 0);
+  const nextProgress = Math.min(currentProgress + 1, FIRELINE_MAX);
 
-  updateData((prev) => {
-    const current = Number(prev.firelineProgress || 0);
-    nextProgress = Math.min(current + 1, FIRELINE_MAX);
-    shouldReward = nextProgress >= FIRELINE_MAX;
+  updateData((prev) => ({
+    ...prev,
+    firelineProgress: nextProgress,
+  }));
 
-    return {
-      ...prev,
-      firelineProgress: nextProgress,
-    };
-  });
+  if (nextProgress >= FIRELINE_MAX) {
+    const rewarded = await rewardFirelineBox();
 
-  if (shouldReward) {
-    await rewardFirelineBox();
+    if (rewarded) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
 
-    await new Promise((resolve) => setTimeout(resolve, 700));
+      updateData((prev) => ({
+        ...prev,
+        firelineProgress: 0,
+      }));
 
-    updateData((prev) => ({
-      ...prev,
-      firelineProgress: 0,
-    }));
+      await loadRemoteUserGameState(userId);
+    }
   }
 };
 const grantServerInventoryItem = async (symbol: LocalSymbol) => {
@@ -5667,28 +5667,33 @@ setChatList([]);
   </div>
 
   {/* 🔢 ZAHLEN AUF DEM BALKEN */}
-  {[1, 2, 3, 4, 5].map((step) => {
-    const percent = (step / 5) * 100;
+  {([1, 2, 3, 4, 5] as const).map((step) => {
+  const percentMap = {
+    1: 20,
+    2: 40,
+    3: 60,
+    4: 80,
+    5: 96,
+  } as const;
 
-    return (
-      <div
-        key={step}
-        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
-        style={{ left: `${percent}%` }}
-      >
-        <img
-          src={`/zeichen/zahl${step}gelb.png`}
-          alt={`Stufe ${step}`}
-          className={`h-6 w-auto transition-all duration-300 ${
-            firelineProgressValue >= step
-              ? "opacity-100 scale-110 drop-shadow-[0_0_6px_rgba(255,200,0,0.9)]"
-              : "opacity-30 scale-90 grayscale"
-          }`}
-        />
-      </div>
-    );
-  })}
-
+  return (
+    <div
+      key={step}
+      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
+      style={{ left: `${percentMap[step]}%` }}
+    >
+      <img
+        src={`/zeichen/zahl${step}gelb.png`}
+        alt={`Stufe ${step}`}
+        className={`h-6 w-auto transition-all duration-300 ${
+          firelineProgressValue >= step
+            ? "opacity-100 scale-110 drop-shadow-[0_0_6px_rgba(255,200,0,0.9)]"
+            : "opacity-30 scale-90 grayscale"
+        }`}
+      />
+    </div>
+  );
+})}
   {/* Rahmen */}
   <div className="absolute inset-0 rounded-full ring-1 ring-white/10" />
 </div>
