@@ -1143,6 +1143,17 @@ const [mounted, setMounted] = useState(false);
   "home" | "picks" | "slot" | "profile" | "group" | "admin"
 >("home");
 
+useEffect(() => {
+  if (screen === "slot") {
+    playCasinoBackground();
+  } else {
+    stopCasinoBackground();
+  }
+
+  return () => {
+    stopCasinoBackground();
+  };
+}, [screen]);
   const [data, setData] = useState<LocalData>(defaultData);
 
   const [spinning, setSpinning] = useState(false);
@@ -1922,7 +1933,7 @@ const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryLoadupAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryWaterbombAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryInsertAudioRef = useRef<HTMLAudioElement | null>(null);
-
+const casinoBackgroundAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryAudioFadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mysteryInsertTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const stopClassicSpinSound = () => {
@@ -1969,7 +1980,31 @@ const ensureMysteryAudio = () => {
     mysteryInsertAudioRef.current.preload = "auto";
   }
 };
+const playCasinoBackground = () => {
+  try {
+    if (!casinoBackgroundAudioRef.current) {
+      const audio = new Audio("/sounds/casinobackground.mp3");
+      audio.loop = true;
+      audio.volume = 0.12; // schön dezent
+      casinoBackgroundAudioRef.current = audio;
+    }
 
+    const audio = casinoBackgroundAudioRef.current;
+
+    // 🔥 verhindert mehrfaches Starten
+    if (audio.paused) {
+      audio.play().catch(() => {});
+    }
+  } catch {}
+};
+
+const stopCasinoBackground = () => {
+  const audio = casinoBackgroundAudioRef.current;
+  if (!audio) return;
+
+  audio.pause();
+  audio.currentTime = 0;
+};
 const playMysteryLoadupSound = () => {
   try {
     ensureMysteryAudio();
