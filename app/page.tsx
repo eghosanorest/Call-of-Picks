@@ -1937,6 +1937,23 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
 };
 const [firelineFlash, setFirelineFlash] = useState(false);
 const hitSoundRef = useRef<HTMLAudioElement | null>(null);
+const alienAudioRef = useRef<HTMLAudioElement | null>(null);
+
+const playAlienSound = () => {
+  try {
+    if (!alienAudioRef.current) {
+      alienAudioRef.current = new Audio("/sounds/alien1.mp3");
+      alienAudioRef.current.preload = "auto";
+    }
+
+    const audio = alienAudioRef.current;
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = 1;
+    audio.play().catch(() => {});
+  } catch {}
+};
+
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
 const classicSpinSoundIdRef = useRef(0);
   const mysteryLoadupAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2096,22 +2113,7 @@ useEffect(() => {
 }, [data.firelineProgress]);
 const stopClassicSpinSound = (soundIdAtSpinStart?: number) => {
   
-  const alienAudioRef = useRef<HTMLAudioElement | null>(null);
-
-const playAlienSound = () => {
-  try {
-    if (!alienAudioRef.current) {
-      alienAudioRef.current = new Audio("/sounds/alien1.mp3");
-      alienAudioRef.current.preload = "auto";
-    }
-
-    const audio = alienAudioRef.current;
-
-    audio.currentTime = 0;
-    audio.volume = 0.9; // kannst du noch anpassen
-    audio.play().catch(() => {});
-  } catch {}
-};
+  
   
   const audio = classicSpinAudioRef.current;
   if (!audio) return;
