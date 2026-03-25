@@ -6187,24 +6187,7 @@ setChatList([]);
   </div>
 </div>
                   
-{slotViewMode !== "risk" && (
-  <Button
-    onClick={slotViewMode === "multiline" ? spinMultiLine : spin}
-    variant="violet"
-    disabled={
-      slotViewMode === "multiline"
-        ? data.tokens < multiLineStake || spinning
-        : data.tokens < effectiveSlotCost || spinning
-    }
-    className="relative z-10 mt-4 w-full border border-violet-300/20 bg-[linear-gradient(90deg,rgba(139,92,246,1),rgba(217,70,239,1),rgba(168,85,247,1))] py-4 text-base font-black uppercase tracking-[0.18em] shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
-  >
-    {spinning
-      ? "Dreht..."
-      : slotViewMode === "multiline"
-        ? `${multiLineStake} Token einsetzen`
-        : `${effectiveSlotCost} Token einsetzen`}
-  </Button>
-)}
+otViewMode !== "risk" && (
                 </div>
 
                 <AnimatePresence>
