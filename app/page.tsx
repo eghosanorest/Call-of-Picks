@@ -2095,6 +2095,24 @@ useEffect(() => {
   lastFirelineRef.current = current;
 }, [data.firelineProgress]);
 const stopClassicSpinSound = (soundIdAtSpinStart?: number) => {
+  
+  const alienAudioRef = useRef<HTMLAudioElement | null>(null);
+
+const playAlienSound = () => {
+  try {
+    if (!alienAudioRef.current) {
+      alienAudioRef.current = new Audio("/sounds/alien1.mp3");
+      alienAudioRef.current.preload = "auto";
+    }
+
+    const audio = alienAudioRef.current;
+
+    audio.currentTime = 0;
+    audio.volume = 0.9; // kannst du noch anpassen
+    audio.play().catch(() => {});
+  } catch {}
+};
+  
   const audio = classicSpinAudioRef.current;
   if (!audio) return;
 
@@ -3572,6 +3590,7 @@ setOpeningPhase("flash");
 
 await new Promise((resolve) => setTimeout(resolve, 180));
 setOpeningPhase("reveal");
+playAlienSound();
 playMysteryRevealSounds();
 
   const { error: deleteError } = await supabase
