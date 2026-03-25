@@ -2217,33 +2217,9 @@ const playClassicSpinSound = () => {
       classicSpinAudioRef.current.preload = "auto";
     }
 
-    const fadeOutAudio = (
-  audio: HTMLAudioElement | null,
-  duration = 400
-) => {
-  if (!audio) return;
+    const audio = classicSpinAudioRef.current;
 
-  const startVolume = audio.volume;
-  const steps = 12;
-  const stepTime = duration / steps;
-  let currentStep = 0;
-
-  const fade = setInterval(() => {
-    currentStep++;
-
-    const nextVolume = startVolume * (1 - currentStep / steps);
-    audio.volume = Math.max(0, nextVolume);
-
-    if (currentStep >= steps) {
-      clearInterval(fade);
-      audio.pause();
-      audio.currentTime = 0;
-      audio.volume = startVolume; // reset für nächsten Spin
-    }
-  }, stepTime);
-};
-const audio = classicSpinAudioRef.current;
-
+    audio.pause();
     audio.currentTime = 0;
     audio.volume = 1;
 
