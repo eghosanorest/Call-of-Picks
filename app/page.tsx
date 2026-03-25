@@ -6030,13 +6030,18 @@ setChatList([]);
             </Button>
 
             <Button
-              onClick={resetRiskRound}
-              variant="danger"
-              disabled={riskRunning}
-              className="w-full"
-            >
-              Neu starten
-            </Button>
+  onClick={() => startAutoSpin("risk")}
+  variant="ghost"
+  disabled={
+    autoSpinRunning ||
+    riskRunning ||
+    spinning ||
+    data.tokens < riskStake
+  }
+  className="w-full"
+>
+  Auto-Start
+</Button>
           </div>
         </div>
       </div>
@@ -6083,6 +6088,104 @@ setChatList([]);
                     </div>
                   </div>
 
+<div className="relative z-20 mt-4 rounded-[22px] border border-white/10 bg-black/30 px-4 py-4">
+  <div className="flex items-center justify-between gap-3">
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">
+        Auto-Spin
+      </div>
+      <div className="mt-1 text-sm font-bold text-white">
+        Bis zu 100 Spins
+      </div>
+    </div>
+
+    {autoSpinRunning && (
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200">
+        Rest: {autoSpinRemaining}
+      </div>
+    )}
+  </div>
+
+  <div className="mt-3 flex items-center gap-3">
+    <input
+      type="number"
+      min={1}
+      max={100}
+      value={autoSpinCount}
+      onChange={(e) =>
+        setAutoSpinCount(
+          Math.max(1, Math.min(100, Number(e.target.value) || 1))
+        )
+      }
+      className="w-24 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 text-white outline-none"
+    />
+
+    <div className="text-sm text-zinc-400">
+      1 Sekunde Abstand zwischen den Spins
+    </div>
+  </div>
+
+  <div className="mt-3 grid grid-cols-2 gap-3">
+    {slotViewMode === "classic" ? (
+      <Button
+  onClick={() => {
+    const mode = multiSlotMode ? "multiline-slot" : "slot";
+
+    if (autoSpinRunning && autoSpinMode === mode) {
+      stopAutoSpin();
+    } else {
+      startAutoSpin(mode);
+    }
+  }}
+  variant={
+    autoSpinRunning &&
+    autoSpinMode === (multiSlotMode ? "multiline-slot" : "slot")
+      ? "danger"
+      : "ghost"
+  }
+  disabled={
+    !autoSpinRunning &&
+    (spinning || data.tokens < effectiveSlotCost)
+  }
+  className="w-full"
+>
+  {autoSpinRunning &&
+  autoSpinMode === (multiSlotMode ? "multiline-slot" : "slot")
+    ? "Stop"
+    : "Auto-Start"}
+</Button>
+    ) : slotViewMode === "multiline" ? (
+      <>
+        <Button
+  onClick={() => {
+    if (autoSpinRunning && autoSpinMode === "risk") {
+      stopAutoSpin();
+    } else {
+      startAutoSpin("risk");
+    }
+  }}
+  variant={autoSpinRunning && autoSpinMode === "risk" ? "danger" : "ghost"}
+  disabled={
+    !autoSpinRunning &&
+    (riskRunning || spinning || data.tokens < riskStake)
+  }
+  className="w-full"
+>
+  {autoSpinRunning && autoSpinMode === "risk" ? "Stop" : "Auto-Start"}
+</Button>
+
+        <Button
+          onClick={stopAutoSpin}
+          variant="danger"
+          disabled={!autoSpinRunning}
+          className="w-full"
+        >
+          Stop
+        </Button>
+      </>
+    ) : null}
+  </div>
+</div>
                   
 {slotViewMode !== "risk" && (
   <Button
