@@ -966,12 +966,11 @@ function MemberShowcaseBox({
   onUpdated: () => Promise<void> | void;
 }) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const isOwnBox = currentUserId === member.user_id;
   const [uploading, setUploading] = React.useState(false);
 
-  const handlePickImage = (
-    e: React.MouseEvent<HTMLButtonElement>
-  ) => {
+  const isOwnBox = currentUserId === member.user_id;
+
+  const handlePickImage = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!isOwnBox || uploading) return;
     fileInputRef.current?.click();
@@ -983,89 +982,85 @@ function MemberShowcaseBox({
     e.stopPropagation();
 
     const file = e.target.files?.[0];
-if (!file || !isOwnBox) return;
+    if (!file || !isOwnBox) return;
 
-try {
-  setUploading(true);
+    try {
+      setUploading(true);
 
-  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-  const filePath = `${member.user_id}/showcase-${Date.now()}.${ext}`;
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const filePath = `${member.user_id}/showcase-${Date.now()}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from("member-showcase")
-    .upload(filePath, file, {
-      upsert: true,
-    });
+      const { error: uploadError } = await supabase.storage
+        .from("member-showcase")
+        .upload(filePath, file, { upsert: true });
 
-  if (uploadError) {
-    console.error("UPLOAD ERROR:", uploadError);
-    return;
-  }
+      if (uploadError) {
+        console.error("SHOWCASE UPLOAD ERROR:", uploadError);
+        return;
+      }
 
-  const { data } = supabase.storage
-    .from("member-showcase")
-    .getPublicUrl(filePath);
+      const { data } = supabase.storage
+        .from("member-showcase")
+        .getPublicUrl(filePath);
 
-  const publicUrl = data.publicUrl;
-  console.log("SHOWCASE URL:", publicUrl);
+      const publicUrl = data.publicUrl;
 
-  const { error: updateError } = await supabase
-  .from("profiles")
-  .update({ showcase_image_url: publicUrl })
-  .eq("id", currentUserId);
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ showcase_image_url: publicUrl })
+        .eq("id", currentUserId);
 
-  if (updateError) {
-    console.error("UPDATE ERROR:", updateError);
-    return;
-  }
+      if (updateError) {
+        console.error("SHOWCASE PROFILE UPDATE ERROR:", updateError);
+        return;
+      }
 
-  console.log("SHOWCASE SAVED FOR:", member.user_id);
-
-  await onUpdated();
-} catch (err) {
-  console.error("SHOWCASE CATCH ERROR:", err);
-} finally {
-  setUploading(false);
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
-  }
-}
+      await onUpdated();
+    } catch (err) {
+      console.error("SHOWCASE ERROR:", err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   return (
-  <div
-    className="flex items-center"
-    onClick={(e) => e.stopPropagation()}
-  >
-    <button
-      type="button"
-      onClick={handlePickImage}
-      disabled={!isOwnBox || uploading}
-      title={isOwnBox ? "Bild hochladen" : "Nur eigenes Bild änderbar"}
-      className="flex h-12 w-48 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-white/5 transition hover:bg-white/10 disabled:opacity-60"
-    >
-      {member.showcase_image_url ? (
-        <img
-          src={member.showcase_image_url}
-          alt="Showcase"
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span className="text-xs text-zinc-400">
-          {uploading ? "..." : "Bild"}
-        </span>
-      )}
-    </button>
+    <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={handlePickImage}
+        disabled={!isOwnBox || uploading}
+        title={isOwnBox ? "Bild hochladen" : "Nur eigenes Bild änderbar"}
+        className={`flex h-12 w-48 items-center justify-center overflow-hidden rounded-xl border border-white/15 transition ${
+          isOwnBox
+            ? "bg-white/5 hover:bg-white/10"
+            : "cursor-default bg-white/[0.03]"
+        } ${uploading ? "opacity-60" : ""}`}
+      >
+        {member.showcase_image_url ? (
+          <img
+            src={member.showcase_image_url}
+            alt={`${member.username} Showcase`}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-xs text-zinc-400">
+            {uploading ? "..." : "Bild"}
+          </span>
+        )}
+      </button>
 
-    <input
-      ref={fileInputRef}
-      type="file"
-      accept="image/*"
-      className="hidden"
-      onChange={handleFileChange}
-    />
-  </div>
-);
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
 }
 function getRarityBorderClasses(rarity?: string | null) {
   const normalized = normalizeRarity(rarity);
