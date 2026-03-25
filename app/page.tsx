@@ -1010,6 +1010,10 @@ function MemberShowcaseBox({
 
       const publicUrl = data.publicUrl;
 
+const publicUrl = data.publicUrl;
+
+console.log("SHOWCASE URL:", publicUrl); // 👈 HIER
+
       const { error: updateError } = await supabase
         .from("group_members")
         .update({ showcase_image_url: publicUrl })
@@ -1033,39 +1037,39 @@ function MemberShowcaseBox({
   };
 
   return (
-    <div
-      className="shrink-0"
-      onClick={(e) => e.stopPropagation()}
+  <div
+    className="flex items-center"
+    onClick={(e) => e.stopPropagation()}
+  >
+    <button
+      type="button"
+      onClick={handlePickImage}
+      disabled={!isOwnBox || uploading}
+      title={isOwnBox ? "Bild hochladen" : "Nur eigenes Bild änderbar"}
+      className="flex h-12 w-48 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-white/5 transition hover:bg-white/10 disabled:opacity-60"
     >
-      <button
-        type="button"
-        onClick={handlePickImage}
-        disabled={!isOwnBox || uploading}
-        className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-white/5 transition hover:bg-white/10 disabled:opacity-70"
-        title={isOwnBox ? "Bild hochladen" : "Nur eigenes Bild änderbar"}
-      >
-        {member.showcase_image_url ? (
-          <img
-            src={member.showcase_image_url}
-            alt="Showcase"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <span className="text-xs text-zinc-400">
-            {uploading ? "..." : "+"}
-          </span>
-        )}
-      </button>
+      {member.showcase_image_url ? (
+        <img
+          src={member.showcase_image_url}
+          alt="Showcase"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="text-xs text-zinc-400">
+          {uploading ? "..." : "Bild"}
+        </span>
+      )}
+    </button>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-    </div>
-  );
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={handleFileChange}
+    />
+  </div>
+);
 }
 function getRarityBorderClasses(rarity?: string | null) {
   const normalized = normalizeRarity(rarity);
@@ -7730,7 +7734,7 @@ if (!mounted) {
       className="h-10 w-10 rounded-full border border-white/10 object-cover"
     />
 
-    <div className="flex flex-1 items-center justify-between gap-3">
+    <div className="flex flex-1 items-center gap-4">
       <div className="flex flex-col">
         <div className="font-bold">
           {member.username}
