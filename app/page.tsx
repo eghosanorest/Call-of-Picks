@@ -119,6 +119,7 @@ type MemberType = {
   user_id: string;
   username: string;
   avatar_url?: string;
+  showcase_image_url?: string | null;
 };
 
 type MemberInventoryItem = {
@@ -951,7 +952,121 @@ function getRarityParticleClasses(rarity?: string | null) {
 
   return "bg-white/70";
 }
+function MemberShowcaseBox({
+  member,
+  currentUserId,
+  groupId,
+  onUpdated,
+}: {
+  member: {
+    user_id: string;
+    username: string;
+    showcase_image_url?: string | null;
+  };
+  currentUserId: string | null;
+  groupId: string;
+  onUpdated: () => Promise<void> | void;
+}) {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const isOwnBox = currentUserId === member.user_id;
+  const [uploading, setUploading] = React.useState(false);
 
+  const handlePickImage = (
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    e.stopPropagation();
+    if (!isOwnBox || uploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    e.stopPropagation();
+
+    const file = e.target.files?.[0];
+    if (!file || !isOwnBox) return;
+
+    try {
+      setUploading(true);
+
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const filePath = `${groupId}/${member.user_id}-${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("member-showcase")
+        .upload(filePath, file, {
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error(uploadError);
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from("member-showcase")
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from("group_members")
+        .update({ showcase_image_url: publicUrl })
+        .eq("group_id", groupId)
+        .eq("user_id", member.user_id);
+
+      if (updateError) {
+        console.error(updateError);
+        return;
+      }
+
+      await onUpdated();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  return (
+    <div
+      className="shrink-0"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        onClick={handlePickImage}
+        disabled={!isOwnBox || uploading}
+        className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-white/5 transition hover:bg-white/10 disabled:opacity-70"
+        title={isOwnBox ? "Bild hochladen" : "Nur eigenes Bild änderbar"}
+      >
+        {member.showcase_image_url ? (
+          <img
+            src={member.showcase_image_url}
+            alt="Showcase"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-xs text-zinc-400">
+            {uploading ? "..." : "+"}
+          </span>
+        )}
+      </button>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+}
 function getRarityBorderClasses(rarity?: string | null) {
   const normalized = normalizeRarity(rarity);
 
@@ -963,6 +1078,117 @@ function getRarityBorderClasses(rarity?: string | null) {
 
   return "border-white/15";
 }
+
+function MemberShowcaseBox({
+  member,
+  currentUserId,
+  groupId,
+  onUpdated,
+}: {
+  member: {
+    user_id: string;
+    username: string;
+    showcase_image_url?: string | null;
+  };
+  currentUserId: string;
+  groupId: string;
+  onUpdated: () => Promise<void> | void;
+}) {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const isOwnBox = currentUserId === member.user_id;
+  const [uploading, setUploading] = React.useState(false);
+
+  const handlePickImage = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (!isOwnBox || uploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !isOwnBox) return;
+
+    try {
+      setUploading(true);
+
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const filePath = `${groupId}/${member.user_id}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("member-showcase")
+        .upload(filePath, file, {
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error(uploadError);
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from("member-showcase")
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from("group_members")
+        .update({ showcase_image_url: publicUrl })
+        .eq("group_id", groupId)
+        .eq("user_id", member.user_id);
+
+      if (updateError) {
+        console.error(updateError);
+        return;
+      }
+
+      await onUpdated();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  return (
+    <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={handlePickImage}
+        disabled={!isOwnBox || uploading}
+        title={isOwnBox ? "Bild hochladen" : "Nur eigenes Bild änderbar"}
+        className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-white/5 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {member.showcase_image_url ? (
+          <img
+            src={member.showcase_image_url}
+            alt={`${member.username} Showcase`}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-xs text-zinc-400">
+            {uploading ? "..." : "+"}
+          </span>
+        )}
+      </button>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+}
+
+
 export default function CallOfPicksPage() {
   
 
@@ -1003,7 +1229,7 @@ const [allItemCatalog, setAllItemCatalog] = useState<
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
-
+const [showcaseUploading, setShowcaseUploading] = useState(false);
 const [openingBox, setOpeningBox] = useState<LocalInventoryItem | null>(null);
 const [openingReward, setOpeningReward] = useState<LocalInventoryItem | null>(null);
 const [openingPhase, setOpeningPhase] = useState<"idle" | "build" | "flash" | "reveal">("idle");
@@ -1656,7 +1882,51 @@ const uploadAvatar = async (file: File) => {
 
   setMessage("Profilbild aktualisiert.");
 };
+const uploadShowcaseImage = async (file: File) => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
+  if (!user || !file) return;
+
+  setShowcaseUploading(true);
+  setMessage("");
+
+  try {
+    const fileExt = file.name.split(".").pop() || "png";
+    const filePath = `${user.id}/showcase-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      setMessage(`Showcase-Upload fehlgeschlagen: ${uploadError.message}`);
+      return;
+    }
+
+    const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+    const publicUrl = data.publicUrl;
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ showcase_image_url: publicUrl })
+      .eq("id", user.id);
+
+    if (profileError) {
+      setMessage(`Showcase konnte nicht gespeichert werden: ${profileError.message}`);
+      return;
+    }
+
+    setMessage("Showcase-Bild gespeichert.");
+
+    if (activeGroupId) {
+      await loadGroupDetails(activeGroupId);
+    }
+  } finally {
+    setShowcaseUploading(false);
+  }
+};
 const saveProfile = async () => {
   const {
     data: { user },
@@ -4674,59 +4944,69 @@ setNeedsUsername(!nextName);
   };
 
   const loadGroupDetails = async (groupId: string) => {
-    if (!groupId) {
-      setMembers([]);
-      setMemberInventories([]);
-      return;
-    }
+  if (!groupId) {
+    setMembers([]);
+    setMemberInventories([]);
+    return;
+  }
 
-    const { data: memberRows, error: memberRowsError } = await supabase
-      .from("group_members")
-      .select("user_id")
-      .eq("group_id", groupId);
+  const { data: memberRows, error: memberRowsError } = await supabase
+    .from("group_members")
+    .select("user_id, showcase_image_url")
+    .eq("group_id", groupId);
 
-    if (memberRowsError) {
-      setMessage(memberRowsError.message);
-      return;
-    }
+  if (memberRowsError) {
+    setMessage(memberRowsError.message);
+    return;
+  }
 
-    const memberIds = (memberRows || []).map((row: any) => row.user_id);
+  const memberIds = (memberRows || []).map((row: any) => row.user_id);
 
-    if (!memberIds.length) {
-      setMembers([]);
-      setMemberInventories([]);
-      return;
-    }
+  if (!memberIds.length) {
+    setMembers([]);
+    setMemberInventories([]);
+    return;
+  }
 
-    const { data: profileRows, error: profileRowsError } = await supabase
-  .from("profiles")
-  .select("id, username, display_name, avatar_url")
-  .in("id", memberIds);
+  const { data: profileRows, error: profileRowsError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .in("id", memberIds);
 
-    if (profileRowsError) {
-      setMessage(profileRowsError.message);
-      return;
-    }
+  if (profileRowsError) {
+    setMessage(profileRowsError.message);
+    return;
+  }
 
-    const profileMap = new Map(
-  (profileRows || []).map((p: any) => [
-    p.id,
-    {
-      username: p.username || p.display_name || p.id,
-      avatar_url: p.avatar_url || "",
-    },
-  ])
-);
+  const profileMap = new Map(
+    (profileRows || []).map((p: any) => [
+      p.id,
+      {
+        username: p.username || p.display_name || p.id,
+        avatar_url: p.avatar_url || "",
+      },
+    ])
+  );
 
-const nextMembers = memberIds.map((id: string) => ({
-  user_id: id,
-  username: profileMap.get(id)?.username || id,
-  avatar_url: profileMap.get(id)?.avatar_url || "",
-}));
+  const memberMap = new Map(
+    (memberRows || []).map((row: any) => [
+      row.user_id,
+      {
+        showcase_image_url: row.showcase_image_url || "",
+      },
+    ])
+  );
 
-    setMembers(nextMembers);
-    await loadGroupInventories(memberIds);
-  };
+  const nextMembers = memberIds.map((id: string) => ({
+    user_id: id,
+    username: profileMap.get(id)?.username || id,
+    avatar_url: profileMap.get(id)?.avatar_url || "",
+    showcase_image_url: memberMap.get(id)?.showcase_image_url || "",
+  }));
+
+  setMembers(nextMembers);
+  await loadGroupInventories(memberIds);
+};
 
   useEffect(() => {
   const currentMatches = data.weeks[data.currentMajor]?.[data.currentWeek] || [];
@@ -7557,17 +7837,26 @@ if (!mounted) {
       className="h-10 w-10 rounded-full border border-white/10 object-cover"
     />
 
-    <div className="flex flex-col">
-      <div className="font-bold">
-        {member.username}
-        {member.isMe ? " (Du)" : ""}
+    <div className="flex flex-1 items-center justify-between gap-3">
+      <div className="flex flex-col">
+        <div className="font-bold">
+          {member.username}
+          {member.isMe ? " (Du)" : ""}
+        </div>
+
+        <div className="text-xs text-zinc-400">
+          Inventar: {
+            memberInventories.find((m) => m.user_id === member.user_id)?.items.length || 0
+          }
+        </div>
       </div>
 
-      <div className="text-xs text-zinc-400">
-        Inventar: {
-          memberInventories.find((m) => m.user_id === member.user_id)?.items.length || 0
-        }
-      </div>
+      <MemberShowcaseBox
+        member={member}
+        currentUserId={userId}
+        groupId={activeGroup.id}
+        onUpdated={() => loadGroupDetails(activeGroup.id)}
+      />
     </div>
   </button>
 
