@@ -468,6 +468,85 @@ function normalizeRarity(rarity?: string | null) {
 
   return "Common";
 }
+const openItemDetail = async (item: {
+  inventory_id?: string;
+  slug?: string | null;
+  name: string;
+  rarity: string;
+  image_path?: string | null;
+}) => {
+  setSelectedItemDetail({
+    inventory_id: item.inventory_id,
+    slug: item.slug,
+    name: item.name,
+    rarity: item.rarity,
+    image_path: item.image_path,
+  });
+  setSelectedItemHistory([]);
+  setItemDetailOpen(true);
+
+  let detailText: string | null = null;
+
+  if (item.slug) {
+    const { data: itemRow } = await supabase
+      .from("items")
+      .select("detail_text")
+      .eq("slug", item.slug)
+      .maybeSingle();
+
+    detailText = itemRow?.detail_text || null;
+  }
+
+  let historyRows: any[] = [];
+
+  if (item.inventory_id) {
+    const { data } = await supabase
+      .from("inventory_item_history")
+      .select("id, owner_id, action, source_user_id, note, created_at")
+      .eq("inventory_item_id", item.inventory_id)
+      .order("created_at", { ascending: true });
+
+    historyRows = data || [];
+  }
+
+  const userIds = Array.from(
+    new Set(
+      historyRows.flatMap((row) => [row.owner_id, row.source_user_id]).filter(Boolean)
+    )
+  );
+
+  let profileMap = new Map<string, string>();
+
+  if (userIds.length) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, display_name")
+      .in("id", userIds);
+
+    profileMap = new Map(
+      (profiles || []).map((p: any) => [p.id, p.display_name || p.username || p.id])
+    );
+  }
+
+  setSelectedItemDetail({
+    inventory_id: item.inventory_id,
+    slug: item.slug,
+    name: item.name,
+    rarity: item.rarity,
+    image_path: item.image_path,
+    detail_text: detailText,
+  });
+
+  setSelectedItemHistory(
+    historyRows.map((row) => ({
+      ...row,
+      owner_name: profileMap.get(row.owner_id) || row.owner_id,
+      source_name: row.source_user_id
+        ? profileMap.get(row.source_user_id) || row.source_user_id
+        : null,
+    }))
+  );
+};
 
 const slugMap: Record<string, string> = {
   "zombieteddy-ultra": "/items/zombieteddy-ultra.png",
@@ -695,16 +774,21 @@ function Button({
 function ItemCard({
   item,
   action,
+  onClick,
 }: {
   item: {
-  name: string;
-  rarity: string;
-  image_path?: string | null;
-  slug?: string | null;
-  category?: string | null;
-};
+    name: string;
+    rarity: string;
+    image_path?: string | null;
+    slug?: string | null;
+    category?: string | null;
+    detail_text?: string | null;
+    inventory_id?: string;
+  };
   action?: React.ReactNode;
+  onClick?: () => void;
 }) {
+  
   const normalizedRarity = normalizeRarity(item.rarity);
 
   let rarityClass = rarityStyles.Common;
@@ -715,7 +799,12 @@ function ItemCard({
   if (normalizedRarity === "Ultra") rarityClass = rarityStyles.Ultra;
 
   return (
-    <div className={`rounded-2xl border p-4 ${rarityClass}`}>
+  <div
+    onClick={onClick}
+    className={`rounded-2xl border p-4 ${rarityClass} ${
+      onClick ? "cursor-pointer transition hover:scale-[1.01]" : ""
+    }`}
+  >
       <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
         <img
   src={getSafeItemImagePath(item.slug, item.image_path)}
@@ -1178,6 +1267,18 @@ const [insertImpactKey, setInsertImpactKey] = useState(0);
   const [message, setMessage] = useState("");
   const [, setNowTick] = useState(0);
   const [firelineRewardNotice, setFirelineRewardNotice] = useState("");
+const [selectedItemDetail, setSelectedItemDetail] = useState<null | {
+  inventory_id?: string;
+  id?: string;
+  slug?: string | null;
+  name: string;
+  rarity: string;
+  image_path?: string | null;
+  detail_text?: string | null;
+}>(null);
+
+const [selectedItemHistory, setSelectedItemHistory] = useState<any[]>([]);
+const [itemDetailOpen, setItemDetailOpen] = useState(false);
 
 useEffect(() => {
   const interval = setInterval(() => {
@@ -5471,6 +5572,14 @@ scheduleNextFirstshotSignal(0);
           .update({ owner_id: winnerId })
           .eq("id", losingItemId);
 
+          await supabase.from("inventory_item_history").insert({
+  inventory_item_id: losingItemId,
+  owner_id: winnerId,
+  action: "transferred",
+  source_user_id: loserId,
+  note: "FirstShot gewonnen",
+});
+
         if (transferError) {
           throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
         }
@@ -9140,6 +9249,96 @@ if (!mounted) {
 )}
         
         <AnimatePresence>
+  {itemDetailOpen && selectedItemDetail && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm text-zinc-400">Item-Profil</div>
+            <div className="text-3xl font-black">{selectedItemDetail.name}</div>
+          </div>
+
+          <button
+            onClick={() => {
+              setItemDetailOpen(false);
+              setSelectedItemDetail(null);
+              setSelectedItemHistory([]);
+            }}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-[220px_1fr]">
+          <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+            <div className="flex h-48 items-center justify-center rounded-2xl bg-black/20 p-3">
+              <img
+                src={getSafeItemImagePath(selectedItemDetail.slug, selectedItemDetail.image_path)}
+                alt={selectedItemDetail.name}
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
+            <div className="mt-3 text-sm text-zinc-400">{selectedItemDetail.rarity}</div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+            <div className="text-sm text-zinc-400">Bio</div>
+            <div className="mt-2 text-sm leading-6 text-zinc-200">
+              {selectedItemDetail.detail_text || "Für dieses Item wurde keine Bio hinterlegt."}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-3xl border border-white/10 bg-black/30 p-4">
+          <div className="text-lg font-bold">Item-Verlauf</div>
+          <div className="mt-3 space-y-3">
+            {selectedItemHistory.length ? (
+              selectedItemHistory.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-white">
+                        {entry.owner_name}
+                      </div>
+                      <div className="text-sm text-zinc-400">
+                        {entry.action}
+                        {entry.source_name ? ` · von ${entry.source_name}` : ""}
+                        {entry.note ? ` · ${entry.note}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {new Date(entry.created_at).toLocaleString("de-DE")}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl bg-black/40 px-4 py-3 text-sm text-zinc-500">
+                Noch kein Verlauf vorhanden.
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
+<AnimatePresence>
   {openingBox && (
     <motion.div
       initial={{ opacity: 0 }}
