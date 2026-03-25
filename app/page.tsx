@@ -2502,36 +2502,7 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const [firstshotRound, setFirstshotRound] = useState<FirstshotRoundState | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const getNextFirstshotDelay = () => {
-  return 300 + Math.floor(Math.random() * 2201); // 300ms bis 2500ms
-};
 
-const scheduleNextFirstshotSignal = (nextRoundIndex: number) => {
-  const delay = getNextFirstshotDelay();
-
-  if (timeoutRef.current) {
-    clearTimeout(timeoutRef.current);
-  }
-
-  setRoundUi("waiting");
-  setRoundFeedback(`Warte auf Signal ${nextRoundIndex + 1}/6`);
-
-  timeoutRef.current = setTimeout(() => {
-    setFirstshotRound((prev) => {
-      if (!prev) return prev;
-
-      return {
-        ...prev,
-        roundIndex: nextRoundIndex,
-        signalAt: Date.now(),
-        clicked: false,
-      };
-    });
-
-    setRoundUi("live");
-    setRoundFeedback(`Signal ${nextRoundIndex + 1}/6`);
-  }, delay);
-};
 
   const [adminDraft, setAdminDraft] = useState({
   teamA: "",
