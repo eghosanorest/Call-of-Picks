@@ -4096,10 +4096,10 @@ const spin = async (): Promise<AutoSpinResult> => {
 
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
 
-  const isClassicSingleSlot = slotViewMode === "classic" && !multiSlotMode;
+  const shouldUseClassicSpinSound = slotViewMode === "classic";
 let currentSpinSoundId: number | undefined = undefined;
 
-if (isClassicSingleSlot) {
+if (shouldUseClassicSpinSound) {
   playClassicSpinSound();
   currentSpinSoundId = classicSpinSoundIdRef.current;
 } else {
