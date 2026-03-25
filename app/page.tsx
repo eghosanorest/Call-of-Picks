@@ -1032,91 +1032,120 @@ const multilineSymbols = useMemo(() => {
       weight: item.weight ?? 1,
     }));
 }, [allItemCatalog]);
-const spinMultiLine = async () => {
+type AutoSpinResult = {
+  success: boolean;
+  stopAutoSpin?: boolean;
+  stopReason?: string;
+};
+
+const spinMultiLine = async (): Promise<AutoSpinResult> => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
-    return;
+    return { success: false, stopAutoSpin: true, stopReason: "Kein Login" };
   }
 
   if (multilineSymbols.length !== 3) {
-    setMessage("Für Multi-Line Slots müssen genau 5 Symbole freigegeben sein.");
-    return;
+    setMessage("Für Multi-Line Slots müssen genau 3 Symbole freigegeben sein.");
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Multi-Line nicht korrekt konfiguriert",
+    };
   }
 
-  if (data.tokens < multiLineStake || spinning) return;
+  if (data.tokens < multiLineStake || spinning) {
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Zu wenig Tokens oder Spin läuft bereits",
+    };
+  }
 
   const nextTokensBeforePayout = data.tokens - multiLineStake;
   const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
-  if (!tokenSaved) return;
+
+  if (!tokenSaved) {
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Tokens konnten nicht aktualisiert werden",
+    };
+  }
 
   updateData((prev) => ({ ...prev, tokens: nextTokensBeforePayout }));
   setSpinning(true);
-setLastMultiLineHitCount(0);
-setLastMultiLinePayout(0);
-setLastMultiLineWinningIndexes([]);
+  setLastMultiLineHitCount(0);
+  setLastMultiLinePayout(0);
+  setLastMultiLineWinningIndexes([]);
 
   const randomFromMultiLine = (): LocalSymbol => {
-  if (!multilineSymbols.length) {
-    return symbolPool[0]!;
-  }
-
-  const picked =
-    multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
-
-  return picked ?? symbolPool[0]!;
-};
-
-  const rolling = setInterval(() => {
-    setMultiLineGrid([
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-    ]);
-  }, 100);
-
-  setTimeout(async () => {
-    clearInterval(rolling);
-
-    const finalGrid = [
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-    ];
-
-    setMultiLineGrid(finalGrid);
-
-    const winningIndexes = getWinningLineIndexes(finalGrid);
-const hitCount = winningIndexes.length;
-const multiplier = getMultiLineMultiplier(hitCount);
-const payout = Math.floor(multiLineStake * multiplier);
-const finalTokens = nextTokensBeforePayout + payout;
-
-    if (payout > 0) {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ tokens: finalTokens })
-        .eq("id", userId);
-
-      if (error) {
-        setMessage(error.message);
-        setSpinning(false);
-        return;
-      }
+    if (!multilineSymbols.length) {
+      return symbolPool[0]!;
     }
 
-    setData((prev) => ({ ...prev, tokens: finalTokens }));
-setLastMultiLineHitCount(hitCount);
-setLastMultiLinePayout(payout);
-setLastMultiLineWinningIndexes(winningIndexes);
+    const picked =
+      multilineSymbols[Math.floor(Math.random() * multilineSymbols.length)];
 
-    setMessage(
-      hitCount > 0
-        ? `${hitCount} Treffer! +${payout} Tokens`
-        : "Kein Treffer."
-    );
+    return picked ?? symbolPool[0]!;
+  };
 
-    setSpinning(false);
-  }, 1800);
+  return new Promise<AutoSpinResult>((resolve) => {
+    const rolling = setInterval(() => {
+      setMultiLineGrid([
+        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      ]);
+    }, 100);
+
+    setTimeout(async () => {
+      clearInterval(rolling);
+
+      const finalGrid = [
+        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+      ];
+
+      setMultiLineGrid(finalGrid);
+
+      const winningIndexes = getWinningLineIndexes(finalGrid);
+      const hitCount = winningIndexes.length;
+      const multiplier = getMultiLineMultiplier(hitCount);
+      const payout = Math.floor(multiLineStake * multiplier);
+      const finalTokens = nextTokensBeforePayout + payout;
+
+      if (payout > 0) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ tokens: finalTokens })
+          .eq("id", userId);
+
+        if (error) {
+          setMessage(error.message);
+          setSpinning(false);
+          resolve({
+            success: false,
+            stopAutoSpin: true,
+            stopReason: error.message,
+          });
+          return;
+        }
+      }
+
+      setData((prev) => ({ ...prev, tokens: finalTokens }));
+      setLastMultiLineHitCount(hitCount);
+      setLastMultiLinePayout(payout);
+      setLastMultiLineWinningIndexes(winningIndexes);
+
+      setMessage(
+        hitCount > 0 ? `${hitCount} Treffer! +${payout} Tokens` : "Kein Treffer."
+      );
+
+      setSpinning(false);
+      resolve({ success: true, stopAutoSpin: false });
+    }, 1800);
+  });
 };
 
 const [mounted, setMounted] = useState(false);
@@ -2059,13 +2088,30 @@ const [slotViewMode, setSlotViewMode] = useState<"classic" | "multiline" | "risk
 
 const effectiveSlotCost = multiSlotMode ? slotStake * 3 : slotStake;
 
-const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
-const [autoSpinMode, setAutoSpinMode] = useState<"slot" | "multiline-slot" | null>(null);
+const [autoSpinCount, setAutoSpinCount] = useState<number>(10);
+const [autoSpinRemaining, setAutoSpinRemaining] = useState<number>(0);
+const [autoSpinRunning, setAutoSpinRunning] = useState(false);
+const [autoSpinMode, setAutoSpinMode] = useState<"slot" | "multiline-slot" | "risk" | null>(null);
 const autoSpinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+const rarityRank: Record<string, number> = {
+  Common: 1,
+  Rare: 2,
+  Epic: 3,
+  Super: 4,
+  Legendary: 5,
+  Ultra: 6,
+};
+
+const isSuperOrHigher = (rarity?: string | null) => {
+  if (!rarity) return false;
+  return (rarityRank[rarity] || 0) >= rarityRank["Super"];
+};
+
 const stopAutoSpin = () => {
-  setAutoSpinEnabled(false);
+  setAutoSpinRunning(false);
   setAutoSpinMode(null);
+  setAutoSpinRemaining(0);
 
   if (autoSpinTimeoutRef.current) {
     clearTimeout(autoSpinTimeoutRef.current);
@@ -2073,32 +2119,12 @@ const stopAutoSpin = () => {
   }
 };
 
-
-
-
-const startAutoSpin = (mode: "slot" | "multiline-slot") => {
-  setAutoSpinEnabled(true);
+const startAutoSpin = (mode: "slot" | "multiline-slot" | "risk") => {
+  const capped = Math.max(1, Math.min(100, Number(autoSpinCount) || 1));
+  setAutoSpinRunning(true);
   setAutoSpinMode(mode);
+  setAutoSpinRemaining(capped);
 };
-
-useEffect(() => {
-  if (!autoSpinEnabled || spinning) return;
-
-  autoSpinTimeoutRef.current = setTimeout(() => {
-    if (autoSpinMode === "slot") {
-      spin();
-    } else if (autoSpinMode === "multiline-slot") {
-      spinMultiLine();
-    }
-  }, 1000);
-
-  return () => {
-    if (autoSpinTimeoutRef.current) {
-      clearTimeout(autoSpinTimeoutRef.current);
-      autoSpinTimeoutRef.current = null;
-    }
-  };
-}, [autoSpinEnabled, autoSpinMode, spinning, data.tokens, slotStake, multiLineStake, multiSlotMode]);
 
 const [reels, setReels] = useState<LocalSymbol[]>([
   symbolPool[0],
@@ -3442,7 +3468,7 @@ const rewardFirelineBox = async () => {
   const box = await grantServerMysteryBoxByRarity(rarity);
 
   if (box) {
-    const notice = `🔥 Fireline voll! Du hast eine ${rarity}-Mystery Box erhalten!`;
+    const notice = `Killstreak! Du hast eine ${rarity}-Mystery Box erhalten!`;
     setMessage(notice);
     setLastWonItem(box);
     setFirelineRewardNotice(notice);
