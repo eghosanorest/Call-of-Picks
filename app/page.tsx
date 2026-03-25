@@ -1165,34 +1165,6 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
-useEffect(() => {
-  const reloadAfterTabBack = async () => {
-    if (document.visibilityState !== "visible") return;
-    if (!userId) return;
-
-    await loadMatches();
-    await loadUserBets(userId);
-    await loadFriends(userId);
-    await loadFriendRequests(userId);
-    await loadChatList(userId);
-  };
-
-  const handleVisibilityChange = () => {
-    reloadAfterTabBack();
-  };
-
-  const handleWindowFocus = () => {
-    reloadAfterTabBack();
-  };
-
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-  window.addEventListener("focus", handleWindowFocus);
-
-  return () => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    window.removeEventListener("focus", handleWindowFocus);
-  };
-}, [userId]);
 
 const placeBet = async () => {
   if (!userId) {
@@ -1290,6 +1262,34 @@ const placeBet = async () => {
   await loadUserBets(userId);
 };
   const [userId, setUserId] = useState("");
+  useEffect(() => {
+  const reloadAfterTabBack = async () => {
+    if (document.visibilityState !== "visible") return;
+    if (!userId) return;
+
+    await loadMatches();
+    await loadUserBets(userId);
+    await loadFriends(userId);
+    await loadFriendRequests(userId);
+    await loadChatList(userId);
+  };
+
+  const handleVisibilityChange = () => {
+    reloadAfterTabBack();
+  };
+
+  const handleWindowFocus = () => {
+    reloadAfterTabBack();
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("focus", handleWindowFocus);
+
+  return () => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.removeEventListener("focus", handleWindowFocus);
+  };
+}, [userId]);
   const [userEmail, setUserEmail] = useState("");
   const [profileName, setProfileName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
