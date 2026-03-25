@@ -1338,6 +1338,8 @@ const [uploadingItem, setUploadingItem] = useState(false);
 const [chatPosition, setChatPosition] = useState({ x: 24, y: 24 });
 const [chatDragging, setChatDragging] = useState(false);
 const chatDragOffsetRef = useRef({ x: 0, y: 0 });
+const [showPastChallenges, setShowPastChallenges] = useState(false);
+
 const [showItemList, setShowItemList] = useState(false);
 const [activeChat, setActiveChat] = useState<any | null>(null);
 const [chatMessages, setChatMessages] = useState<any[]>([]);
@@ -5511,9 +5513,17 @@ scheduleNextFirstshotSignal(0);
     return status;
   };
 
-  if (!mounted) {
-    return <div className="min-h-screen bg-black" />;
-  }
+  const activeFirstshotChallenges = allChallenges.filter(
+  (challenge) => challenge.status !== "finished" && challenge.status !== "declined"
+);
+
+const pastFirstshotChallenges = allChallenges.filter(
+  (challenge) => challenge.status === "finished" || challenge.status === "declined"
+);
+
+if (!mounted) {
+  return <div className="min-h-screen bg-black" />;
+}
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -7176,6 +7186,8 @@ scheduleNextFirstshotSignal(0);
                         <div className="space-y-3">
                           <div className="text-lg font-bold">Eingehende Challenges</div>
 
+                          
+
                           {incomingChallenges.length ? (
                             incomingChallenges.map((challenge) => {
                               const meta = getChallengeDisplayMeta(challenge);
@@ -7243,107 +7255,166 @@ scheduleNextFirstshotSignal(0);
                         </div>
 
                         <div className="space-y-3">
-                          <div className="text-lg font-bold">Alle meine Challenges</div>
+  <div className="text-lg font-bold">Alle meine Challenges</div>
 
-                          {allChallenges.length ? (
-                            allChallenges.map((challenge) => {
-                              const meta = getChallengeDisplayMeta(challenge);
+  {activeFirstshotChallenges.length ? (
+    activeFirstshotChallenges.map((challenge) => {
+      const meta = getChallengeDisplayMeta(challenge);
 
-                              const canPlayFirst =
-                                challenge.status === "accepted" &&
-                                challenge.first_player_id === userId &&
-                                challenge.first_player_time == null;
+      const canPlayFirst =
+        challenge.status === "accepted" &&
+        challenge.first_player_id === userId &&
+        challenge.first_player_time == null;
 
-                              const canPlaySecond =
-                                challenge.status === "second_turn" &&
-                                challenge.second_player_id === userId &&
-                                challenge.second_player_time == null;
+      const canPlaySecond =
+        challenge.status === "second_turn" &&
+        challenge.second_player_id === userId &&
+        challenge.second_player_time == null;
 
-                              return (
-                                <div
-                                  key={challenge.id}
-                                  className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1">
-                                      <div className="text-sm text-zinc-400">
-                                        {meta.fromName} vs {meta.toName}
-                                      </div>
+      return (
+        <div
+          key={challenge.id}
+          className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="text-sm text-zinc-400">
+                {meta.fromName} vs {meta.toName}
+              </div>
 
-                                      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                                        <ItemCard
-                                          item={{
-                                            name: meta.offeredName,
-                                            rarity:
-                                              getInventoryMeta(
-                                                challenge.offered_inventory_item_id
-                                              )?.item.rarity || "Common",
-                                            image_path: meta.offeredImage,
-                                          }}
-                                        />
-                                        <span className="text-center text-zinc-500">↔</span>
-                                        <ItemCard
-                                          item={{
-                                            name: meta.requestedName,
-                                            rarity:
-                                              getInventoryMeta(
-                                                challenge.requested_inventory_item_id
-                                              )?.item.rarity || "Common",
-                                            image_path: meta.requestedImage,
-                                          }}
-                                        />
-                                      </div>
+              <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <ItemCard
+                  item={{
+                    name: meta.offeredName,
+                    rarity:
+                      getInventoryMeta(challenge.offered_inventory_item_id)?.item.rarity || "Common",
+                    image_path: meta.offeredImage,
+                  }}
+                />
+                <span className="text-center text-zinc-500">↔</span>
+                <ItemCard
+                  item={{
+                    name: meta.requestedName,
+                    rarity:
+                      getInventoryMeta(challenge.requested_inventory_item_id)?.item.rarity || "Common",
+                    image_path: meta.requestedImage,
+                  }}
+                />
+              </div>
 
-                                      <div className="mt-2 text-xs text-zinc-500">
-                                        {challenge.is_draw
-                                          ? "Unentschieden"
-                                          : getChallengeStatusLabel(challenge.status)}
-                                      </div>
-                                    </div>
+              <div className="mt-2 text-xs text-zinc-500">
+                {challenge.is_draw
+                  ? "Unentschieden"
+                  : getChallengeStatusLabel(challenge.status)}
+              </div>
+            </div>
 
-                                    <div className="text-right text-xs text-zinc-500">
-                                      {new Date(challenge.created_at).toLocaleString("de-DE")}
-                                    </div>
-                                  </div>
+            <div className="text-right text-xs text-zinc-500">
+              {new Date(challenge.created_at).toLocaleString("de-DE")}
+            </div>
+          </div>
 
-                                  <div className="mt-4 flex flex-wrap gap-2">
-                                    {canPlayFirst ? (
-                                      <Button
-                                        onClick={() => openChallengeModal(challenge)}
-                                        variant="violet"
-                                        className="px-3 py-2 text-sm"
-                                      >
-                                        FirstShot starten
-                                      </Button>
-                                    ) : null}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {canPlayFirst ? (
+              <Button
+                onClick={() => openChallengeModal(challenge)}
+                variant="violet"
+                className="px-3 py-2 text-sm"
+              >
+                FirstShot starten
+              </Button>
+            ) : null}
 
-                                    {canPlaySecond ? (
-                                      <Button
-                                        onClick={() => openChallengeModal(challenge)}
-                                        variant="violet"
-                                        className="px-3 py-2 text-sm"
-                                      >
-                                        Jetzt spielen
-                                      </Button>
-                                    ) : null}
+            {canPlaySecond ? (
+              <Button
+                onClick={() => openChallengeModal(challenge)}
+                variant="violet"
+                className="px-3 py-2 text-sm"
+              >
+                Jetzt spielen
+              </Button>
+            ) : null}
 
-                                    <Button
-                                      onClick={() => openChallengeModal(challenge)}
-                                      variant="ghost"
-            className="px-3 py-2 text-sm"
-          >
-            Anzeigen
-          </Button>
+            <Button
+              onClick={() => openChallengeModal(challenge)}
+              variant="ghost"
+              className="px-3 py-2 text-sm"
+            >
+              Anzeigen
+            </Button>
+          </div>
         </div>
+      );
+    })
+  ) : (
+    <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
+      Keine aktiven Challenges vorhanden.
+    </div>
+  )}
+
+  <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4">
+    <button
+      type="button"
+      onClick={() => setShowPastChallenges((prev) => !prev)}
+      className="flex w-full items-center justify-between rounded-2xl bg-white/5 px-4 py-3 text-left"
+    >
+      <span className="font-semibold text-white">
+        Vergangene FirstShot-Spiele ({pastFirstshotChallenges.length})
+      </span>
+      <span className="text-sm text-zinc-400">
+        {showPastChallenges ? "▲" : "▼"}
+      </span>
+    </button>
+
+    {showPastChallenges && (
+      <div className="mt-3 space-y-3">
+        {pastFirstshotChallenges.length ? (
+          pastFirstshotChallenges.map((challenge) => {
+            const meta = getChallengeDisplayMeta(challenge);
+
+            return (
+              <div
+                key={challenge.id}
+                className="rounded-3xl border border-white/10 bg-black/40 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="text-sm text-zinc-400">
+                      {meta.fromName} vs {meta.toName}
+                    </div>
+                    <div className="mt-2 text-xs text-zinc-500">
+                      {challenge.is_draw
+                        ? "Unentschieden"
+                        : getChallengeStatusLabel(challenge.status)}
+                    </div>
+                  </div>
+
+                  <div className="text-right text-xs text-zinc-500">
+                    {new Date(challenge.created_at).toLocaleString("de-DE")}
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <Button
+                    onClick={() => openChallengeModal(challenge)}
+                    variant="ghost"
+                    className="px-3 py-2 text-sm"
+                  >
+                    Anzeigen
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
+            Keine vergangenen Challenges vorhanden.
+          </div>
+        )}
       </div>
-    );
-  })
-) : (
-  <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-500">
-    Keine Challenges vorhanden.
+    )}
   </div>
-)}
-                        </div>
+</div>
 
                         {!!outgoingChallenges.length && (
                           <div className="hidden">{outgoingChallenges.length}</div>
