@@ -28,7 +28,16 @@ import { supabase } from "../lib/supabase";
 import HomeMediaPlayer from "@/components/HomeMediaPlayer";
 type MatchResult = "A" | "B" | null;
 type PickSide = "A" | "B";
-
+type GroupPredictionType = {
+  id: string;
+  group_id: string;
+  user_id: string;
+  match_id: string;
+  predicted_score_a: number;
+  predicted_score_b: number;
+  created_at: string;
+  updated_at: string;
+};
 type MatchType = {
   id: string;
   week: number;
@@ -524,7 +533,12 @@ function getSafeItemImagePath(
   return data?.publicUrl || "/items/fallback.png";
 }
 
+
+
+
  function getWeightedFirelineBoxRarity(): LocalSymbol["rarity"] {
+  
+  
   const pool: LocalSymbol["rarity"][] = [
     "Common",
     "Common",
@@ -950,7 +964,17 @@ function getRarityBorderClasses(rarity?: string | null) {
   return "border-white/15";
 }
 export default function CallOfPicksPage() {
-  const [allItemCatalog, setAllItemCatalog] = useState<
+  
+
+ const [showBetKingModal, setShowBetKingModal] = useState(false);
+  const [showGroupPickemModal, setShowGroupPickemModal] = useState(false);
+const [showEvaluatedMatchesModal, setShowEvaluatedMatchesModal] = useState(false);
+
+const [groupPredictions, setGroupPredictions] = useState<GroupPredictionType[]>([]);
+const [groupPredictionDrafts, setGroupPredictionDrafts] = useState<
+  Record<string, { scoreA: string; scoreB: string }>
+>({});
+const [allItemCatalog, setAllItemCatalog] = useState<
   {
     id: string;
     slug: string;
@@ -1182,7 +1206,11 @@ useEffect(() => {
   };
 }, [screen]);
   const [data, setData] = useState<LocalData>(defaultData);
-
+const allMatchesFlat = useMemo(() => {
+  return Object.values(data.weeks).flatMap((weekMap) =>
+    Object.values(weekMap).flat()
+  );
+}, [data.weeks]);
   const [spinning, setSpinning] = useState(false);
   useEffect(() => {
   return () => {
@@ -1776,7 +1804,72 @@ const acceptFriendRequest = async (request: any) => {
   await loadFriends(userId);
   await loadFriendRequests(userId);
 };
+const saveGroupPrediction = async (match: MatchType) => {
+  if (!userId || !activeGroupId) {
+    setMessage("Keine aktive Gruppe oder kein Login.");
+    return;
+  }
 
+  if (isMatchLocked(match)) {
+    setMessage("Dieses Match ist bereits gesperrt.");
+    return;
+  }
+
+  const draft = groupPredictionDrafts[match.id];
+  const scoreA = Number(draft?.scoreA ?? "");
+  const scoreB = Number(draft?.scoreB ?? "");
+
+  if (
+    Number.isNaN(scoreA) ||
+    Number.isNaN(scoreB) ||
+    scoreA < 0 ||
+    scoreB < 0
+  ) {
+    setMessage("Bitte ein gültiges Ergebnis eintragen.");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("group_match_predictions")
+    .upsert(
+      {
+        group_id: activeGroupId,
+        user_id: userId,
+        match_id: match.id,
+        predicted_score_a: scoreA,
+        predicted_score_b: scoreB,
+      },
+      {
+        onConflict: "group_id,user_id,match_id",
+      }
+    );
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  setMessage("Pick'em Tipp gespeichert.");
+  await loadGroupPredictions(activeGroupId);
+};
+const loadGroupPredictions = async (groupId: string) => {
+  if (!groupId) {
+    setGroupPredictions([]);
+    return;
+  }
+
+  const { data: rows, error } = await supabase
+    .from("group_match_predictions")
+    .select("*")
+    .eq("group_id", groupId);
+
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
+
+  setGroupPredictions((rows || []) as GroupPredictionType[]);
+};
 const loadFriends = async (uid: string) => {
   const { data, error } = await supabase
     .from("friends")
@@ -4794,6 +4887,20 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
+  if (!userId) {
+    setMembers([]);
+    setMemberInventories([]);
+    return;
+  }
+
+  if (activeGroupId) {
+    loadGroupDetails(activeGroupId);
+    loadGroupPredictions(activeGroupId);
+  }
+
+  loadChallenges(userId);
+}, [activeGroupId, userId]);
+useEffect(() => {
   if (!activeChat?.id || !chatOpen) return;
 
   const channel = supabase
@@ -4886,6 +4993,19 @@ useEffect(() => {
   }
 )
       .on(
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "group_match_predictions",
+  },
+  async () => {
+    if (activeGroupId) {
+      await loadGroupPredictions(activeGroupId);
+    }
+  }
+)
+.on(
         "postgres_changes",
         {
           event: "*",
@@ -5650,6 +5770,93 @@ await supabase.from("inventory_item_history").insert({
 const pastFirstshotChallenges = allChallenges.filter(
   (challenge) => challenge.status === "finished" || challenge.status === "declined"
 );
+
+
+const getGroupPredictionPoints = (
+  match: MatchType,
+  prediction?: GroupPredictionType
+) => {
+  if (!prediction) return 0;
+  if (!hasSavedScore(match)) return 0;
+
+  const actualA = Number(match.scoreA);
+  const actualB = Number(match.scoreB);
+  const predA = prediction.predicted_score_a;
+  const predB = prediction.predicted_score_b;
+
+  if (actualA === predA && actualB === predB) return 3;
+
+  const actualWinner =
+    actualA > actualB ? "A" : actualB > actualA ? "B" : "draw";
+
+  const predictedWinner =
+    predA > predB ? "A" : predB > predA ? "B" : "draw";
+
+  if (actualWinner === predictedWinner) return 2;
+
+  return 0;
+};
+
+const getUsersWhoPredictedMatch = (matchId: string) => {
+  return groupPredictions.filter((row) => row.match_id === matchId);
+};
+
+const getMyGroupPrediction = (matchId: string) => {
+  return groupPredictions.find(
+    (row) => row.match_id === matchId && row.user_id === userId
+  );
+};
+
+const activeGroupPickemMatches = useMemo(() => {
+  return allMatchesFlat.filter((match) => !hasSavedScore(match));
+}, [allMatchesFlat]);
+
+const evaluatedGroupPickemMatches = useMemo(() => {
+  return allMatchesFlat.filter((match) => {
+    if (!hasSavedScore(match)) return false;
+    return groupPredictions.some((row) => row.match_id === match.id);
+  });
+}, [allMatchesFlat, groupPredictions]);
+
+const betKingRows = useMemo(() => {
+  if (!activeGroupId) return [];
+
+  return members
+    .map((member) => {
+      const memberPredictions = groupPredictions.filter(
+        (row) => row.user_id === member.user_id
+      );
+
+      const points = allMatchesFlat.reduce((sum, match) => {
+        const prediction = memberPredictions.find((p) => p.match_id === match.id);
+        return sum + getGroupPredictionPoints(match, prediction);
+      }, 0);
+
+      return {
+        ...member,
+        betKingPoints: points,
+      };
+    })
+    .sort((a, b) => b.betKingPoints - a.betKingPoints);
+}, [members, groupPredictions, allMatchesFlat, activeGroupId]);
+
+const findMajorAndWeekLabelForMatch = (matchId: string) => {
+  for (const major of majorStructure) {
+    const weekMap = data.weeks[major.id] || {};
+
+    for (const [weekKey, list] of Object.entries(weekMap)) {
+      const found = (list || []).find((m) => m.id === matchId);
+
+      if (found) {
+        return `${major.label} · ${getDisplayWeek(Number(weekKey))}`;
+      }
+    }
+  }
+
+  return "Unbekannt";
+};
+
+
 
 if (!mounted) {
   return <div className="min-h-screen bg-black" />;
@@ -7363,7 +7570,20 @@ if (!mounted) {
     </div>
   </div>
 </button>
+<div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl">
+  <div className="text-lg font-bold">Bet-King</div>
+  <div className="mt-2 text-sm text-zinc-400">
+    Punktewertung für Gruppentipps auf exakte Ergebnisse.
+  </div>
 
+  <Button
+    onClick={() => setShowBetKingModal(true)}
+    variant="violet"
+    className="mt-4 w-full"
+  >
+    BET-KING
+  </Button>
+</div>
                                 <div className="flex items-center gap-2">
                                   <div className="text-right">
                                     <div className="font-bold text-amber-200">
@@ -9666,7 +9886,294 @@ if (!mounted) {
     </motion.div>
   )}
 </AnimatePresence>
-        
+        <AnimatePresence>
+  {showBetKingModal && activeGroup && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[96] flex items-center justify-center bg-black/80 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm text-zinc-400">Gruppe</div>
+            <div className="text-3xl font-black">BET-KING</div>
+          </div>
+
+          <button
+            onClick={() => setShowBetKingModal(false)}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {betKingRows.map((member, index) => (
+            <div
+              key={member.user_id}
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-lg font-black text-zinc-400">#{index + 1}</div>
+                <img
+                  src={member.avatar_url || "/default-avatar.png"}
+                  alt={member.username}
+                  className="h-12 w-12 rounded-full border border-white/10 object-cover"
+                />
+                <div>
+                  <div className="font-bold text-white">{member.username}</div>
+                  <div className="text-sm text-zinc-400">
+                    {member.user_id === userId ? "Du" : "Gruppenmitglied"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-sm text-zinc-400">Punkte</div>
+                <div className="text-2xl font-black text-amber-200">
+                  {member.betKingPoints}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Button
+          onClick={() => setShowGroupPickemModal(true)}
+          variant="violet"
+          className="mt-5 w-full"
+        >
+          Pick'em
+        </Button>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
+<AnimatePresence>
+  {showGroupPickemModal && activeGroup && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[97] flex items-center justify-center bg-black/85 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm text-zinc-400">Gruppe</div>
+            <div className="text-3xl font-black">Pick'em</div>
+          </div>
+
+          <button
+            onClick={() => setShowGroupPickemModal(false)}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {activeGroupPickemMatches.map((match) => {
+            const myPrediction = getMyGroupPrediction(match.id);
+            const pickedUsers = getUsersWhoPredictedMatch(match.id);
+
+            return (
+              <div
+                key={match.id}
+                className="rounded-3xl border border-white/10 bg-black/30 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-white">
+                      {match.teamA} vs {match.teamB}
+                    </div>
+                    <div className="text-sm text-zinc-400">
+                      {match.startsAt} · {currentMajor.label} · {getDisplayWeek(currentWeek)}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-zinc-500">
+                    {isMatchLocked(match) ? "Gesperrt" : "Offen"}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    min={0}
+                    disabled={isMatchLocked(match)}
+                    value={
+                      groupPredictionDrafts[match.id]?.scoreA ??
+                      (myPrediction ? String(myPrediction.predicted_score_a) : "")
+                    }
+                    onChange={(e) =>
+                      setGroupPredictionDrafts((prev) => ({
+                        ...prev,
+                        [match.id]: {
+                          scoreA: e.target.value,
+                          scoreB:
+                            prev[match.id]?.scoreB ??
+                            (myPrediction ? String(myPrediction.predicted_score_b) : ""),
+                        },
+                      }))
+                    }
+                    className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center outline-none"
+                    placeholder={match.teamA}
+                  />
+
+                  <input
+                    type="number"
+                    min={0}
+                    disabled={isMatchLocked(match)}
+                    value={
+                      groupPredictionDrafts[match.id]?.scoreB ??
+                      (myPrediction ? String(myPrediction.predicted_score_b) : "")
+                    }
+                    onChange={(e) =>
+                      setGroupPredictionDrafts((prev) => ({
+                        ...prev,
+                        [match.id]: {
+                          scoreA:
+                            prev[match.id]?.scoreA ??
+                            (myPrediction ? String(myPrediction.predicted_score_a) : ""),
+                          scoreB: e.target.value,
+                        },
+                      }))
+                    }
+                    className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center outline-none"
+                    placeholder={match.teamB}
+                  />
+                </div>
+
+                <Button
+                  onClick={() => saveGroupPrediction(match)}
+                  disabled={isMatchLocked(match)}
+                  variant="violet"
+                  className="mt-3 w-full"
+                >
+                  Tipp speichern
+                </Button>
+
+                <div className="mt-3 text-sm text-zinc-400">
+                  Schon getippt:{" "}
+                  {pickedUsers.length
+                    ? pickedUsers
+                        .map((row) => memberNameMap.get(row.user_id) || "User")
+                        .join(", ")
+                    : "Noch niemand"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Button
+          onClick={() => setShowEvaluatedMatchesModal(true)}
+          variant="ghost"
+          className="mt-5 w-full"
+        >
+          Ausgewertet
+        </Button>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
+<AnimatePresence>
+  {showEvaluatedMatchesModal && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[98] flex items-center justify-center bg-black/85 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm text-zinc-400">Pick'em</div>
+            <div className="text-3xl font-black">Ausgewertet</div>
+          </div>
+
+          <button
+            onClick={() => setShowEvaluatedMatchesModal(false)}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {evaluatedGroupPickemMatches.map((match) => {
+            const matchPredictions = groupPredictions.filter(
+              (row) => row.match_id === match.id
+            );
+
+            return (
+              <div
+                key={match.id}
+                className="rounded-3xl border border-white/10 bg-black/30 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-white">
+                      {match.teamA} vs {match.teamB}
+                    </div>
+                    <div className="text-sm text-zinc-400">
+                      {match.startsAt} · {match.scoreA}:{match.scoreB}
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {findMajorAndWeekLabelForMatch(match.id)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {matchPredictions.map((prediction) => (
+                    <div
+                      key={prediction.id}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/40 px-4 py-3"
+                    >
+                      <div className="font-semibold text-white">
+                        {memberNameMap.get(prediction.user_id) || "User"}
+                      </div>
+
+                      <div className="text-sm text-zinc-300">
+                        {prediction.predicted_score_a}:{prediction.predicted_score_b}
+                      </div>
+
+                      <div className="font-black text-amber-200">
+                        +{getGroupPredictionPoints(match, prediction)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
       </div>
     </div>
   );
