@@ -666,7 +666,7 @@ function Button({
   type = "button",
 }: {
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   variant?: "primary" | "violet" | "ghost" | "danger";
   disabled?: boolean;
   className?: string;
@@ -5582,7 +5582,12 @@ const { error: transferError } = await supabase
   .eq("id", losingItemId);
 
 if (transferError) {
-  throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
+  const transferMessage =
+    transferError instanceof Error
+      ? transferError.message
+      : String((transferError as any)?.message || transferError);
+
+  throw new Error(`Item-Transfer fehlgeschlagen: ${transferMessage}`);
 }
 
 await supabase.from("inventory_item_history").insert({
@@ -5593,10 +5598,7 @@ await supabase.from("inventory_item_history").insert({
   note: "FirstShot gewonnen",
 });
 
-        if (transferError) {
-          throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
-        }
-
+        
         const { error: finishError } = await supabase
           .from("firstshot_challenges")
           .update({
