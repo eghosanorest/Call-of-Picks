@@ -3448,7 +3448,33 @@ const rewardFirelineBox = async () => {
     setMessage("Fireline voll, aber die Mystery Box konnte nicht vergeben werden.");
   }
 };
+const FIRELINE_MAX = 5;
 
+const increaseFirelineProgress = async () => {
+  let reachedMax = false;
+
+  updateData((prev) => {
+    const current = Number(prev.firelineProgress || 0);
+    const next = current + 1;
+
+    if (next >= FIRELINE_MAX) {
+      reachedMax = true;
+      return {
+        ...prev,
+        firelineProgress: 0,
+      };
+    }
+
+    return {
+      ...prev,
+      firelineProgress: next,
+    };
+  });
+
+  if (reachedMax) {
+    await rewardFirelineBox();
+  }
+};
 const grantServerInventoryItem = async (symbol: LocalSymbol) => {
   if (!userId) return;
 
@@ -3845,22 +3871,11 @@ const finalTokens = nextTokens;
   setMessage("Kein Treffer.");
 }
 
-  await loadRemoteUserGameState(userId);
-
-let nextFirelineProgress = data.firelineProgress + 1;
-
-if (nextFirelineProgress >= 5) {
-  await rewardFirelineBox();
-  nextFirelineProgress = 0;
-}
-
-updateData((prev) => ({
-  ...prev,
-  firelineProgress: nextFirelineProgress,
-}));
+  await increaseFirelineProgress();
+await loadRemoteUserGameState(userId);
 
 setSpinning(false);
-  return;
+return;
 }
 
     let finalReels = buildRandomRow();
@@ -3897,13 +3912,14 @@ setSpinning(false);
     }));
 
     if (win) {
-      setLastWin(finalReels[0]);
-      setLastWins([finalReels[0]]);
-      await grantServerInventoryItem(finalReels[0]);
-    }
+  setLastWin(finalReels[0]);
+  setLastWins([finalReels[0]]);
+  await grantServerInventoryItem(finalReels[0]);
+}
 
-    await loadRemoteUserGameState(userId);
-    setSpinning(false);
+await increaseFirelineProgress();
+await loadRemoteUserGameState(userId);
+setSpinning(false);
   }, 1800);
 };
 
