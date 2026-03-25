@@ -1933,7 +1933,7 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
   50: 0.25,
   100: 0.5,
 };
-
+const [firelineFlash, setFirelineFlash] = useState(false);
 const hitSoundRef = useRef<HTMLAudioElement | null>(null);
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryLoadupAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2071,18 +2071,21 @@ useEffect(() => {
   const previous = lastFirelineRef.current;
 
   if (current > previous) {
-    // 🔥 normaler Fortschritt
     if (current >= 1 && current <= 4) {
       playImpactSound();
     }
 
-    // 💥 100% erreicht
     if (current >= 5) {
       playImpactSound();
+      setFirelineFlash(true);
 
       setTimeout(() => {
         playHitSound2();
-      }, 120); // kleiner Delay für Impact → Hit Combo
+      }, 120);
+
+      setTimeout(() => {
+        setFirelineFlash(false);
+      }, 450);
     }
   }
 
@@ -5987,7 +5990,13 @@ setChatList([]);
       </div>
     )}
 
-    <div className="relative h-6 w-full">
+    <div
+  className={`relative h-6 w-full transition-all duration-200 ${
+    firelineFlash
+      ? "scale-[1.02] drop-shadow-[0_0_24px_rgba(255,180,0,0.95)]"
+      : ""
+  }`}
+>
       <div className="pointer-events-none absolute inset-0 z-30">
         {([1, 2, 3, 4, 5] as const).map((step) => {
           const percentMap = {
@@ -6038,7 +6047,9 @@ setChatList([]);
 
           <div className="absolute inset-0 shadow-[0_0_25px_rgba(255,120,0,0.6),0_0_40px_rgba(255,60,0,0.5)]" />
         </div>
-
+{firelineFlash && (
+  <div className="pointer-events-none absolute inset-0 z-20 rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.2),rgba(255,220,120,0.95),rgba(255,255,255,0.2))] animate-pulse shadow-[0_0_30px_rgba(255,200,80,0.95),0_0_60px_rgba(255,140,0,0.7)]" />
+)}
         <div className="absolute inset-0 rounded-full ring-1 ring-white/10" />
       </div>
     </div>
