@@ -1097,12 +1097,16 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
         [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
       ];
 
-      setMultiLineGrid(finalGrid);
-
       const winningIndexes = getWinningLineIndexes(finalGrid);
-      const hitCount = winningIndexes.length;
-      const multiplier = getMultiLineMultiplier(hitCount);
-      const payout = Math.floor(multiLineStake * multiplier);
+const hitCount = winningIndexes.length;
+const multiplier = getMultiLineMultiplier(hitCount);
+const payout = Math.floor(multiLineStake * multiplier);
+
+if (hitCount > 0) {
+  playHitSound();
+}
+
+setMultiLineGrid(finalGrid);
       const finalTokens = nextTokensBeforePayout + payout;
 
       if (payout > 0) {
@@ -4024,13 +4028,17 @@ const spin = async (): Promise<AutoSpinResult> => {
 
       if (multiSlotMode) {
         let finalGrid = [buildRandomRow(), buildRandomRow(), buildRandomRow()];
-        finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
+finalGrid = finalGrid.map((row) => maybeUpgradeRowToWin(row, bonusChance));
 
-        setMultiReels(finalGrid);
+const winningRows = finalGrid.filter(isWinningRow);
+const wonSymbols = winningRows.map((row) => row[0]);
+const hitCount = winningRows.length;
 
-        const winningRows = finalGrid.filter(isWinningRow);
-        const wonSymbols = winningRows.map((row) => row[0]);
-        const hitCount = winningRows.length;
+if (hitCount > 0) {
+  playHitSound();
+}
+
+setMultiReels(finalGrid);
 
         const spinRecord = {
           at: Date.now(),
@@ -4094,15 +4102,15 @@ const spin = async (): Promise<AutoSpinResult> => {
       }
 
       let finalReels = buildRandomRow();
-      finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
+finalReels = maybeUpgradeRowToWin(finalReels, bonusChance);
 
-      setReels(finalReels);
+const win = isWinningRow(finalReels);
 
-      const win = isWinningRow(finalReels);
-
-      if (win) {
+if (win) {
   playHitSound();
 }
+
+setReels(finalReels);
       const spinRecord = {
         at: Date.now(),
         reels: finalReels.map((r) => r.id),
