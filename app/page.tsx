@@ -985,53 +985,54 @@ function MemberShowcaseBox({
     e.stopPropagation();
 
     const file = e.target.files?.[0];
-    if (!file || !isOwnBox) return;
+if (!file || !isOwnBox) return;
 
-    try {
-      setUploading(true);
+try {
+  setUploading(true);
 
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const filePath = `${groupId}/${member.user_id}-${Date.now()}.${ext}`;
+  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+  const filePath = `${groupId}/${member.user_id}-${Date.now()}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("member-showcase")
-        .upload(filePath, file, {
-          upsert: true,
-        });
+  const { error: uploadError } = await supabase.storage
+    .from("member-showcase")
+    .upload(filePath, file, {
+      upsert: true,
+    });
 
-      if (uploadError) {
-        console.error(uploadError);
-        return;
-      }
+  if (uploadError) {
+    console.error("UPLOAD ERROR:", uploadError);
+    return;
+  }
 
-      const { data } = supabase.storage
-        .from("member-showcase")
-        .getPublicUrl(filePath);
+  const { data } = supabase.storage
+    .from("member-showcase")
+    .getPublicUrl(filePath);
 
-      const publicUrl = data.publicUrl;
+  const publicUrl = data.publicUrl;
+  console.log("SHOWCASE URL:", publicUrl);
 
+  const { error: updateError } = await supabase
+    .from("group_members")
+    .update({ showcase_image_url: publicUrl })
+    .eq("group_id", groupId)
+    .eq("user_id", member.user_id);
 
-      
-      const { error: updateError } = await supabase
-        .from("group_members")
-        .update({ showcase_image_url: publicUrl })
-        .eq("group_id", groupId)
-        .eq("user_id", member.user_id);
+  if (updateError) {
+    console.error("UPDATE ERROR:", updateError);
+    return;
+  }
 
-      if (updateError) {
-        console.error(updateError);
-        return;
-      }
+  console.log("SHOWCASE SAVED FOR:", member.user_id, groupId);
 
-      await onUpdated();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
+  await onUpdated();
+} catch (err) {
+  console.error("SHOWCASE CATCH ERROR:", err);
+} finally {
+  setUploading(false);
+  if (fileInputRef.current) {
+    fileInputRef.current.value = "";
+  }
+}
   };
 
   return (
