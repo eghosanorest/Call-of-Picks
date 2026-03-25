@@ -4724,6 +4724,19 @@ useEffect(() => {
 
   
 useEffect(() => {
+  if (!userId) return;
+
+  const interval = setInterval(async () => {
+    await loadChallenges(userId);
+
+    if (activeGroupId) {
+      await loadGroupDetails(activeGroupId);
+    }
+  }, 1500);
+
+  return () => clearInterval(interval);
+}, [userId, activeGroupId]);
+useEffect(() => {
     if (!userId) return;
 
     const channel = supabase
@@ -5136,6 +5149,9 @@ await loadChallenges(userId);
 if (activeGroupId) {
   await loadGroupDetails(activeGroupId);
 }
+if (activeGroupId) {
+  await loadGroupDetails(activeGroupId);
+}
     setShowChallengePicker(false);
     setChallengeTargetItem(null);
     setChallengeTargetUser(null);
@@ -5145,37 +5161,60 @@ if (activeGroupId) {
   };
 
   const acceptChallenge = async (challengeId: string) => {
-    setMessage("");
+  setMessage("");
 
-    const challenge = allChallenges.find((c) => c.id === challengeId);
-    if (!challenge) {
-      setMessage("Challenge nicht gefunden.");
-      return;
-    }
+  const challenge = allChallenges.find((c) => c.id === challengeId);
+  if (!challenge) {
+    setMessage("Challenge nicht gefunden.");
+    return;
+  }
 
-    const { error } = await supabase
-      .from("firstshot_challenges")
-      .update({
-        status: "accepted",
-        first_player_id: challenge.to_user_id,
-        second_player_id: challenge.from_user_id,
-        first_player_time: null,
-        second_player_time: null,
-        first_player_false_start: false,
-        second_player_false_start: false,
-        winner_user_id: null,
-        is_draw: false,
-      })
-      .eq("id", challengeId);
+  const { error } = await supabase
+    .from("firstshot_challenges")
+    .update({
+      status: "accepted",
+      first_player_id: challenge.to_user_id,
+      second_player_id: challenge.from_user_id,
+      first_player_time: null,
+      second_player_time: null,
+      first_player_false_start: false,
+      second_player_false_start: false,
+      winner_user_id: null,
+      is_draw: false,
+    })
+    .eq("id", challengeId);
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+  if (error) {
+    setMessage(error.message);
+    return;
+  }
 
-    setMessage("Challenge angenommen. Du spielst zuerst.");
-    await loadChallenges(userId);
-  };
+  setMessage("Challenge angenommen. Du spielst zuerst.");
+
+  // 🔥 HIER EINFÜGEN
+  setSelectedChallenge((prev) =>
+    prev && prev.id === challengeId
+      ? {
+          ...prev,
+          status: "accepted",
+          first_player_id: challenge.to_user_id,
+          second_player_id: challenge.from_user_id,
+          first_player_time: null,
+          second_player_time: null,
+          first_player_false_start: false,
+          second_player_false_start: false,
+          winner_user_id: null,
+          is_draw: false,
+        }
+      : prev
+  );
+
+  await loadChallenges(userId);
+
+  if (activeGroupId) {
+    await loadGroupDetails(activeGroupId);
+  }
+};
 
   const declineChallenge = async (challengeId: string) => {
     setMessage("");
@@ -5191,7 +5230,10 @@ if (activeGroupId) {
     }
 
     setMessage("Challenge abgelehnt.");
-    await loadChallenges(userId);
+await loadChallenges(userId);
+if (activeGroupId) {
+  await loadGroupDetails(activeGroupId);
+}
   };
 
   const getNextFirstshotDelay = () => {
