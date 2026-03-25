@@ -719,7 +719,13 @@ function ItemCard({
   if (normalizedRarity === "Super") rarityClass = rarityStyles.Super;
   if (normalizedRarity === "Legendary") rarityClass = rarityStyles.Legendary;
   if (normalizedRarity === "Ultra") rarityClass = rarityStyles.Ultra;
+let innerBg = "bg-black/20";
 
+if (normalizedRarity === "Rare") innerBg = "bg-green-500/10";
+if (normalizedRarity === "Epic") innerBg = "bg-blue-500/10";
+if (normalizedRarity === "Super") innerBg = "bg-purple-500/10";
+if (normalizedRarity === "Legendary") innerBg = "bg-amber-500/10";
+if (normalizedRarity === "Ultra") innerBg = "bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.4)]";
   return (
   <div
     onClick={onClick}
@@ -727,7 +733,7 @@ function ItemCard({
       onClick ? "cursor-pointer transition hover:scale-[1.01]" : ""
     }`}
   >
-      <div className="flex h-24 items-center justify-center rounded-2xl bg-black/20 p-3">
+      <div className={`flex h-24 items-center justify-center rounded-2xl p-3 ${innerBg}`}>
         <img
   src={getSafeItemImagePath(item.slug, item.image_path)}
   alt={item.name}
