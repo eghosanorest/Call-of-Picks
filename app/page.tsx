@@ -1942,13 +1942,7 @@ const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
 const casinoBackgroundAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryAudioFadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mysteryInsertTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const stopClassicSpinSound = () => {
-  const audio = classicSpinAudioRef.current;
-  if (!audio) return;
 
-  audio.pause();
-  audio.currentTime = 0;
-};
 
 const stopMysteryAudioFade = () => {
   if (mysteryAudioFadeRef.current) {
@@ -2018,7 +2012,35 @@ const playCasinoBackground = () => {
     }
   } catch {}
 };
+const fadeOutAudio = (
+  audio: HTMLAudioElement | null,
+  duration = 400
+) => {
+  if (!audio) return;
 
+  const startVolume = audio.volume;
+  const steps = 12;
+  const stepTime = duration / steps;
+  let currentStep = 0;
+
+  const fade = setInterval(() => {
+    currentStep++;
+
+    const nextVolume = startVolume * (1 - currentStep / steps);
+    audio.volume = Math.max(0, nextVolume);
+
+    if (currentStep >= steps) {
+      clearInterval(fade);
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = startVolume;
+    }
+  }, stepTime);
+};
+
+const stopClassicSpinSound = () => {
+  fadeOutAudio(classicSpinAudioRef.current, 500);
+};
 const stopCasinoBackground = () => {
   const audio = casinoBackgroundAudioRef.current;
   if (!audio) return;
@@ -2142,7 +2164,32 @@ const playClassicSpinSound = () => {
       classicSpinAudioRef.current.preload = "auto";
     }
 
-    const audio = classicSpinAudioRef.current;
+    const fadeOutAudio = (
+  audio: HTMLAudioElement | null,
+  duration = 400
+) => {
+  if (!audio) return;
+
+  const startVolume = audio.volume;
+  const steps = 12;
+  const stepTime = duration / steps;
+  let currentStep = 0;
+
+  const fade = setInterval(() => {
+    currentStep++;
+
+    const nextVolume = startVolume * (1 - currentStep / steps);
+    audio.volume = Math.max(0, nextVolume);
+
+    if (currentStep >= steps) {
+      clearInterval(fade);
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = startVolume; // reset für nächsten Spin
+    }
+  }, stepTime);
+};
+const audio = classicSpinAudioRef.current;
 
     audio.currentTime = 0;
     audio.volume = 1;
@@ -4151,7 +4198,7 @@ setReels(finalReels);
       await loadRemoteUserGameState(userId);
 
       setSpinning(false);
-
+stopClassicSpinSound();
       resolve({
         success: true,
         stopAutoSpin: shouldStopBecauseHighRarity,
