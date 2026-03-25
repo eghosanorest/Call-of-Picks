@@ -4811,7 +4811,9 @@ useEffect(() => {
           await loadRemoteUserGameState(userId);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+  console.log("FIRSTSHOT REALTIME STATUS:", status);
+});
 
     return () => {
       supabase.removeChannel(channel);
@@ -5125,7 +5127,15 @@ setChatList([]);
       setMessage(error.message);
       return;
     }
-
+setShowChallengePicker(false);
+setChallengeTargetItem(null);
+setChallengeTargetUser(null);
+setSelectedMember(null);
+setMessage("FirstShot-Challenge gesendet.");
+await loadChallenges(userId);
+if (activeGroupId) {
+  await loadGroupDetails(activeGroupId);
+}
     setShowChallengePicker(false);
     setChallengeTargetItem(null);
     setChallengeTargetUser(null);
