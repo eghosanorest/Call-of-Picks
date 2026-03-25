@@ -1942,7 +1942,7 @@ const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
 const casinoBackgroundAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryAudioFadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mysteryInsertTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+const hitSound2Ref = useRef<HTMLAudioElement | null>(null);
 
 const stopMysteryAudioFade = () => {
   if (mysteryAudioFadeRef.current) {
@@ -1992,6 +1992,19 @@ const playHitSound = () => {
 
     audio.currentTime = 0; // 🔥 wichtig → immer neu starten
     audio.volume = 1;    // kannst du anpassen
+    audio.play().catch(() => {});
+  } catch {}
+};
+const playHitSound2 = () => {
+  try {
+    if (!hitSound2Ref.current) {
+      hitSound2Ref.current = new Audio("/sounds/hitsound2.mp3");
+      hitSound2Ref.current.preload = "auto";
+    }
+
+    const audio = hitSound2Ref.current;
+    audio.currentTime = 0;
+    audio.volume = 1; // 🔥 darf knallen
     audio.play().catch(() => {});
   } catch {}
 };
@@ -2057,9 +2070,20 @@ useEffect(() => {
   const current = data.firelineProgress;
   const previous = lastFirelineRef.current;
 
-  // 🔥 nur bei Fortschritt + nur 1–4
-  if (current > previous && current >= 1 && current <= 4) {
-    playImpactSound();
+  if (current > previous) {
+    // 🔥 normaler Fortschritt
+    if (current >= 1 && current <= 4) {
+      playImpactSound();
+    }
+
+    // 💥 100% erreicht
+    if (current >= 5) {
+      playImpactSound();
+
+      setTimeout(() => {
+        playHitSound2();
+      }, 120); // kleiner Delay für Impact → Hit Combo
+    }
   }
 
   lastFirelineRef.current = current;
