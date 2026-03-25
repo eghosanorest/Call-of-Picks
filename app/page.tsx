@@ -955,7 +955,6 @@ function getRarityParticleClasses(rarity?: string | null) {
 function MemberShowcaseBox({
   member,
   currentUserId,
-  groupId,
   onUpdated,
 }: {
   member: {
@@ -991,7 +990,7 @@ try {
   setUploading(true);
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-  const filePath = `${groupId}/${member.user_id}-${Date.now()}.${ext}`;
+  const filePath = `${member.user_id}/showcase-${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("member-showcase")
@@ -1012,10 +1011,9 @@ try {
   console.log("SHOWCASE URL:", publicUrl);
 
   const { error: updateError } = await supabase
-    .from("group_members")
-    .update({ showcase_image_url: publicUrl })
-    .eq("group_id", groupId)
-    .eq("user_id", member.user_id);
+  .from("profiles")
+  .update({ showcase_image_url: publicUrl })
+  .eq("id", currentUserId);
 
   if (updateError) {
     console.error("UPDATE ERROR:", updateError);
@@ -4865,40 +4863,34 @@ setNeedsUsername(!nextName);
   }
 
   const { data: profileRows, error: profileRowsError } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .in("id", memberIds);
-
+  .from("profiles")
+  .select("id, username, display_name, avatar_url, showcase_image_url")
+  .in("id", memberIds);
   if (profileRowsError) {
     setMessage(profileRowsError.message);
     return;
   }
 
   const profileMap = new Map(
-    (profileRows || []).map((p: any) => [
-      p.id,
-      {
-        username: p.username || p.display_name || p.id,
-        avatar_url: p.avatar_url || "",
-      },
-    ])
-  );
+  (profileRows || []).map((p: any) => [
+    p.id,
+    {
+      username: p.username || p.display_name || p.id,
+      avatar_url: p.avatar_url || "",
+      showcase_image_url: p.showcase_image_url || "",
+    },
+  ])
+);
 
-  const memberMap = new Map(
-    (memberRows || []).map((row: any) => [
-      row.user_id,
-      {
-        showcase_image_url: row.showcase_image_url || "",
-      },
-    ])
-  );
+  
 
   const nextMembers = memberIds.map((id: string) => ({
-    user_id: id,
-    username: profileMap.get(id)?.username || id,
-    avatar_url: profileMap.get(id)?.avatar_url || "",
-    showcase_image_url: memberMap.get(id)?.showcase_image_url || "",
-  }));
+  user_id: id,
+  username: profileMap.get(id)?.username || id,
+  avatar_url: profileMap.get(id)?.avatar_url || "",
+  showcase_image_url: profileMap.get(id)?.showcase_image_url || "",
+  isMe: id === userId,
+}));
 
   setMembers(nextMembers);
   await loadGroupInventories(memberIds);
@@ -7748,11 +7740,10 @@ if (!mounted) {
       </div>
 
       <MemberShowcaseBox
-        member={member}
-        currentUserId={userId}
-        groupId={activeGroup.id}
-        onUpdated={() => loadGroupDetails(activeGroup.id)}
-      />
+  member={member}
+  currentUserId={userId}
+  onUpdated={() => loadGroupDetails(activeGroup.id)}
+/>
     </div>
   </button>
 
