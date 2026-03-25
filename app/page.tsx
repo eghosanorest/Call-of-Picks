@@ -3390,9 +3390,7 @@ playMysteryRevealSounds();
   setMessage(`🎁 Du hast ${rewardItemRow.name} erhalten!`);
   setOpeningBusy(false);
 };
-const grantServerMysteryBoxByRarity = async (
-  rarity: LocalSymbol["rarity"]
-) => {
+const grantServerMysteryBoxByRarity = async (rarity: LocalInventoryItem["rarity"]) => {
   if (!userId) return null;
 
   const slug = getMysteryBoxSlugByRarity(rarity);
@@ -3408,18 +3406,7 @@ const grantServerMysteryBoxByRarity = async (
     return null;
   }
 
-  const rewardFirelineBox = async () => {
-  const rarity = getWeightedFirelineBoxRarity();
-  const box = await grantServerMysteryBoxByRarity(rarity);
-
-  if (box) {
-    setMessage(`Fireline voll! Du hast eine ${rarity}-Mystery Box erhalten.`);
-    setLastWonItem(box);
-  } else {
-    setMessage("Fireline voll, aber die Mystery Box konnte nicht vergeben werden.");
-  }
-};
-const { error: insertError } = await supabase.from("inventory_items").insert({
+  const { error: insertError } = await supabase.from("inventory_items").insert({
     owner_id: userId,
     item_id: itemRow.id,
     status: "owned",
@@ -3449,14 +3436,27 @@ const { error: insertError } = await supabase.from("inventory_items").insert({
 
   return boxItem;
 };
-const grantServerInventoryItem = async (symbol: LocalSymbol) => {
-    if (!userId) return;
 
-    const { data: itemRow, error } = await supabase
-      .from("items")
-      .select("id")
-      .eq("slug", symbol.slug)
-      .maybeSingle();
+const rewardFirelineBox = async () => {
+  const rarity = getWeightedFirelineBoxRarity();
+  const box = await grantServerMysteryBoxByRarity(rarity);
+
+  if (box) {
+    setMessage(`Fireline voll! Du hast eine ${rarity}-Mystery Box erhalten.`);
+    setLastWonItem(box);
+  } else {
+    setMessage("Fireline voll, aber die Mystery Box konnte nicht vergeben werden.");
+  }
+};
+
+const grantServerInventoryItem = async (symbol: LocalSymbol) => {
+  if (!userId) return;
+
+  const { data: itemRow, error } = await supabase
+    .from("items")
+    .select("id")
+    .eq("slug", symbol.slug)
+    .maybeSingle();
 
     if (error || !itemRow?.id) return;
 
