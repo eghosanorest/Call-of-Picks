@@ -962,8 +962,7 @@ function MemberShowcaseBox({
     username: string;
     showcase_image_url?: string | null;
   };
-  currentUserId: string | null;
-  groupId: string;
+  currentUserId: string;
   onUpdated: () => Promise<void> | void;
 }) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -1020,7 +1019,7 @@ try {
     return;
   }
 
-  console.log("SHOWCASE SAVED FOR:", member.user_id, groupId);
+  console.log("SHOWCASE SAVED FOR:", member.user_id);
 
   await onUpdated();
 } catch (err) {
