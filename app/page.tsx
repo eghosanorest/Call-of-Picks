@@ -158,8 +158,11 @@ type ChallengeType = {
 
 type FirstshotRoundState = {
   challengeId: string;
+  roundIndex: number;
   signalAt: number | null;
   clicked: boolean;
+  times: number[];
+  finished: boolean;
 };
 
 type FirstshotUiState =
@@ -2499,7 +2502,36 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const [firstshotRound, setFirstshotRound] = useState<FirstshotRoundState | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const getNextFirstshotDelay = () => {
+  return 300 + Math.floor(Math.random() * 2201); // 300ms bis 2500ms
+};
 
+const scheduleNextFirstshotSignal = (nextRoundIndex: number) => {
+  const delay = getNextFirstshotDelay();
+
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+  }
+
+  setRoundUi("waiting");
+  setRoundFeedback(`Warte auf Signal ${nextRoundIndex + 1}/6`);
+
+  timeoutRef.current = setTimeout(() => {
+    setFirstshotRound((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        roundIndex: nextRoundIndex,
+        signalAt: Date.now(),
+        clicked: false,
+      };
+    });
+
+    setRoundUi("live");
+    setRoundFeedback(`Signal ${nextRoundIndex + 1}/6`);
+  }, delay);
+};
 
   const [adminDraft, setAdminDraft] = useState({
   teamA: "",
@@ -5165,7 +5197,37 @@ setChatList([]);
     await loadChallenges(userId);
   };
 
-  const openChallengeModal = (challenge: ChallengeType) => {
+  const getNextFirstshotDelay = () => {
+  return 300 + Math.floor(Math.random() * 2201); // 300ms bis 2500ms
+};
+
+const scheduleNextFirstshotSignal = (nextRoundIndex: number) => {
+  const delay = getNextFirstshotDelay();
+
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+  }
+
+  setRoundUi("waiting");
+  setRoundFeedback(`Warte auf Signal ${nextRoundIndex + 1}/6`);
+
+  timeoutRef.current = setTimeout(() => {
+    setFirstshotRound((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        roundIndex: nextRoundIndex,
+        signalAt: Date.now(),
+        clicked: false,
+      };
+    });
+
+    setRoundUi("live");
+    setRoundFeedback(`JETZT! ${nextRoundIndex + 1}/6`);
+  }, delay);
+};
+const openChallengeModal = (challenge: ChallengeType) => {
     setSelectedChallenge(challenge);
     setRoundFeedback("");
     setFirstshotRound(null);
@@ -5228,168 +5290,178 @@ setChatList([]);
       return;
     }
 
-    setRoundFeedback("Nicht zu früh klicken.");
-    setRoundUi("waiting");
-
-    const delay = 1200 + Math.floor(Math.random() * 2600);
-
     setFirstshotRound({
-      challengeId: challenge.id,
-      signalAt: null,
-      clicked: false,
-    });
+  challengeId: challenge.id,
+  roundIndex: 0,
+  signalAt: null,
+  clicked: false,
+  times: [],
+  finished: false,
+});
 
-    timeoutRef.current = setTimeout(() => {
-      setFirstshotRound((prev) => {
-        if (!prev || prev.challengeId !== challenge.id) return prev;
-        return { ...prev, signalAt: Date.now() };
-      });
-      setRoundUi("live");
-      setRoundFeedback("JETZT!");
-    }, delay);
+scheduleNextFirstshotSignal(0);
   };
 
   const submitReaction = async () => {
-    const challenge = selectedChallengeFresh;
-    const round = firstshotRound;
+  const challenge = selectedChallengeFresh;
+  const round = firstshotRound;
 
-    if (!challenge || !round || round.clicked) return;
+  if (!challenge || !round || round.clicked) return;
 
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }
 
-    const signalAt = round.signalAt;
-    const falseStart = signalAt == null;
-    const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
+  const signalAt = round.signalAt;
+  const falseStart = signalAt == null;
+  const reactionTime = falseStart ? 999999 : Date.now() - signalAt;
 
-    setFirstshotRound((prev) => (prev ? { ...prev, clicked: true } : prev));
+  const nextTimes = [...round.times, reactionTime];
+  const isLastShot = round.roundIndex >= 5;
 
-    try {
-      if (
-        challenge.status === "accepted" &&
-        challenge.first_player_id === userId &&
-        challenge.first_player_time == null
-      ) {
-        const { error } = await supabase
-          .from("firstshot_challenges")
-          .update({
-            first_player_time: reactionTime,
-            first_player_false_start: falseStart,
-            status: "second_turn",
-          })
-          .eq("id", challenge.id);
+  setFirstshotRound((prev) =>
+    prev
+      ? {
+          ...prev,
+          clicked: true,
+          signalAt: null,
+          times: nextTimes,
+          finished: isLastShot,
+        }
+      : prev
+  );
 
-        if (error) throw error;
+  if (!isLastShot) {
+    setRoundFeedback(
+      falseStart
+        ? `Fehlstart bei Schuss ${round.roundIndex + 1}/6.`
+        : `Schuss ${round.roundIndex + 1}/6: ${reactionTime} ms`
+    );
 
-        setRoundUi("saved");
-        setRoundFeedback(
-          falseStart
-            ? "Fehlstart gespeichert. Jetzt ist der Gegner dran."
-            : `Deine Zeit wurde gespeichert (${reactionTime} ms). Jetzt ist der Gegner dran.`
+    scheduleNextFirstshotSignal(round.roundIndex + 1);
+    return;
+  }
+
+  const totalTime = nextTimes.reduce((sum, value) => sum + value, 0);
+
+  try {
+    if (
+      challenge.status === "accepted" &&
+      challenge.first_player_id === userId &&
+      challenge.first_player_time == null
+    ) {
+      const { error } = await supabase
+        .from("firstshot_challenges")
+        .update({
+          first_player_time: totalTime,
+          first_player_false_start: nextTimes.includes(999999),
+          status: "second_turn",
+        })
+        .eq("id", challenge.id);
+
+      if (error) throw error;
+
+      setRoundUi("saved");
+      setRoundFeedback(
+        `Deine Gesamtzeit wurde gespeichert (${totalTime} ms). Jetzt ist der Gegner dran.`
+      );
+    } else if (
+      challenge.status === "second_turn" &&
+      challenge.second_player_id === userId &&
+      challenge.second_player_time == null
+    ) {
+      const { error } = await supabase
+        .from("firstshot_challenges")
+        .update({
+          second_player_time: totalTime,
+          second_player_false_start: nextTimes.includes(999999),
+        })
+        .eq("id", challenge.id);
+
+      if (error) throw error;
+
+      const { data: refreshed, error: refreshError } = await supabase
+        .from("firstshot_challenges")
+        .select("*")
+        .eq("id", challenge.id)
+        .single();
+
+      if (refreshError || !refreshed) {
+        throw new Error(
+          refreshError?.message || "Challenge konnte nicht neu geladen werden."
         );
-      } else if (
-        challenge.status === "second_turn" &&
-        challenge.second_player_id === userId &&
-        challenge.second_player_time == null
-      ) {
-        const { error } = await supabase
-          .from("firstshot_challenges")
-          .update({
-            second_player_time: reactionTime,
-            second_player_false_start: falseStart,
-          })
-          .eq("id", challenge.id);
-
-        if (error) throw error;
-
-        const { data: refreshed, error: refreshError } = await supabase
-          .from("firstshot_challenges")
-          .select("*")
-          .eq("id", challenge.id)
-          .single();
-
-        if (refreshError || !refreshed) {
-          throw new Error(
-            refreshError?.message || "Challenge konnte nicht neu geladen werden."
-          );
-        }
-
-        const refreshedChallenge = refreshed as ChallengeType;
-        const firstTime = refreshedChallenge.first_player_time ?? 999999;
-        const secondTime = refreshedChallenge.second_player_time ?? 999999;
-
-        if (firstTime === secondTime) {
-          const { error: drawError } = await supabase
-            .from("firstshot_challenges")
-            .update({
-              status: "finished",
-              winner_user_id: null,
-              is_draw: true,
-            })
-            .eq("id", challenge.id);
-
-          if (drawError) throw drawError;
-
-          setRoundFeedback("Unentschieden. Beide behalten ihre Items.");
-        } else {
-          const winnerId =
-            firstTime < secondTime
-              ? refreshedChallenge.first_player_id
-              : refreshedChallenge.second_player_id;
-
-          if (!winnerId) {
-            throw new Error("Gewinner konnte nicht bestimmt werden.");
-          }
-
-          const losingItemId =
-            winnerId === refreshedChallenge.from_user_id
-              ? refreshedChallenge.requested_inventory_item_id
-              : refreshedChallenge.offered_inventory_item_id;
-
-          const { error: transferError } = await supabase
-            .from("inventory_items")
-            .update({ owner_id: winnerId })
-            .eq("id", losingItemId);
-
-          if (transferError) {
-            throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
-          }
-
-          const { error: finishError } = await supabase
-            .from("firstshot_challenges")
-            .update({
-              status: "finished",
-              winner_user_id: winnerId,
-              is_draw: false,
-            })
-            .eq("id", challenge.id);
-
-          if (finishError) throw finishError;
-
-          setRoundFeedback(
-            falseStart
-              ? "Fehlstart gespeichert. Ergebnis wurde ausgewertet."
-              : `Deine Zeit: ${reactionTime} ms. Ergebnis wurde ausgewertet.`
-          );
-        }
-
-        await loadChallenges(userId);
-        if (activeGroupId) await loadGroupDetails(activeGroupId);
-        await loadRemoteUserGameState(userId);
-        setRoundUi("finished");
       }
 
-      await loadUserBets(userId);
+      const refreshedChallenge = refreshed as ChallengeType;
+      const firstTime = refreshedChallenge.first_player_time ?? 999999;
+      const secondTime = refreshedChallenge.second_player_time ?? 999999;
+
+      if (firstTime === secondTime) {
+        const { error: drawError } = await supabase
+          .from("firstshot_challenges")
+          .update({
+            status: "finished",
+            winner_user_id: null,
+            is_draw: true,
+          })
+          .eq("id", challenge.id);
+
+        if (drawError) throw drawError;
+
+        setRoundFeedback("Unentschieden. Beide behalten ihre Items.");
+      } else {
+        const winnerId =
+          firstTime < secondTime
+            ? refreshedChallenge.first_player_id
+            : refreshedChallenge.second_player_id;
+
+        if (!winnerId) {
+          throw new Error("Gewinner konnte nicht bestimmt werden.");
+        }
+
+        const losingItemId =
+          winnerId === refreshedChallenge.from_user_id
+            ? refreshedChallenge.requested_inventory_item_id
+            : refreshedChallenge.offered_inventory_item_id;
+
+        const { error: transferError } = await supabase
+          .from("inventory_items")
+          .update({ owner_id: winnerId })
+          .eq("id", losingItemId);
+
+        if (transferError) {
+          throw new Error(`Item-Transfer fehlgeschlagen: ${transferError.message}`);
+        }
+
+        const { error: finishError } = await supabase
+          .from("firstshot_challenges")
+          .update({
+            status: "finished",
+            winner_user_id: winnerId,
+            is_draw: false,
+          })
+          .eq("id", challenge.id);
+
+        if (finishError) throw finishError;
+
+        setRoundFeedback(`Deine Gesamtzeit: ${totalTime} ms. Ergebnis wurde ausgewertet.`);
+      }
+
       await loadChallenges(userId);
       if (activeGroupId) await loadGroupDetails(activeGroupId);
-    } catch (error: any) {
-      setMessage(error.message || "FirstShot konnte nicht gespeichert werden.");
-    } finally {
-      setFirstshotRound(null);
+      await loadRemoteUserGameState(userId);
+      setRoundUi("finished");
     }
-  };
+
+    await loadChallenges(userId);
+    if (activeGroupId) await loadGroupDetails(activeGroupId);
+  } catch (error: any) {
+    setMessage(error.message || "FirstShot konnte nicht gespeichert werden.");
+  } finally {
+    setFirstshotRound(null);
+  }
+};
 
   const getChallengeStatusLabel = (status: string) => {
     if (status === "pending") return "Wartet auf Annahme";
