@@ -468,85 +468,7 @@ function normalizeRarity(rarity?: string | null) {
 
   return "Common";
 }
-const openItemDetail = async (item: {
-  inventory_id?: string;
-  slug?: string | null;
-  name: string;
-  rarity: string;
-  image_path?: string | null;
-}) => {
-  setSelectedItemDetail({
-    inventory_id: item.inventory_id,
-    slug: item.slug,
-    name: item.name,
-    rarity: item.rarity,
-    image_path: item.image_path,
-  });
-  setSelectedItemHistory([]);
-  setItemDetailOpen(true);
 
-  let detailText: string | null = null;
-
-  if (item.slug) {
-    const { data: itemRow } = await supabase
-      .from("items")
-      .select("detail_text")
-      .eq("slug", item.slug)
-      .maybeSingle();
-
-    detailText = itemRow?.detail_text || null;
-  }
-
-  let historyRows: any[] = [];
-
-  if (item.inventory_id) {
-    const { data } = await supabase
-      .from("inventory_item_history")
-      .select("id, owner_id, action, source_user_id, note, created_at")
-      .eq("inventory_item_id", item.inventory_id)
-      .order("created_at", { ascending: true });
-
-    historyRows = data || [];
-  }
-
-  const userIds = Array.from(
-    new Set(
-      historyRows.flatMap((row) => [row.owner_id, row.source_user_id]).filter(Boolean)
-    )
-  );
-
-  let profileMap = new Map<string, string>();
-
-  if (userIds.length) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, username, display_name")
-      .in("id", userIds);
-
-    profileMap = new Map(
-      (profiles || []).map((p: any) => [p.id, p.display_name || p.username || p.id])
-    );
-  }
-
-  setSelectedItemDetail({
-    inventory_id: item.inventory_id,
-    slug: item.slug,
-    name: item.name,
-    rarity: item.rarity,
-    image_path: item.image_path,
-    detail_text: detailText,
-  });
-
-  setSelectedItemHistory(
-    historyRows.map((row) => ({
-      ...row,
-      owner_name: profileMap.get(row.owner_id) || row.owner_id,
-      source_name: row.source_user_id
-        ? profileMap.get(row.source_user_id) || row.source_user_id
-        : null,
-    }))
-  );
-};
 
 const slugMap: Record<string, string> = {
   "zombieteddy-ultra": "/items/zombieteddy-ultra.png",
@@ -1085,7 +1007,6 @@ const [inventorySort, setInventorySort] = useState<
 const getForcedWinSymbol = (): LocalSymbol => {
   return weightedRandomFromPool(activeSlotPool);
 };
-const [expandedInventoryStackSlug, setExpandedInventoryStackSlug] = useState<string | null>(null);
 const buildWinningRow = (symbol?: LocalSymbol): LocalSymbol[] => {
   const winSymbol = symbol || getForcedWinSymbol();
   return [winSymbol, winSymbol, winSymbol];
@@ -1279,6 +1200,89 @@ const [selectedItemDetail, setSelectedItemDetail] = useState<null | {
 
 const [selectedItemHistory, setSelectedItemHistory] = useState<any[]>([]);
 const [itemDetailOpen, setItemDetailOpen] = useState(false);
+const [expandedInventoryStackSlug, setExpandedInventoryStackSlug] = useState<string | null>(null);
+
+const openItemDetail = async (item: {
+  inventory_id?: string;
+  slug?: string | null;
+  name: string;
+  rarity: string;
+  image_path?: string | null;
+}) => {
+  setSelectedItemDetail({
+    inventory_id: item.inventory_id,
+    slug: item.slug,
+    name: item.name,
+    rarity: item.rarity,
+    image_path: item.image_path,
+    detail_text: null,
+  });
+
+  setSelectedItemHistory([]);
+  setItemDetailOpen(true);
+
+  let detailText: string | null = null;
+
+  if (item.slug) {
+    const { data: itemRow } = await supabase
+      .from("items")
+      .select("detail_text")
+      .eq("slug", item.slug)
+      .maybeSingle();
+
+    detailText = itemRow?.detail_text || null;
+  }
+
+  let historyRows: any[] = [];
+
+  if (item.inventory_id) {
+    const { data } = await supabase
+      .from("inventory_item_history")
+      .select("id, owner_id, action, source_user_id, note, created_at")
+      .eq("inventory_item_id", item.inventory_id)
+      .order("created_at", { ascending: true });
+
+    historyRows = data || [];
+  }
+
+  const userIds = Array.from(
+    new Set(
+      historyRows.flatMap((row) => [row.owner_id, row.source_user_id]).filter(Boolean)
+    )
+  );
+
+  let profileMap = new Map<string, string>();
+
+  if (userIds.length) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, display_name")
+      .in("id", userIds);
+
+    profileMap = new Map(
+      (profiles || []).map((p: any) => [p.id, p.display_name || p.username || p.id])
+    );
+  }
+
+  setSelectedItemDetail({
+    inventory_id: item.inventory_id,
+    slug: item.slug,
+    name: item.name,
+    rarity: item.rarity,
+    image_path: item.image_path,
+    detail_text: detailText,
+  });
+
+  setSelectedItemHistory(
+    historyRows.map((row) => ({
+      ...row,
+      owner_name: profileMap.get(row.owner_id) || row.owner_id,
+      source_name: row.source_user_id
+        ? profileMap.get(row.source_user_id) || row.source_user_id
+        : null,
+    }))
+  );
+};
 
 useEffect(() => {
   const interval = setInterval(() => {
@@ -7057,12 +7061,41 @@ if (!mounted) {
     </div>
 
     {inventoryDisplayItems.length === 0 ? (
-      <div className="text-sm text-zinc-400">Keine passenden Items gefunden.</div>
-    ) : (
-      inventoryDisplayItems.map((item) => (
+  <div className="text-sm text-zinc-400">Keine passenden Items gefunden.</div>
+) : (
+  inventoryDisplayItems.map((item) => {
+    const isExpanded =
+      !item.isBox && expandedInventoryStackSlug === item.slug;
+
+    const matchingSingleItems = myOnlineInventory.filter(
+      (inv) =>
+        !isMysteryBoxSlug(inv.slug) &&
+        inv.slug === item.slug
+    );
+
+    return (
+      <div
+        key={item.isBox ? item.inventory_id : item.slug}
+        className="rounded-2xl border border-white/10 bg-white/5 p-3"
+      >
         <div
-          key={item.isBox ? item.inventory_id : item.slug}
-          className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
+          onClick={() => {
+            if (item.isBox) {
+              openItemDetail({
+                inventory_id: item.inventory_id,
+                slug: item.slug,
+                name: item.name,
+                rarity: item.rarity,
+                image_path: item.image_path,
+              });
+              return;
+            }
+
+            setExpandedInventoryStackSlug((prev) =>
+              prev === item.slug ? null : item.slug
+            );
+          }}
+          className="flex cursor-pointer items-center justify-between gap-3"
         >
           <div className="flex items-center gap-3">
             <img
@@ -7085,7 +7118,8 @@ if (!mounted) {
 
           {item.isBox ? (
             <Button
-              onClick={() =>
+              onClick={(e) => {
+                e.stopPropagation();
                 openMysteryBox({
                   inventory_id: item.inventory_id,
                   id: item.id,
@@ -7094,17 +7128,63 @@ if (!mounted) {
                   rarity: item.rarity as LocalInventoryItem["rarity"],
                   image_path: item.image_path,
                   weight: item.weight,
-                })
-              }
+                });
+              }}
               variant="violet"
               className="px-4 py-2 text-sm"
             >
               Öffnen
             </Button>
-          ) : null}
+          ) : (
+            <div className="text-sm text-zinc-400">
+              {isExpanded ? "▲" : "▼"}
+            </div>
+          )}
         </div>
-      ))
-    )}
+
+        {!item.isBox && isExpanded && (
+          <div className="mt-3 space-y-2">
+            {matchingSingleItems.map((single) => (
+              <button
+                key={single.inventory_id}
+                type="button"
+                onClick={() =>
+                  openItemDetail({
+                    inventory_id: single.inventory_id,
+                    slug: single.slug,
+                    name: single.name,
+                    rarity: single.rarity,
+                    image_path: single.image_path,
+                  })
+                }
+                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-left transition hover:bg-black/40"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={getSafeItemImagePath(single.slug, single.image_path)}
+                    alt={single.name}
+                    className="h-10 w-10 rounded-lg object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "/items/fallback.png";
+                    }}
+                  />
+                  <div>
+                    <div className="font-semibold text-white">{single.name}</div>
+                    <div className="text-xs text-zinc-400">
+                      {single.rarity} · #{single.inventory_id.slice(0, 8)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-zinc-500">Ansehen</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  })
+)}
   </div>
 )}
     </div>
