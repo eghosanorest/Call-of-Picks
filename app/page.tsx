@@ -7542,56 +7542,44 @@ if (!mounted) {
       className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-4 shadow-xl"
     >
       <div className="flex items-center justify-between gap-3">
-        <button
-          onClick={() => {
-            const inventory = memberInventories.find(
-              (entry) => entry.user_id === member.user_id
-            );
-            if (inventory) setSelectedMember(inventory);
-          }}
-          className="flex flex-1 items-center gap-3 text-left"
-        >
-          <img
-            src={member.avatar_url || "/default-avatar.png"}
-            alt={member.username}
-            className="h-10 w-10 rounded-full border border-white/10 object-cover"
-          />
+  <button
+    onClick={() => {
+      const inventory = memberInventories.find(
+        (entry) => entry.user_id === member.user_id
+      );
+      if (inventory) setSelectedMember(inventory);
+    }}
+    className="flex flex-1 items-center gap-3 text-left"
+  >
+    <img
+      src={member.avatar_url || "/default-avatar.png"}
+      alt={member.username}
+      className="h-10 w-10 rounded-full border border-white/10 object-cover"
+    />
 
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-sm font-bold">
-            #{index + 1}
-          </div>
-
-          <div>
-            <div className="font-bold">
-              {member.username}
-              {member.isMe ? " (Du)" : ""}
-            </div>
-            <div className="text-sm text-zinc-400">
-              {member.correct} richtige Tipps
-            </div>
-          </div>
-        </button>
-
-        <div className="flex items-center gap-2">
-          <div className="text-right">
-            <div className="font-bold text-amber-200">
-              {member.tokens} Tokens
-            </div>
-            <div className="text-xs text-zinc-500">
-              {member.top !== "-" ? member.top : "Kein Showcase"}
-            </div>
-          </div>
-
-          {activeGroup.owner_id === userId && member.user_id !== userId ? (
-            <button
-              onClick={() => removeMemberFromGroup(member.user_id)}
-              className="rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-red-200"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          ) : null}
-        </div>
+    <div className="flex flex-col">
+      <div className="font-bold">
+        {member.username}
+        {member.isMe ? " (Du)" : ""}
       </div>
+
+      <div className="text-xs text-zinc-400">
+        Inventar: {
+          memberInventories.find((m) => m.user_id === member.user_id)?.items.length || 0
+        }
+      </div>
+    </div>
+  </button>
+
+  {activeGroup.owner_id === userId && member.user_id !== userId ? (
+    <button
+      onClick={() => removeMemberFromGroup(member.user_id)}
+      className="rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-red-200"
+    >
+      <Trash2 className="h-4 w-4" />
+    </button>
+  ) : null}
+</div>
     </div>
   ))}
 
