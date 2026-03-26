@@ -1889,7 +1889,67 @@ const searchUsers = async () => {
 
   setFriendSearchResults((data || []).filter((row: any) => row.id !== userId));
 };
+const saveBetKingResultForGroup = async (
+  groupId: string,
+  majorId: string,
+  week: number
+) => {
+  if (!groupId) return;
 
+  const weekMatches = data.weeks[majorId]?.[week] || [];
+  if (!weekMatches.length) return;
+
+  const allWeekResolved = weekMatches.every((match) => hasSavedScore(match));
+  if (!allWeekResolved) return;
+
+  const groupMembers = members.filter((member) =>
+    member.user_id
+  );
+
+  const groupPredictionsForWeek = groupPredictions.filter((row) => {
+    if (row.group_id !== groupId) return false;
+
+    return weekMatches.some((match) => match.id === row.match_id);
+  });
+
+  const rows = groupMembers
+    .map((member) => {
+      const memberPredictions = groupPredictionsForWeek.filter(
+        (row) => row.user_id === member.user_id
+      );
+
+      const points = weekMatches.reduce((sum, match) => {
+        const prediction = memberPredictions.find((p) => p.match_id === match.id);
+        return sum + getGroupPredictionPoints(match, prediction);
+      }, 0);
+
+      return {
+        user_id: member.user_id,
+        points,
+      };
+    })
+    .sort((a, b) => b.points - a.points);
+
+  const winner = rows[0];
+  if (!winner) return;
+
+  const { error } = await supabase.from("betking_results").upsert(
+    {
+      group_id: groupId,
+      major: majorId,
+      week,
+      winner_user_id: winner.user_id,
+      points: winner.points,
+    },
+    {
+      onConflict: "group_id,major,week",
+    }
+  );
+
+  if (error) {
+    setMessage(error.message);
+  }
+};
 const sendFriendRequest = async (receiverId: string) => {
   if (!userId) return;
 
@@ -4134,11 +4194,16 @@ await supabase.from("user_picks").delete().eq("match_id", matchId);
 
   await loadMatches();
 
-  if (userId) {
-    await evaluateUserBets(userId);
-  }
+if (userId) {
+  await evaluateUserBets(userId);
+}
 
-  setMessage("Ergebnis gespeichert.");
+if (activeGroupId) {
+  await loadGroupPredictions(activeGroupId);
+  await saveBetKingResultForGroup(activeGroupId, data.currentMajor, currentWeek);
+}
+
+setMessage("Ergebnis gespeichert.");
 };
 const resetAll = async () => {
     if (!isAdmin) {
@@ -6289,22 +6354,29 @@ const activeGroupPickemMatches = useMemo(() => {
 }, [allMatchesFlat]);
 
 const evaluatedGroupPickemMatches = useMemo(() => {
+  if (!activeGroupId) return [];
+
   return allMatchesFlat.filter((match) => {
     if (!hasSavedScore(match)) return false;
-    return groupPredictions.some((row) => row.match_id === match.id);
+
+    return groupPredictions.some(
+      (row) => row.group_id === activeGroupId && row.match_id === match.id
+    );
   });
-}, [allMatchesFlat, groupPredictions]);
+}, [allMatchesFlat, groupPredictions, activeGroupId]);
 
 const betKingRows = useMemo(() => {
   if (!activeGroupId) return [];
 
+  const activeGroupPredictions = groupPredictions.filter(
+    (row) => row.group_id === activeGroupId
+  );
+
   return members
     .map((member) => {
-      const memberPredictions = groupPredictions.filter(
-  (row) =>
-    row.user_id === member.user_id &&
-    row.group_id === activeGroupId // 🔥 DAS IST DER FIX
-);
+      const memberPredictions = activeGroupPredictions.filter(
+        (row) => row.user_id === member.user_id
+      );
 
       const points = allMatchesFlat.reduce((sum, match) => {
         const prediction = memberPredictions.find((p) => p.match_id === match.id);
