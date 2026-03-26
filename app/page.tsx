@@ -1208,7 +1208,7 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
     };
   }
 
-playMultiLineSpinSound();
+
 
 const nextTokensBeforePayout = data.tokens - multiLineStake;
   const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
@@ -1222,6 +1222,7 @@ const nextTokensBeforePayout = data.tokens - multiLineStake;
 
   updateData((prev) => ({ ...prev, tokens: nextTokensBeforePayout }));
   setSpinning(true);
+  playMultiLineSpinSound();
   setLastMultiLineHitCount(0);
   setLastMultiLinePayout(0);
   setLastMultiLineWinningIndexes([]);
@@ -2379,6 +2380,12 @@ const fadeOutMultiLineSpinSound = (duration = 500) => {
     let step = 0;
 
     multiLineSpinFadeRef.current = window.setInterval(() => {
+      // falls in der Zwischenzeit ein neuer Spin gestartet wurde
+      if (audio.paused === false && audio.volume === 1 && step > 0) {
+        stopMultiLineFade();
+        return;
+      }
+
       step += 1;
       const nextVolume = Math.max(0, startVolume * (1 - step / steps));
       audio.volume = nextVolume;
@@ -2390,9 +2397,7 @@ const fadeOutMultiLineSpinSound = (duration = 500) => {
         audio.volume = 1;
       }
     }, stepDuration);
-  } catch {
-    // absichtlich leer
-  }
+  } catch {}
 };
 
 const stopMultiLineSpinSoundImmediately = () => {
