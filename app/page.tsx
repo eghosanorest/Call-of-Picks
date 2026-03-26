@@ -1200,7 +1200,7 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
     };
   }
 
-  if (data.tokens < multiLineStake || spinning) {
+    if (data.tokens < multiLineStake || spinning) {
     return {
       success: false,
       stopAutoSpin: true,
@@ -1208,11 +1208,18 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
     };
   }
 
+  setSpinning(true);
+  playMultiLineSpinSound();
+  setLastMultiLineHitCount(0);
+  setLastMultiLinePayout(0);
+  setLastMultiLineWinningIndexes([]);
 
-
-const nextTokensBeforePayout = data.tokens - multiLineStake;
+  const nextTokensBeforePayout = data.tokens - multiLineStake;
   const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
+
   if (!tokenSaved) {
+    stopMultiLineSpinSoundImmediately();
+    setSpinning(false);
     return {
       success: false,
       stopAutoSpin: true,
@@ -1221,11 +1228,6 @@ const nextTokensBeforePayout = data.tokens - multiLineStake;
   }
 
   updateData((prev) => ({ ...prev, tokens: nextTokensBeforePayout }));
-  setSpinning(true);
-  playMultiLineSpinSound();
-  setLastMultiLineHitCount(0);
-  setLastMultiLinePayout(0);
-  setLastMultiLineWinningIndexes([]);
 
   const randomFromMultiLine = (): LocalSymbol => {
     if (!multilineSymbols.length) return symbolPool[0]!;
