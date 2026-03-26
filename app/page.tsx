@@ -7030,7 +7030,7 @@ if (!mounted) {
     {riskStrip.map((symbol, index) => (
       <div
         key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
-        className={`relative flex h-40 w-[104px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-3 ${
+        className={`relative flex aspect-square w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-2 ${
           riskSelectedIndex === index && !riskRunning
             ? "border-red-400 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.28)]"
             : "border-white/10 bg-white/[0.03]"
