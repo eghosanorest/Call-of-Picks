@@ -6301,8 +6301,10 @@ const betKingRows = useMemo(() => {
   return members
     .map((member) => {
       const memberPredictions = groupPredictions.filter(
-        (row) => row.user_id === member.user_id
-      );
+  (row) =>
+    row.user_id === member.user_id &&
+    row.group_id === activeGroupId // 🔥 DAS IST DER FIX
+);
 
       const points = allMatchesFlat.reduce((sum, match) => {
         const prediction = memberPredictions.find((p) => p.match_id === match.id);
