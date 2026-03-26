@@ -2412,7 +2412,41 @@ const fadeOutMultiLineSpinSound = (duration = 500) => {
     }, stepDuration);
   } catch {}
 };
+const playRiskSpinSound = () => {
+  try {
+    if (classicSpinAudioRef.current) {
+      classicSpinAudioRef.current.pause();
+      classicSpinAudioRef.current.currentTime = 0;
+    }
 
+    const audio = new Audio("/sounds/spinsound3.mp3");
+    audio.preload = "auto";
+    audio.volume = 1;
+
+    classicSpinAudioRef.current = audio;
+
+    audio.play().catch(() => {});
+  } catch {}
+};
+const spinSoundRef = useRef<HTMLAudioElement | null>(null);
+const playSpinSound = () => {
+  try {
+    if (!spinSoundRef.current) {
+      spinSoundRef.current = new Audio("/sounds/spinsound3.mp3");
+      spinSoundRef.current.preload = "auto";
+    }
+
+    const audio = spinSoundRef.current;
+
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = 1;
+
+    audio.play().catch(() => {});
+  } catch {
+    // nichts machen
+  }
+};
 const stopMultiLineSpinSoundImmediately = () => {
   const audio = multiLineSpinAudioRef.current;
   if (!audio) return;
@@ -4653,7 +4687,7 @@ const spin = async (): Promise<AutoSpinResult> => {
   }
 
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
-
+playRiskSpinSound();
   const shouldUseClassicSpinSound = slotViewMode === "classic";
 let currentSpinSoundId: number | undefined = undefined;
 
