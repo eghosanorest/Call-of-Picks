@@ -2458,7 +2458,23 @@ const playAlienSound = () => {
     audio.play().catch(() => {});
   } catch {}
 };
+const cashoutAudioRef = useRef<HTMLAudioElement | null>(null);
 
+const playCashoutSound = () => {
+  try {
+    if (cashoutAudioRef.current) {
+      cashoutAudioRef.current.pause();
+      cashoutAudioRef.current.currentTime = 0;
+    }
+
+    const audio = new Audio("/sounds/cashoutsound1.mp3");
+    audio.preload = "auto";
+    audio.volume = 1;
+
+    cashoutAudioRef.current = audio;
+    audio.play().catch(() => {});
+  } catch {}
+};
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
 const classicSpinSoundIdRef = useRef(0);
 const riskSpinAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -4455,7 +4471,12 @@ const cashoutRiskGame = async () => {
   }
 
   if (riskRunning) return;
+ if (riskPot <= 0) return;
+  if (riskCashedOut) return;
 
+  playCashoutSound();
+  stopRiskSpinSound();
+  
   const nextGiftRarity = getRiskGiftRarity(riskStreak);
   const nextTokens = data.tokens + riskPot;
 
