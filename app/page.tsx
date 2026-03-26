@@ -1043,11 +1043,41 @@ function getRarityBorderClasses(rarity?: string | null) {
 
 export default function CallOfPicksPage() {
   
-
+const reelViewportRef = useRef<HTMLDivElement | null>(null);
+const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
  const [showBetKingModal, setShowBetKingModal] = useState(false);
   const [showGroupPickemModal, setShowGroupPickemModal] = useState(false);
 const [showEvaluatedMatchesModal, setShowEvaluatedMatchesModal] = useState(false);
+const getCenteredItem = () => {
+  const viewport = reelViewportRef.current;
+  if (!viewport) return null;
 
+  const viewportRect = viewport.getBoundingClientRect();
+  const centerX = viewportRect.left + viewportRect.width / 2;
+
+  let closestIndex = -1;
+  let closestDistance = Infinity;
+
+  itemRefs.current.forEach((el, index) => {
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const itemCenter = rect.left + rect.width / 2;
+    const distance = Math.abs(itemCenter - centerX);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
+
+  if (closestIndex === -1) return null;
+
+  return {
+    index: closestIndex,
+    item: riskStrip[closestIndex],
+  };
+};
 const [groupPredictions, setGroupPredictions] = useState<GroupPredictionType[]>([]);
 const [groupPredictionDrafts, setGroupPredictionDrafts] = useState<
   Record<string, { scoreA: string; scoreB: string }>
@@ -6605,7 +6635,7 @@ if (!mounted) {
   </Button>
 </div>
 
-                <div className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
+                <div ref={reelViewportRef} className="relative overflow-hidden rounded-[34px] border border-amber-300/30 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_20%),linear-gradient(180deg,#2a190f_0%,#130d09_20%,#050505_100%)] p-3 shadow-[0_0_120px_rgba(168,85,247,0.22),0_0_60px_rgba(251,191,36,0.14)]">
                   <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-violet-500/18 blur-3xl" />
                   <div className="pointer-events-none absolute -right-12 bottom-8 h-40 w-40 rounded-full bg-fuchsia-500/16 blur-3xl" />
                   <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-gradient-to-b from-amber-200/10 to-transparent blur-2xl" />
@@ -6997,31 +7027,10 @@ if (!mounted) {
           </div>
 
           <div
-  ref={riskViewportRef}
-  className="relative overflow-hidden rounded-[28px] border border-white/10 px-16 py-8"
+  ref={reelViewportRef}
+  className="relative overflow-hidden"
 >
-  <video
-    src="/effects/riskhintergrund.webm"
-    autoPlay
-    loop
-    muted
-    playsInline
-    className="absolute inset-0 h-full w-full object-cover opacity-20"
-  />
-
-  <div className="absolute inset-0 bg-black/30" />
-
-  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
-
-  <div className="pointer-events-none absolute inset-y-0 left-[52.5%] z-30 w-[4px] -translate-x-1/2 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_18px_rgba(248,113,113,0.85)]" />
-
   <motion.div
-    animate={{ x: riskOffset }}
-    transition={{
-      duration: riskRunning ? 2.35 : 0.28,
-      ease: riskRunning ? [0.12, 0.8, 0.18, 1] : "easeOut",
-    }}
-    className="relative z-20 flex items-center"
     style={{
       gap: `${RISK_ITEM_GAP}px`,
       width: "max-content",
@@ -7030,6 +7039,9 @@ if (!mounted) {
     {riskStrip.map((symbol, index) => (
       <div
         key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
+        ref={(el) => {
+          itemRefs.current[index] = el;
+        }}
         className={`relative flex aspect-square w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-2 ${
           riskSelectedIndex === index && !riskRunning
             ? "border-red-400 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.28)]"
@@ -7048,11 +7060,13 @@ if (!mounted) {
       </div>
     ))}
   </motion.div>
+
+  <div className="pointer-events-none absolute inset-y-0 left-1/2 z-30 w-[2px] -translate-x-1/2 bg-red-500" />
 </div>
 
-          <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-            Letztes Icon: <span className="font-black">{riskSelectedItem?.name || "-"}</span>
-          </div>
+<div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+  Letztes Icon: <span className="font-black">{riskSelectedItem?.name || "-"}</span>
+</div>
 
           {riskGameOver ? (
   // 💀 GAME OVER (Teddy)
