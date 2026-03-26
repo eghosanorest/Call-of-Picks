@@ -6572,7 +6572,9 @@ if (!mounted) {
 <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
 {/* 🎥 SLOT VIDEO BACKGROUND */}
 <video
-  src="/effects/slothintergrund.webm"
+  src={multiSlotMode 
+    ? "/effects/multilinehintergrund.webm" 
+    : "/effects/slothintergrund.webm"}
   autoPlay
   loop
   muted
