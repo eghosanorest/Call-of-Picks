@@ -1104,7 +1104,7 @@ const weightedRandomFromPool = (list: LocalSymbol[]): LocalSymbol => {
   return list[list.length - 1] ?? symbolPool[0]!;
 };
 
-
+const [spinCooldown, setSpinCooldown] = useState(false);
 const [inventoryFilter, setInventoryFilter] = useState<
   "all" | "Common" | "Rare" | "Epic" | "Super" | "Legendary" | "Ultra" | "boxes"
 >("all");
@@ -1207,6 +1207,15 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
       stopReason: "Nicht genug Tokens oder Spin läuft bereits.",
     };
   }
+
+if (data.tokens < effectiveSlotCost || spinning) {
+  return {
+    success: false,
+    stopAutoSpin: true,
+    stopReason: "Nicht genug Tokens oder Spin läuft bereits.",
+  };
+}
+
 multiLineSpinLockRef.current = true;
   setSpinning(true);
   playMultiLineSpinSound();
@@ -4603,6 +4612,14 @@ const firelineProgressValue = Number(data.firelineProgress || 0);
 const firelinePercent = Math.min((firelineProgressValue / FIRELINE_MAX) * 100, 100);
 
 const spin = async (): Promise<AutoSpinResult> => {
+  if (spinCooldown) {
+    return {
+      success: false,
+      stopAutoSpin: true,
+      stopReason: "Zu schnell geklickt.",
+    };
+  }
+
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
     return { success: false, stopAutoSpin: true, stopReason: "Kein Login" };
