@@ -1143,7 +1143,6 @@ const maybeUpgradeRowToWin = (
 const multilineSymbols = useMemo(() => {
   return allItemCatalog
     .filter((item) => item.slot_enabled !== false && item.multiline_enabled === true)
-    .slice(0, 3)
     .map((item) => ({
       id: item.slug,
       slug: item.slug,
@@ -1161,7 +1160,7 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
     return { success: false, stopAutoSpin: true, stopReason: "Kein Login" };
   }
 
-  if (multilineSymbols.length !== 3) {
+  if (multilineSymbols.length < 3) {
     setMessage("Für Multi-Line Slots müssen genau 3 Symbole freigegeben sein.");
     return {
       success: false,
