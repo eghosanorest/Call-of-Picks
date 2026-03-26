@@ -6777,11 +6777,19 @@ if (!mounted) {
 <div className="relative z-10 overflow-hidden rounded-[30px] border border-white/10 p-4 shadow-[inset_0_2px_20px_rgba(255,255,255,0.05),inset_0_-20px_30px_rgba(0,0,0,0.35)]">
 {/* 🎥 SLOT VIDEO BACKGROUND */}
 <video
-  key={slotViewMode === "multiline" ? "multiline-bg" : "normal-bg"}
+  key={
+    slotViewMode === "multiline"
+      ? "multiline-bg"
+      : slotViewMode === "risk"
+        ? "risk-bg"
+        : "classic-bg"
+  }
   src={
     slotViewMode === "multiline"
       ? "/effects/multilinehintergrund.webm"
-      : "/effects/slothintergrund.webm"
+      : slotViewMode === "risk"
+        ? "/effects/riskhintergrund.webm"
+        : "/effects/slothintergrund.webm"
   }
   autoPlay
   loop
@@ -7001,7 +7009,7 @@ if (!mounted) {
     className="absolute inset-0 h-full w-full object-cover opacity-20"
   />
 
-  <div className="absolute inset-0 bg-black/70" />
+  <div className="absolute inset-0 bg-black/30" />
 
   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
 
