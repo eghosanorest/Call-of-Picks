@@ -2820,6 +2820,24 @@ const playRiskSpinSound = () => {
     console.log("Risk sound error:", err);
   }
 };
+const riskStopAudioRef = useRef<HTMLAudioElement | null>(null);
+
+const playRiskStopSound = () => {
+  try {
+    if (riskStopAudioRef.current) {
+      riskStopAudioRef.current.pause();
+      riskStopAudioRef.current.currentTime = 0;
+    }
+
+    const audio = new Audio("/sounds/stopsound1.mp3");
+    audio.preload = "auto";
+    audio.volume = 1;
+
+    riskStopAudioRef.current = audio;
+    audio.play().catch(() => {});
+  } catch {}
+};
+
 const stopRiskSpinSound = () => {
   if (!riskSpinAudioRef.current) return;
   riskSpinAudioRef.current.pause();
@@ -4615,13 +4633,15 @@ playRiskSpinSound();
       riskSpinCursorRef.current = finalIndex;
 
       if (selected.slug === zombieTeddySymbol.slug) {
-        setRiskPot(0);
-        setRiskStreak(0);
-        setRiskGameOver(true);
-        setMessage("Zombie Teddy getroffen. Alles verloren.");
-        stopRiskSpinSound();
-        setRiskRunning(false);
-        riskLoopRef.current = null;
+  playRiskStopSound(); // 🔥 HIER
+
+  setRiskPot(0);
+  setRiskStreak(0);
+  setRiskGameOver(true);
+  setMessage("Zombie Teddy getroffen. Alles verloren.");
+  stopRiskSpinSound();
+  setRiskRunning(false);
+  riskLoopRef.current = null;
 
         resolve({
           success: true,
@@ -4632,10 +4652,12 @@ playRiskSpinSound();
       }
 
       const reward = getRiskTokenReward(selected, riskStake);
+
+playRiskStopSound(); // 🔥 HIER
+
 setRiskPot((prev) => prev + reward);
 setRiskStreak((prev) => prev + 1);
 setMessage(`${selected.name} erkannt. +${reward} Tokens in den Pot.`);
-
 stopRiskSpinSound();
 setRiskRunning(false);
 riskLoopRef.current = null;
