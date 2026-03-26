@@ -1208,7 +1208,9 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
     };
   }
 
-  const nextTokensBeforePayout = data.tokens - multiLineStake;
+playMultiLineSpinSound();
+
+const nextTokensBeforePayout = data.tokens - multiLineStake;
   const tokenSaved = await updateTokensOnline(nextTokensBeforePayout);
   if (!tokenSaved) {
     return {
@@ -1240,13 +1242,14 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
     }, 100);
 
     setTimeout(async () => {
-      clearInterval(rolling);
+  clearInterval(rolling);
+  fadeOutMultiLineSpinSound(500);
 
-      const finalGrid = [
-        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-        [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
-      ];
+  const finalGrid = [
+    [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+    [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+    [randomFromMultiLine(), randomFromMultiLine(), randomFromMultiLine()],
+  ];
 
       const winningIndexes = getWinningLineIndexes(finalGrid);
 const hitCount = winningIndexes.length;
@@ -1323,6 +1326,13 @@ const allMatchesFlat = useMemo(() => {
   useEffect(() => {
   return () => {
     stopClassicSpinSound();
+    stopMultiLineFade();
+
+    if (multiLineSpinAudioRef.current) {
+      multiLineSpinAudioRef.current.pause();
+      multiLineSpinAudioRef.current.currentTime = 0;
+      multiLineSpinAudioRef.current.volume = 1;
+    }
   };
 }, []);
   const [lastWin, setLastWin] = useState<LocalSymbol | null>(null);
@@ -2297,6 +2307,91 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
   100: 0.5,
 };
 const [firelineFlash, setFirelineFlash] = useState(false);
+const multiLineSpinAudioRef = useRef<HTMLAudioElement | null>(null);
+const multiLineSpinFadeRef = useRef<number | null>(null);
+
+const stopMultiLineFade = () => {
+  if (multiLineSpinFadeRef.current) {
+    window.clearInterval(multiLineSpinFadeRef.current);
+    multiLineSpinFadeRef.current = null;
+  }
+};
+
+const ensureMultiLineSpinAudio = () => {
+  if (!multiLineSpinAudioRef.current) {
+    multiLineSpinAudioRef.current = new Audio("/sounds/spinsound4.mp3");
+    multiLineSpinAudioRef.current.preload = "auto";
+    multiLineSpinAudioRef.current.loop = true;
+    multiLineSpinAudioRef.current.volume = 1;
+  }
+
+  return multiLineSpinAudioRef.current;
+};
+
+const playMultiLineSpinSound = () => {
+  try {
+    const audio = ensureMultiLineSpinAudio();
+
+    stopMultiLineFade();
+
+    audio.loop = true;
+    audio.volume = 1;
+
+    if (audio.paused) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+      return;
+    }
+
+    audio.volume = 1;
+  } catch {
+    // absichtlich leer
+  }
+};
+
+const fadeOutMultiLineSpinSound = (duration = 500) => {
+  try {
+    const audio = multiLineSpinAudioRef.current;
+    if (!audio) return;
+
+    stopMultiLineFade();
+
+    if (audio.paused) {
+      audio.volume = 1;
+      return;
+    }
+
+    const startVolume = audio.volume;
+    const steps = 10;
+    const stepDuration = Math.max(20, Math.floor(duration / steps));
+    let step = 0;
+
+    multiLineSpinFadeRef.current = window.setInterval(() => {
+      step += 1;
+      const nextVolume = Math.max(0, startVolume * (1 - step / steps));
+      audio.volume = nextVolume;
+
+      if (step >= steps) {
+        stopMultiLineFade();
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = 1;
+      }
+    }, stepDuration);
+  } catch {
+    // absichtlich leer
+  }
+};
+
+const stopMultiLineSpinSoundImmediately = () => {
+  const audio = multiLineSpinAudioRef.current;
+  if (!audio) return;
+
+  stopMultiLineFade();
+  audio.pause();
+  audio.currentTime = 0;
+  audio.volume = 1;
+};
 const hitSoundRef = useRef<HTMLAudioElement | null>(null);
 const alienAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -2625,6 +2720,9 @@ const playClassicSpinSound = () => {
     audio.play().catch(() => {});
   } catch {}
 };
+
+
+
 const parsedStake = Number(betStake) || 0;
 const potentialBetWin =
   parsedStake > 0 && selectedBetMatches.length > 0
