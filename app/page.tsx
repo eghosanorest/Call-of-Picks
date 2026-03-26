@@ -2334,20 +2334,30 @@ const playMultiLineSpinSound = () => {
   try {
     const audio = ensureMultiLineSpinAudio();
 
+    // laufenden Fade sofort abbrechen
     stopMultiLineFade();
 
     audio.loop = true;
     audio.volume = 1;
 
-    if (audio.paused) {
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
+    // wenn gerade noch ein alter Fade pausiert/stoppt, hart resetten
+    if (!audio.paused && audio.ended === false) {
+      // läuft schon -> einfach volle Lautstärke sicherstellen
+      audio.volume = 1;
       return;
     }
 
-    audio.volume = 1;
-  } catch {
-    // absichtlich leer
+    audio.pause();
+    audio.currentTime = 0;
+
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((err) => {
+        console.error("spinsound4 play error:", err);
+      });
+    }
+  } catch (err) {
+    console.error("spinsound4 setup error:", err);
   }
 };
 
