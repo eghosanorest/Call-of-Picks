@@ -2412,22 +2412,7 @@ const fadeOutMultiLineSpinSound = (duration = 500) => {
     }, stepDuration);
   } catch {}
 };
-const playRiskSpinSound = () => {
-  try {
-    if (classicSpinAudioRef.current) {
-      classicSpinAudioRef.current.pause();
-      classicSpinAudioRef.current.currentTime = 0;
-    }
 
-    const audio = new Audio("/sounds/spinsound3.mp3");
-    audio.preload = "auto";
-    audio.volume = 1;
-
-    classicSpinAudioRef.current = audio;
-
-    audio.play().catch(() => {});
-  } catch {}
-};
 const spinSoundRef = useRef<HTMLAudioElement | null>(null);
 const playSpinSound = () => {
   try {
@@ -2814,7 +2799,21 @@ const playClassicSpinSound = () => {
     audio.play().catch(() => {});
   } catch {}
 };
+const playRiskSpinSound = () => {
+  try {
+    if (classicSpinAudioRef.current) {
+      classicSpinAudioRef.current.pause();
+      classicSpinAudioRef.current.currentTime = 0;
+    }
 
+    const audio = new Audio("/sounds/spinsound3.mp3");
+    audio.preload = "auto";
+    audio.volume = 1;
+
+    classicSpinAudioRef.current = audio;
+    audio.play().catch(() => {});
+  } catch {}
+};
 
 
 const parsedStake = Number(betStake) || 0;
