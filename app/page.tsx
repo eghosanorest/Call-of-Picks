@@ -1460,7 +1460,75 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
+const claimPrestigeReward = async (
+  challengeId: string
+) => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
 
+  const challenge = PRESTIGE_CHALLENGES.find((c) => c.id === challengeId);
+  if (!challenge) {
+    setMessage("Prestige-Herausforderung nicht gefunden.");
+    return;
+  }
+
+  const ownedItems = data.inventory.filter(
+    (item) => item.slug === challenge.requiredSlug
+  );
+
+  if (ownedItems.length < challenge.requiredCount) {
+    setMessage("Herausforderung noch nicht erfüllt.");
+    return;
+  }
+
+  if (claimingPrestigeReward === challengeId) return;
+
+  try {
+    setClaimingPrestigeReward(challengeId);
+
+    const itemsToRemove = ownedItems.slice(0, challenge.requiredCount);
+    const inventoryIdsToRemove = itemsToRemove
+      .map((item) => item.inventory_id)
+      .filter(Boolean);
+
+    if (inventoryIdsToRemove.length !== challenge.requiredCount) {
+      setMessage("Nicht alle benötigten Items haben gültige Inventar-IDs.");
+      return;
+    }
+
+    const { error: deleteError } = await supabase
+      .from("inventory_items")
+      .delete()
+      .in("id", inventoryIdsToRemove);
+
+    if (deleteError) {
+      setMessage(deleteError.message);
+      return;
+    }
+
+    const rewardBox = await grantServerMysteryBoxByRarity(challenge.rewardRarity);
+
+    updateData((prev) => ({
+      ...prev,
+      inventory: [
+        ...(rewardBox ? [rewardBox] : []),
+        ...prev.inventory.filter(
+          (item) => !inventoryIdsToRemove.includes(item.inventory_id)
+        ),
+      ],
+    }));
+
+    setMessage(
+      `${challenge.title} abgeholt! ${challenge.requiredCount}x ${challenge.requiredSlug} eingetauscht gegen eine ${challenge.rewardRarity}-Mystery Box.`
+    );
+
+    await loadRemoteUserGameState(userId);
+  } finally {
+    setClaimingPrestigeReward(null);
+  }
+};
 const placeBet = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -2285,6 +2353,8 @@ const sendChatImage = async (file: File) => {
     setChatImageUploading(false);
   }
 };
+
+const [claimingPrestigeReward, setClaimingPrestigeReward] = useState<string | null>(null);
 const [showWelcomeGiftPopup, setShowWelcomeGiftPopup] = useState(false);
 const [claimingWelcomeGift, setClaimingWelcomeGift] = useState(false);
 const [welcomeGiftClaimed, setWelcomeGiftClaimed] = useState(false);
@@ -3740,6 +3810,19 @@ const inventoryCountMap = useMemo(() => {
 
   return map;
 }, [data.inventory]);
+
+const prestigeChallengeRows = useMemo(() => {
+  return PRESTIGE_CHALLENGES.map((challenge) => {
+    const ownedCount = inventoryCountMap.get(challenge.requiredSlug) || 0;
+    const reached = ownedCount >= challenge.requiredCount;
+
+    return {
+      ...challenge,
+      ownedCount,
+      reached,
+    };
+  });
+}, [inventoryCountMap]);
 
 const inventoryDisplayItems = useMemo(() => {
   const rarityRank = {
@@ -8754,13 +8837,23 @@ if (!mounted) {
           </div>
 
           <div className="min-w-[120px] text-right">
-            <div className="text-sm font-semibold text-white">
-              {ownedCount} / {challenge.requiredCount}
-            </div>
-            <div className={`text-xs ${completed ? "text-emerald-300" : "text-zinc-500"}`}>
-              {completed ? "Bereit" : challenge.rewardRarity}
-            </div>
-          </div>
+  <div className="text-sm font-semibold text-white">
+    {ownedCount} / {challenge.requiredCount}
+  </div>
+  <div className={`text-xs ${completed ? "text-emerald-300" : "text-zinc-500"}`}>
+    {completed ? "Bereit" : challenge.rewardRarity}
+  </div>
+
+  {completed && (
+    <Button
+      onClick={() => claimPrestigeReward(challenge.id)}
+      disabled={claimingPrestigeReward === challenge.id}
+      className="mt-2 h-8 rounded-xl bg-amber-400 px-3 text-xs font-bold text-black hover:bg-amber-300 disabled:opacity-60"
+    >
+      {claimingPrestigeReward === challenge.id ? "..." : "Abholen!"}
+    </Button>
+  )}
+</div>
         </div>
       );
     })}
