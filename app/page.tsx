@@ -1104,7 +1104,7 @@ const weightedRandomFromPool = (list: LocalSymbol[]): LocalSymbol => {
   return list[list.length - 1] ?? symbolPool[0]!;
 };
 
-const [spinCooldown, setSpinCooldown] = useState(false);
+
 const [inventoryFilter, setInventoryFilter] = useState<
   "all" | "Common" | "Rare" | "Epic" | "Super" | "Legendary" | "Ultra" | "boxes"
 >("all");
@@ -1350,6 +1350,7 @@ const allMatchesFlat = useMemo(() => {
     }
   };
 }, []);
+  const [spinCooldown, setSpinCooldown] = useState(false);
   const [lastWin, setLastWin] = useState<LocalSymbol | null>(null);
 const [insertImpactKey, setInsertImpactKey] = useState(0);
   const [message, setMessage] = useState("");
@@ -4632,6 +4633,11 @@ const spin = async (): Promise<AutoSpinResult> => {
       stopReason: "Nicht genug Tokens oder Spin läuft bereits.",
     };
   }
+
+  setSpinCooldown(true);
+  setTimeout(() => {
+    setSpinCooldown(false);
+  }, 1000);
 
   setLastWin(null);
   setLastWins([]);
