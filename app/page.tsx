@@ -1045,6 +1045,7 @@ export default function CallOfPicksPage() {
   
 const reelViewportRef = useRef<HTMLDivElement | null>(null);
 const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
  const [showBetKingModal, setShowBetKingModal] = useState(false);
   const [showGroupPickemModal, setShowGroupPickemModal] = useState(false);
 const [showEvaluatedMatchesModal, setShowEvaluatedMatchesModal] = useState(false);
@@ -7031,11 +7032,12 @@ if (!mounted) {
   className="relative overflow-hidden"
 >
   <motion.div
-    style={{
-      gap: `${RISK_ITEM_GAP}px`,
-      width: "max-content",
-    }}
-  >
+  className="flex flex-row items-center"
+  style={{
+    gap: `${RISK_ITEM_GAP}px`,
+    width: "max-content",
+  }}
+>
     {riskStrip.map((symbol, index) => (
       <div
         key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
