@@ -2458,6 +2458,34 @@ const playAlienSound = () => {
     audio.play().catch(() => {});
   } catch {}
 };
+
+const evilAudioRef = useRef<HTMLAudioElement | null>(null);
+
+const playEvilSound = () => {
+  try {
+    if (!evilAudioRef.current) {
+      const audio = new Audio("/sounds/evilsound.mp3");
+      audio.loop = true;
+      audio.volume = 0.4; // 🔥 anpassen (sonst zu dominant)
+      evilAudioRef.current = audio;
+    }
+
+    const audio = evilAudioRef.current;
+
+    if (audio.paused) {
+      audio.play().catch(() => {});
+    }
+  } catch {}
+};
+
+const stopEvilSound = () => {
+  const audio = evilAudioRef.current;
+  if (!audio) return;
+
+  audio.pause();
+  audio.currentTime = 0;
+};
+
 const cashoutAudioRef = useRef<HTMLAudioElement | null>(null);
 
 const playCashoutSound = () => {
@@ -5392,6 +5420,19 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, [userId, activeGroupId]);
+
+useEffect(() => {
+  if (slotViewMode === "risk") {
+    playEvilSound();
+  } else {
+    stopEvilSound();
+  }
+
+  return () => {
+    stopEvilSound();
+  };
+}, [slotViewMode]);
+
 useEffect(() => {
     if (!userId) return;
 
