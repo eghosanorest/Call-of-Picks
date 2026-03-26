@@ -2285,7 +2285,9 @@ const sendChatImage = async (file: File) => {
     setChatImageUploading(false);
   }
 };
-
+const [showWelcomeGiftPopup, setShowWelcomeGiftPopup] = useState(false);
+const [claimingWelcomeGift, setClaimingWelcomeGift] = useState(false);
+const [welcomeGiftClaimed, setWelcomeGiftClaimed] = useState(false);
 const [showCompletedHomeMatches, setShowCompletedHomeMatches] = useState(false);
   const [myGroups, setMyGroups] = useState<GroupType[]>([]);
   const [activeGroupId, setActiveGroupId] = useState("");
@@ -2726,7 +2728,13 @@ const fadeOutAudio = (
   }, stepTime);
 };
 const lastFirelineRef = useRef(0);
-
+useEffect(() => {
+  if (userEmail && !welcomeGiftClaimed) {
+    setShowWelcomeGiftPopup(true);
+  } else {
+    setShowWelcomeGiftPopup(false);
+  }
+}, [userEmail, welcomeGiftClaimed]);
 useEffect(() => {
   const current = data.firelineProgress;
   const previous = lastFirelineRef.current;
@@ -3200,7 +3208,44 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
   const updateData = (updater: LocalData | ((prev: LocalData) => LocalData)) => {
     setData((prev) => (typeof updater === "function" ? updater(prev) : updater));
   };
+const claimWelcomeGift = async () => {
+  if (!userId) {
+    setMessage("Bitte zuerst mit Google anmelden.");
+    return;
+  }
 
+  if (claimingWelcomeGift || welcomeGiftClaimed) return;
+
+  try {
+    setClaimingWelcomeGift(true);
+    setMessage("");
+
+    const nextTokens = data.tokens + 300;
+
+    const tokenSaved = await updateTokensOnline(nextTokens);
+    if (!tokenSaved) {
+      setClaimingWelcomeGift(false);
+      return;
+    }
+
+    updateData((prev) => ({
+      ...prev,
+      tokens: nextTokens,
+    }));
+
+    await grantServerMysteryBoxesByRarity("Common", 3);
+    await grantServerMysteryBoxesByRarity("Rare", 2);
+    await grantServerMysteryBoxesByRarity("Epic", 1);
+
+    await loadRemoteUserGameState(userId);
+
+    setWelcomeGiftClaimed(true);
+    setShowWelcomeGiftPopup(false);
+    setMessage("Danke für deinen Besuch! Geschenk erfolgreich abgeholt.");
+  } finally {
+    setClaimingWelcomeGift(false);
+  }
+};
   const loadAllItems = async () => {
     const { data, error } = await supabase
       .from("items")
@@ -3404,7 +3449,7 @@ const loadMatches = async () => {
 ] = await Promise.all([
   supabase
   .from("profiles")
-  .select("username, display_name, avatar_url, tokens")
+.select("username, display_name, avatar_url, tokens, welcome_gift_claimed")
   .eq("id", uid)
   .maybeSingle(),
   supabase.from("user_picks").select("match_id, pick_side").eq("user_id", uid),
@@ -3466,6 +3511,8 @@ const resolvedMatchIds = (rewardRows || []).map((r: any) => String(r.match_id));
   inventory,
   spinHistory,
 }));
+
+setWelcomeGiftClaimed(!!profile?.welcome_gift_claimed);
 
     if (profile) {
   const nextName = profile.display_name || profile.username || "";
@@ -4355,6 +4402,58 @@ setTimeout(() => {
   setOpeningReward(rewardInventoryItem);
   setMessage(`🎁 Du hast ${rewardItemRow.name} erhalten!`);
   setOpeningBusy(false);
+};
+const grantServerMysteryBoxesByRarity = async (
+  rarity: LocalInventoryItem["rarity"],
+  amount: number
+) => {
+  if (!userId || amount <= 0) return [];
+
+  const slug = getMysteryBoxSlugByRarity(rarity);
+
+  const { data: itemRow, error } = await supabase
+    .from("items")
+    .select("id, slug, name, rarity, image_path, weight")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error || !itemRow?.id) {
+    setMessage(`Mystery Box (${slug}) konnte nicht gefunden werden.`);
+    return [];
+  }
+
+  const rowsToInsert = Array.from({ length: amount }, () => ({
+    owner_id: userId,
+    item_id: itemRow.id,
+    status: "owned",
+  }));
+
+  const { data: insertedRows, error: insertError } = await supabase
+    .from("inventory_items")
+    .insert(rowsToInsert)
+    .select("id");
+
+  if (insertError) {
+    setMessage(insertError.message);
+    return [];
+  }
+
+  const boxes: LocalInventoryItem[] = (insertedRows || []).map((row: any, index: number) => ({
+    inventory_id: row.id || `welcome-${slug}-${Date.now()}-${index}`,
+    id: itemRow.slug,
+    slug: itemRow.slug,
+    name: itemRow.name,
+    rarity: normalizeRarity(itemRow.rarity) as LocalInventoryItem["rarity"],
+    image_path: itemRow.image_path,
+    weight: itemRow.weight ?? 1,
+  }));
+
+  updateData((prev) => ({
+    ...prev,
+    inventory: [...boxes, ...prev.inventory],
+  }));
+
+  return boxes;
 };
 const grantServerMysteryBoxByRarity = async (
   rarity: LocalInventoryItem["rarity"]
@@ -5326,6 +5425,9 @@ await loadFriends(user.id);
 await loadFriendRequests(user.id);
 await loadChatList(user.id);
     } else {
+      setShowWelcomeGiftPopup(false);
+setClaimingWelcomeGift(false);
+setWelcomeGiftClaimed(false);
       setUserId("");
       setUserEmail("");
       setProfileName("");
@@ -5628,7 +5730,9 @@ useEffect(() => {
       setMessage(error.message);
       return;
     }
-
+setShowWelcomeGiftPopup(false);
+setClaimingWelcomeGift(false);
+setWelcomeGiftClaimed(false);
     setUserId("");
     setUserEmail("");
     setProfileName("");
@@ -6457,7 +6561,73 @@ if (!mounted) {
     exit={{ opacity: 0, y: -10 }}
     className="mx-auto w-full max-w-md space-y-4 md:max-w-5xl xl:max-w-7xl 2xl:max-w-[1600px]"
   >
-    
+    {showWelcomeGiftPopup && userEmail && !welcomeGiftClaimed && (
+  <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 px-4">
+    <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-amber-400/30 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.55)]">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-amber-400/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-violet-500/15 blur-3xl" />
+
+      <div className="relative z-10">
+        <div className="text-center">
+          <div className="text-xs uppercase tracking-[0.3em] text-amber-300">
+            Willkommen
+          </div>
+          <div className="mt-2 text-2xl font-black text-white">
+            Danke für deinen Besuch!
+          </div>
+          <div className="mt-2 text-sm text-zinc-400">
+            Hol dir jetzt dein Geschenkpaket ab.
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-center">
+          <div className="text-xs uppercase tracking-[0.2em] text-amber-200/80">
+            Token Bonus
+          </div>
+          <div className="mt-1 text-3xl font-black text-amber-300">
+            +300 Tokens
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="mb-2 text-center text-xs uppercase tracking-[0.2em] text-zinc-400">
+            Mystery Boxen
+          </div>
+
+          <div className="flex items-center justify-center gap-2">
+            {[
+              "/items/mysterybox-common.png",
+              "/items/mysterybox-common.png",
+              "/items/mysterybox-common.png",
+              "/items/mysterybox-rare.png",
+              "/items/mysterybox-rare.png",
+              "/items/mysterybox-epic.png",
+            ].map((src, index) => (
+              <div
+                key={`${src}-${index}`}
+                className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-2"
+              >
+                <img
+                  src={src}
+                  alt={`Mystery Box ${index + 1}`}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Button
+  onClick={claimWelcomeGift}
+  disabled={claimingWelcomeGift || welcomeGiftClaimed}
+  className="mt-6 flex w-full items-center justify-center gap-2 bg-amber-400 text-black hover:bg-amber-300 disabled:opacity-60"
+>
+  {claimingWelcomeGift ? "Wird ausgezahlt..." : "Geschenk abholen!"}
+</Button>
+      </div>
+    </div>
+  </div>
+)}
                 {!userEmail ? (
                   <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(9,9,11,1))] p-5 shadow-xl">
                     <div className="text-sm text-zinc-400">Online Funktionen</div>
