@@ -2461,6 +2461,8 @@ const playAlienSound = () => {
 
 const classicSpinAudioRef = useRef<HTMLAudioElement | null>(null);
 const classicSpinSoundIdRef = useRef(0);
+const riskSpinAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const mysteryLoadupAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryWaterbombAudioRef = useRef<HTMLAudioElement | null>(null);
   const mysteryInsertAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2801,20 +2803,28 @@ const playClassicSpinSound = () => {
 };
 const playRiskSpinSound = () => {
   try {
-    if (classicSpinAudioRef.current) {
-      classicSpinAudioRef.current.pause();
-      classicSpinAudioRef.current.currentTime = 0;
+    if (riskSpinAudioRef.current) {
+      riskSpinAudioRef.current.pause();
+      riskSpinAudioRef.current.currentTime = 0;
     }
 
     const audio = new Audio("/sounds/spinsound3.mp3");
     audio.preload = "auto";
     audio.volume = 1;
 
-    classicSpinAudioRef.current = audio;
-    audio.play().catch(() => {});
-  } catch {}
+    riskSpinAudioRef.current = audio;
+    audio.play().catch((err) => {
+      console.log("Risk sound play failed:", err);
+    });
+  } catch (err) {
+    console.log("Risk sound error:", err);
+  }
 };
-
+const stopRiskSpinSound = () => {
+  if (!riskSpinAudioRef.current) return;
+  riskSpinAudioRef.current.pause();
+  riskSpinAudioRef.current.currentTime = 0;
+};
 
 const parsedStake = Number(betStake) || 0;
 const potentialBetWin =
@@ -4539,7 +4549,7 @@ const spinRiskGame = async (): Promise<AutoSpinResult> => {
       stopReason: "Keine Risk-Items gefunden.",
     };
   }
-
+playRiskSpinSound();
   if (riskLoopRef.current) {
     clearTimeout(riskLoopRef.current);
     riskLoopRef.current = null;
@@ -4609,6 +4619,7 @@ const spinRiskGame = async (): Promise<AutoSpinResult> => {
         setRiskStreak(0);
         setRiskGameOver(true);
         setMessage("Zombie Teddy getroffen. Alles verloren.");
+        stopRiskSpinSound();
         setRiskRunning(false);
         riskLoopRef.current = null;
 
@@ -4621,13 +4632,14 @@ const spinRiskGame = async (): Promise<AutoSpinResult> => {
       }
 
       const reward = getRiskTokenReward(selected, riskStake);
-      setRiskPot((prev) => prev + reward);
-      setRiskStreak((prev) => prev + 1);
-      setMessage(`${selected.name} erkannt. +${reward} Tokens in den Pot.`);
+setRiskPot((prev) => prev + reward);
+setRiskStreak((prev) => prev + 1);
+setMessage(`${selected.name} erkannt. +${reward} Tokens in den Pot.`);
 
-      setRiskRunning(false);
-      riskLoopRef.current = null;
-      resolve({ success: true });
+stopRiskSpinSound();
+setRiskRunning(false);
+riskLoopRef.current = null;
+resolve({ success: true });
     }, 2350);
   });
 };
@@ -4639,6 +4651,7 @@ useEffect(() => {
     if (riskLoopRef.current) {
       clearTimeout(riskLoopRef.current);
     }
+    stopRiskSpinSound();
   };
 }, []);
   
@@ -4686,7 +4699,7 @@ const spin = async (): Promise<AutoSpinResult> => {
   }
 
   updateData((prev) => ({ ...prev, tokens: nextTokens }));
-playRiskSpinSound();
+
   const shouldUseClassicSpinSound = slotViewMode === "classic";
 let currentSpinSoundId: number | undefined = undefined;
 
