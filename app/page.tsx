@@ -1068,7 +1068,7 @@ const [allItemCatalog, setAllItemCatalog] = useState<
     risk_enabled?: boolean | null;
   }[]
 >([]);
-
+const slotSpinLockRef = useRef(false);
   const slotEnabledSymbols = useMemo(() => {
   return allItemCatalog
     .filter((item) => item.slot_enabled !== false)
@@ -1207,7 +1207,7 @@ const spinMultiLine = async (): Promise<AutoSpinResult> => {
       stopReason: "Nicht genug Tokens oder Spin läuft bereits.",
     };
   }
-
+multiLineSpinLockRef.current = true;
   setSpinning(true);
   playMultiLineSpinSound();
   setLastMultiLineHitCount(0);
@@ -1297,8 +1297,9 @@ setMultiLineGrid(finalGrid);
         hitCount > 0 ? `${hitCount} Treffer! +${payout} Tokens` : "Kein Treffer."
       );
 
-      setSpinning(false);
-      resolve({ success: true });
+      multiLineSpinLockRef.current = false;
+setSpinning(false);
+resolve({ success: true });
     }, 1800);
   });
 };
@@ -2314,7 +2315,7 @@ const SLOT_BONUS_CHANCE: Record<number, number> = {
 const [firelineFlash, setFirelineFlash] = useState(false);
 const multiLineSpinAudioRef = useRef<HTMLAudioElement | null>(null);
 const multiLineSpinFadeRef = useRef<number | null>(null);
-
+const multiLineSpinLockRef = useRef(false);
 const stopMultiLineFade = () => {
   if (multiLineSpinFadeRef.current) {
     window.clearInterval(multiLineSpinFadeRef.current);
