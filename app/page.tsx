@@ -6618,7 +6618,7 @@ if (!mounted) {
 />
 
 {/* 🔥 dunkler Overlay */}
-<div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+
 
 {/* 👉 Content Layer */}
 <div className="relative z-10"></div>
