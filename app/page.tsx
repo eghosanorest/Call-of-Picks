@@ -6990,44 +6990,57 @@ if (!mounted) {
 
           <div
   ref={riskViewportRef}
-  className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_60%),linear-gradient(180deg,rgba(14,14,18,1),rgba(5,5,7,1))] px-16 py-8"
+  className="relative overflow-hidden rounded-[28px] border border-white/10 px-16 py-8"
 >
-            <div className="pointer-events-none absolute inset-y-0 left-[52.5%] z-30 w-[4px] -translate-x-1/2 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_18px_rgba(248,113,113,0.85)]" />
+  <video
+    src="/effects/riskhintergrund.webm"
+    autoPlay
+    loop
+    muted
+    playsInline
+    className="absolute inset-0 h-full w-full object-cover opacity-20"
+  />
 
-            <motion.div
-  animate={{ x: riskOffset }}
-  transition={{
-    duration: riskRunning ? 2.35 : 0.28,
-    ease: riskRunning ? [0.12, 0.8, 0.18, 1] : "easeOut",
-  }}
-  className="flex items-center"
-  style={{
-    gap: `${RISK_ITEM_GAP}px`,
-    width: "max-content",
-  }}
->
-  {riskStrip.map((symbol, index) => (
-    <div
-      key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
-      className={`relative flex h-40 w-[104px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-3 ${
-        riskSelectedIndex === index && !riskRunning
-          ? "border-red-400 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.28)]"
-          : "border-white/10 bg-white/[0.03]"
-      }`}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_45%)]" />
-      <img
-        src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
-        alt={symbol.name}
-        className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]"
-        onError={(e) => {
-          e.currentTarget.src = "/items/fallback.png";
-        }}
-      />
-    </div>
-  ))}
-</motion.div>
-          </div>
+  <div className="absolute inset-0 bg-black/70" />
+
+  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
+
+  <div className="pointer-events-none absolute inset-y-0 left-[52.5%] z-30 w-[4px] -translate-x-1/2 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_18px_rgba(248,113,113,0.85)]" />
+
+  <motion.div
+    animate={{ x: riskOffset }}
+    transition={{
+      duration: riskRunning ? 2.35 : 0.28,
+      ease: riskRunning ? [0.12, 0.8, 0.18, 1] : "easeOut",
+    }}
+    className="relative z-20 flex items-center"
+    style={{
+      gap: `${RISK_ITEM_GAP}px`,
+      width: "max-content",
+    }}
+  >
+    {riskStrip.map((symbol, index) => (
+      <div
+        key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
+        className={`relative flex h-40 w-[104px] shrink-0 items-center justify-center overflow-hidden rounded-[26px] border p-3 ${
+          riskSelectedIndex === index && !riskRunning
+            ? "border-red-400 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.28)]"
+            : "border-white/10 bg-white/[0.03]"
+        }`}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_45%)]" />
+        <img
+          src={getSafeItemImagePath(symbol.slug, symbol.image_path)}
+          alt={symbol.name}
+          className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]"
+          onError={(e) => {
+            e.currentTarget.src = "/items/fallback.png";
+          }}
+        />
+      </div>
+    ))}
+  </motion.div>
+</div>
 
           <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
             Letztes Icon: <span className="font-black">{riskSelectedItem?.name || "-"}</span>
