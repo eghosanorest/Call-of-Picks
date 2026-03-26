@@ -3209,42 +3209,66 @@ const [adminScores, setAdminScores] = useState<Record<string, { scoreA: string; 
     setData((prev) => (typeof updater === "function" ? updater(prev) : updater));
   };
 const claimWelcomeGift = async () => {
-  if (!userId) {
-    setMessage("Bitte zuerst mit Google anmelden.");
+  if (!userId || claimingWelcomeGift) return;
+
+  setClaimingWelcomeGift(true);
+
+  // 🔥 CHECK SERVER
+  const { data: profile, error } = await supabase
+  .from("profiles")
+  .select("welcome_gift_claimed, tokens")
+  .eq("id", userId)
+  .maybeSingle();
+
+if (error || !profile) {
+  setMessage("Profil konnte nicht geladen werden.");
+  setClaimingWelcomeGift(false);
+  return;
+}
+
+  if (profile?.welcome_gift_claimed) {
+    setMessage("Geschenk bereits abgeholt.");
+    setShowWelcomeGiftPopup(false);
+    setClaimingWelcomeGift(false);
     return;
   }
 
-  if (claimingWelcomeGift || welcomeGiftClaimed) return;
+  // ✅ Tokens geben
+  const newTokens = (profile.tokens || 0) + 300;
 
-  try {
-    setClaimingWelcomeGift(true);
-    setMessage("");
+  const { error: tokenError } = await supabase
+    .from("profiles")
+    .update({
+      tokens: newTokens,
+      welcome_gift_claimed: true, // 🔥 HIER ENTSCHEIDEND
+    })
+    .eq("id", userId);
 
-    const nextTokens = data.tokens + 300;
-
-    const tokenSaved = await updateTokensOnline(nextTokens);
-    if (!tokenSaved) {
-      setClaimingWelcomeGift(false);
-      return;
-    }
-
-    updateData((prev) => ({
-      ...prev,
-      tokens: nextTokens,
-    }));
-
-    await grantServerMysteryBoxesByRarity("Common", 3);
-    await grantServerMysteryBoxesByRarity("Rare", 2);
-    await grantServerMysteryBoxesByRarity("Epic", 1);
-
-    await loadRemoteUserGameState(userId);
-
-    setWelcomeGiftClaimed(true);
-    setShowWelcomeGiftPopup(false);
-    setMessage("Danke für deinen Besuch! Geschenk erfolgreich abgeholt.");
-  } finally {
+  if (tokenError) {
+    setMessage(tokenError.message);
     setClaimingWelcomeGift(false);
+    return;
   }
+
+  // ✅ Boxen geben
+  await grantServerMysteryBoxByRarity("Common");
+  await grantServerMysteryBoxByRarity("Common");
+  await grantServerMysteryBoxByRarity("Common");
+
+  await grantServerMysteryBoxByRarity("Rare");
+  await grantServerMysteryBoxByRarity("Rare");
+
+  await grantServerMysteryBoxByRarity("Epic");
+
+  // UI Update
+  updateData((prev) => ({
+    ...prev,
+    tokens: newTokens,
+  }));
+
+  setShowWelcomeGiftPopup(false);
+  setMessage("🎁 Geschenk erfolgreich abgeholt!");
+  setClaimingWelcomeGift(false);
 };
   const loadAllItems = async () => {
     const { data, error } = await supabase
@@ -5396,6 +5420,23 @@ useEffect(() => {
       setUserEmail(user.email || "");
       setIsAdmin(ADMIN_USER_IDS.includes(user.id));
       await ensureProfile(user.id, user.email || "");
+
+const checkWelcomeGiftStatus = async (uid: string) => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("welcome_gift_claimed")
+    .eq("id", uid)
+    .single();
+
+  if (error) return;
+
+  if (data?.welcome_gift_claimed) {
+    setShowWelcomeGiftPopup(false);
+  } else {
+    setShowWelcomeGiftPopup(true);
+  }
+};
+
 await loadRemoteUserGameState(user.id);
 await loadUserBets(user.id);
 await loadMyGroups(user.id);
