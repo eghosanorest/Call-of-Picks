@@ -7032,12 +7032,14 @@ if (!mounted) {
   className="relative overflow-hidden"
 >
   <motion.div
-  className="flex flex-row items-center"
-  style={{
-    gap: `${RISK_ITEM_GAP}px`,
-    width: "max-content",
-  }}
->
+    className="flex flex-row items-center"
+    animate={{ x: riskOffset }}
+    transition={{ duration: 0.12, ease: "linear" }}
+    style={{
+      gap: `${RISK_ITEM_GAP}px`,
+      width: "max-content",
+    }}
+  >
     {riskStrip.map((symbol, index) => (
       <div
         key={`${symbol.slug}-${index}-${riskRunning ? "run" : "idle"}`}
