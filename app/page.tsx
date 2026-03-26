@@ -2484,6 +2484,21 @@ const playHitSound2 = () => {
     audio.play().catch(() => {});
   } catch {}
 };
+const hitSound3Ref = useRef<HTMLAudioElement | null>(null);
+
+const playHitSound3 = () => {
+  try {
+    if (!hitSound3Ref.current) {
+      hitSound3Ref.current = new Audio("/sounds/hitsound3.mp3");
+      hitSound3Ref.current.preload = "auto";
+    }
+
+    const audio = hitSound3Ref.current;
+    audio.currentTime = 0;
+    audio.volume = 1;
+    audio.play().catch(() => {});
+  } catch {}
+};
 const playImpactSound = () => {
   try {
     if (!impactSoundRef.current) {
@@ -4617,6 +4632,7 @@ const hitCount = winningRows.length;
 
 if (hitCount > 0) {
   playHitSound();
+  playHitSound3();
 }
 
 setMultiReels(finalGrid);
