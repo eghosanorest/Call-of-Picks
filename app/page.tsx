@@ -2417,7 +2417,7 @@ const spinSoundRef = useRef<HTMLAudioElement | null>(null);
 const playSpinSound = () => {
   try {
     if (!spinSoundRef.current) {
-      spinSoundRef.current = new Audio("/sounds/spinsound3.mp3");
+      spinSoundRef.current = new Audio("/sounds/startsound1.mp3");
       spinSoundRef.current.preload = "auto";
     }
 
@@ -2808,7 +2808,7 @@ const playRiskSpinSound = () => {
       riskSpinAudioRef.current.currentTime = 0;
     }
 
-    const audio = new Audio("/sounds/spinsound3.mp3");
+    const audio = new Audio("/sounds/startsound1.mp3");
     audio.preload = "auto";
     audio.volume = 1;
 
