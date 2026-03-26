@@ -1258,6 +1258,10 @@ const payout = Math.floor(multiLineStake * multiplier);
 
 if (hitCount > 0) {
   playHitSound();
+
+  setTimeout(() => {
+    playHitSound3();
+  }, 80);
 }
 
 setMultiLineGrid(finalGrid);
@@ -1285,9 +1289,7 @@ setMultiLineGrid(finalGrid);
       setLastMultiLineHitCount(hitCount);
       setLastMultiLinePayout(payout);
       setLastMultiLineWinningIndexes(winningIndexes);
-if (hitCount > 0) {
-  playHitSound();
-}
+
       setMessage(
         hitCount > 0 ? `${hitCount} Treffer! +${payout} Tokens` : "Kein Treffer."
       );
@@ -2489,15 +2491,30 @@ const hitSound3Ref = useRef<HTMLAudioElement | null>(null);
 const playHitSound3 = () => {
   try {
     if (!hitSound3Ref.current) {
-      hitSound3Ref.current = new Audio("/sounds/hitsound3.mp3");
-      hitSound3Ref.current.preload = "auto";
+      const audio = new Audio("/sounds/hitsound3.mp3");
+      audio.preload = "auto";
+      audio.volume = 1;
+
+      // 🔥 BOOST (wichtig)
+      audio.playbackRate = 1; // optional leicht höher machen für mehr Punch
+
+      hitSound3Ref.current = audio;
     }
 
     const audio = hitSound3Ref.current;
+
+    audio.pause();
     audio.currentTime = 0;
+
+    // 🔥 jedes Mal volle Lautstärke erzwingen
     audio.volume = 1;
-    audio.play().catch(() => {});
-  } catch {}
+
+    audio.play().catch((err) => {
+      console.error("hitsound3 error:", err);
+    });
+  } catch (err) {
+    console.error("hitsound3 setup error:", err);
+  }
 };
 const playImpactSound = () => {
   try {
@@ -4632,7 +4649,8 @@ const hitCount = winningRows.length;
 
 if (hitCount > 0) {
   playHitSound();
-  playHitSound3();
+
+  
 }
 
 setMultiReels(finalGrid);
