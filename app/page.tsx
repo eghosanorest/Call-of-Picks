@@ -1153,6 +1153,37 @@ const multilineSymbols = useMemo(() => {
     }));
 }, [allItemCatalog]);
 
+const buildInitialMultiLineGrid = (pool: LocalSymbol[]): LocalSymbol[][] => {
+  if (pool.length >= 3) {
+    return [
+      [pool[0], pool[1], pool[2]],
+      [pool[1], pool[2], pool[0]],
+      [pool[2], pool[0], pool[1]],
+    ];
+  }
+
+  if (pool.length === 2) {
+    return [
+      [pool[0], pool[1], pool[0]],
+      [pool[1], pool[0], pool[1]],
+      [pool[0], pool[1], pool[0]],
+    ];
+  }
+
+  if (pool.length === 1) {
+    return [
+      [pool[0], pool[0], pool[0]],
+      [pool[0], pool[0], pool[0]],
+      [pool[0], pool[0], pool[0]],
+    ];
+  }
+
+  return [
+    [symbolPool[0], symbolPool[1], symbolPool[2]],
+    [symbolPool[3], symbolPool[4], symbolPool[5]],
+    [symbolPool[6], symbolPool[7], symbolPool[8]],
+  ];
+};
 
 const spinMultiLine = async (): Promise<AutoSpinResult> => {
   if (!userId) {
@@ -2661,11 +2692,13 @@ const [multiReels, setMultiReels] = useState<LocalSymbol[][]>([
   [symbolPool[6], symbolPool[7], symbolPool[8]],
 ]);
 
-const [multiLineGrid, setMultiLineGrid] = useState<LocalSymbol[][]>([
-  [symbolPool[0], symbolPool[1], symbolPool[2]],
-  [symbolPool[3], symbolPool[4], symbolPool[5]],
-  [symbolPool[6], symbolPool[7], symbolPool[8]],
-]);
+const [multiLineGrid, setMultiLineGrid] = useState<LocalSymbol[][]>([]);
+
+useEffect(() => {
+  if (multilineSymbols.length > 0) {
+    setMultiLineGrid(buildInitialMultiLineGrid(multilineSymbols));
+  }
+}, [multilineSymbols]);
 
 const [lastWins, setLastWins] = useState<LocalSymbol[]>([]);
 const [lastMultiLineHitCount, setLastMultiLineHitCount] = useState(0);
