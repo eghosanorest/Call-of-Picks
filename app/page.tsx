@@ -4463,7 +4463,23 @@ const resetRiskRound = () => {
   setRiskStrip(freshStrip);
   setRiskOffset(0);
 };
+const riskLoseAudioRef = useRef<HTMLAudioElement | null>(null);
 
+const playRiskLoseSound = () => {
+  try {
+    if (riskLoseAudioRef.current) {
+      riskLoseAudioRef.current.pause();
+      riskLoseAudioRef.current.currentTime = 0;
+    }
+
+    const audio = new Audio("/sounds/risksound1.mp3");
+    audio.preload = "auto";
+    audio.volume = 1;
+
+    riskLoseAudioRef.current = audio;
+    audio.play().catch(() => {});
+  } catch {}
+};
 const cashoutRiskGame = async () => {
   if (!userId) {
     setMessage("Bitte zuerst mit Google anmelden.");
@@ -4476,7 +4492,7 @@ const cashoutRiskGame = async () => {
 
   playCashoutSound();
   stopRiskSpinSound();
-  
+
   const nextGiftRarity = getRiskGiftRarity(riskStreak);
   const nextTokens = data.tokens + riskPot;
 
@@ -4655,7 +4671,7 @@ playRiskSpinSound();
 
       if (selected.slug === zombieTeddySymbol.slug) {
   playRiskStopSound(); // 🔥 HIER
-
+playRiskLoseSound();
   setRiskPot(0);
   setRiskStreak(0);
   setRiskGameOver(true);
