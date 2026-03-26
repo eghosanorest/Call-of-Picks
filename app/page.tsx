@@ -3103,7 +3103,28 @@ const riskStake = slotStake;
 const [riskPot, setRiskPot] = useState(0);
 const [riskStreak, setRiskStreak] = useState(0);
 const [riskRunning, setRiskRunning] = useState(false);
+// 🔥 HIER EINFÜGEN (bei deinen anderen helper functions)
+const checkWelcomeGiftStatus = async (uid: string) => {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("welcome_gift_claimed")
+      .eq("id", uid)
+      .maybeSingle();
 
+    if (error) {
+      console.error(error);
+      setShowWelcomeGiftPopup(false);
+      return;
+    }
+
+    setShowWelcomeGiftPopup(!data?.welcome_gift_claimed);
+    setWelcomeGiftClaimed(!!data?.welcome_gift_claimed);
+  } catch (err) {
+    console.error(err);
+    setShowWelcomeGiftPopup(false);
+  }
+};
 useEffect(() => {
   if (!autoSpinRunning || !autoSpinMode) return;
 
@@ -4497,19 +4518,23 @@ const grantServerMysteryBoxByRarity = async (
     return null;
   }
 
-  const { error: insertError } = await supabase.from("inventory_items").insert({
-    owner_id: userId,
-    item_id: itemRow.id,
-    status: "owned",
-  });
+  const { data: insertedRow, error: insertError } = await supabase
+    .from("inventory_items")
+    .insert({
+      owner_id: userId,
+      item_id: itemRow.id,
+      status: "owned",
+    })
+    .select("id")
+    .single();
 
-  if (insertError) {
-    setMessage(insertError.message);
+  if (insertError || !insertedRow?.id) {
+    setMessage(insertError?.message || "Mystery Box konnte nicht gespeichert werden.");
     return null;
   }
 
-  const boxItem = {
-    inventory_id: `mysterybox-${Date.now()}`,
+  const boxItem: LocalInventoryItem = {
+    inventory_id: insertedRow.id, // ✅ echte UUID aus DB
     id: itemRow.slug,
     slug: itemRow.slug,
     name: itemRow.name,
@@ -5421,21 +5446,7 @@ useEffect(() => {
       setIsAdmin(ADMIN_USER_IDS.includes(user.id));
       await ensureProfile(user.id, user.email || "");
 
-const checkWelcomeGiftStatus = async (uid: string) => {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("welcome_gift_claimed")
-    .eq("id", uid)
-    .single();
 
-  if (error) return;
-
-  if (data?.welcome_gift_claimed) {
-    setShowWelcomeGiftPopup(false);
-  } else {
-    setShowWelcomeGiftPopup(true);
-  }
-};
 
 await loadRemoteUserGameState(user.id);
 await loadUserBets(user.id);
@@ -5453,22 +5464,22 @@ await loadChatList(user.id);
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(async (_event, session) => {
+  try {
     if (session?.user) {
       const user = session.user;
       setUserId(user.id);
       setUserEmail(user.email || "");
       setIsAdmin(ADMIN_USER_IDS.includes(user.id));
+
       await ensureProfile(user.id, user.email || "");
-await loadRemoteUserGameState(user.id);
-await loadUserBets(user.id);
-await loadMyGroups(user.id);
-await loadFriends(user.id);
-await loadFriendRequests(user.id);
-await loadChatList(user.id);
+      await checkWelcomeGiftStatus(user.id);
+      await loadRemoteUserGameState(user.id);
+      await loadUserBets(user.id);
+      await loadMyGroups(user.id);
+      await loadFriends(user.id);
+      await loadFriendRequests(user.id);
+      await loadChatList(user.id);
     } else {
-      setShowWelcomeGiftPopup(false);
-setClaimingWelcomeGift(false);
-setWelcomeGiftClaimed(false);
       setUserId("");
       setUserEmail("");
       setProfileName("");
@@ -5496,19 +5507,26 @@ setWelcomeGiftClaimed(false);
         bets: [],
       }));
       setDisplayName("");
-setAvatarUrl("");
-setFriendSearch("");
-setFriendSearchResults([]);
-setFriends([]);
-setFriendRequests([]);
-setActiveChat(null);
-setChatMessages([]);
-setChatInput("");
-setChatOpen(false);
-setProfileOpen(false);
-setProfileTab("profile");
+      setAvatarUrl("");
+      setFriendSearch("");
+      setFriendSearchResults([]);
+      setFriends([]);
+      setFriendRequests([]);
+      setActiveChat(null);
+      setChatMessages([]);
+      setChatInput("");
+      setChatOpen(false);
+      setProfileOpen(false);
+      setProfileTab("profile");
+      setShowWelcomeGiftPopup(false);
+      setClaimingWelcomeGift(false);
+      setWelcomeGiftClaimed(false);
     }
-  });
+  } catch (err) {
+    console.error("AUTH CHANGE ERROR:", err);
+    setMessage("Fehler beim Aktualisieren der Sitzung.");
+  }
+});
 
   return () => subscription.unsubscribe();
 }, []);
